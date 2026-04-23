@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sistema de Ventas</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<style>
+:root{--azul:#1a3c6e;--azul2:#2563eb;--verde:#16a34a;--naranja:#ea580c;--morado:#7c3aed;--rojo:#dc2626;--texto:#1e293b;--sub:#64748b;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display:flex;justify-content:center;}
+.phone{width:100%;max-width:420px;min-height:100vh;background:#f8fafc;display:flex;flex-direction:column;}
+.header{background:linear-gradient(135deg,#1a3c6e,#2563eb);padding:28px 20px 22px;color:white;position:relative;overflow:hidden;}
+.header::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.07);}
+.header h1{font-size:22px;font-weight:900;}
+.header p{font-size:13px;opacity:.75;margin-top:3px;}
+.screen{display:none;flex-direction:column;flex:1;}
+.screen.active{display:flex;}
+.inicio-body{padding:20px 16px;flex:1;}
+.saludo{font-size:15px;color:var(--sub);font-weight:600;margin-bottom:4px;}
+.titulo-sec{font-size:18px;font-weight:800;color:var(--texto);margin-bottom:20px;}
+.btn-menu{display:flex;align-items:center;gap:16px;background:white;border-radius:16px;padding:18px 20px;margin-bottom:12px;border:none;width:100%;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.07);transition:all .15s;text-align:left;}
+.btn-menu:active{transform:scale(.98);}
+.btn-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.btn-icon.verde{background:#dcfce7;}.btn-icon.azul{background:#dbeafe;}.btn-icon.naranja{background:#ffedd5;}.btn-icon.rojo{background:#fee2e2;}.btn-icon.morado{background:#ede9fe;}
+.btn-info{flex:1;}.btn-titulo{font-size:15px;font-weight:800;color:var(--texto);}.btn-sub{font-size:12px;color:var(--sub);margin-top:2px;font-weight:600;}.btn-arrow{font-size:18px;color:#cbd5e1;}
+.btn-gerencia{border:2px dashed #e2e8f0;background:#fafafa;}
+.form-header{background:linear-gradient(135deg,#1a3c6e,#2563eb);padding:16px 20px;display:flex;align-items:center;gap:12px;color:white;}
+.back-btn{background:rgba(255,255,255,.2);border:none;color:white;width:36px;height:36px;border-radius:10px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.form-header-title{font-size:16px;font-weight:800;}.form-header-sub{font-size:12px;opacity:.75;}
+.form-body{padding:16px;flex:1;overflow-y:auto;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.field select,.field input{width:100%;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:13px 16px;font-size:15px;font-family:'Nunito',sans-serif;font-weight:600;color:var(--texto);appearance:none;-webkit-appearance:none;outline:none;transition:border-color .15s;}
+.field select:focus,.field input:focus{border-color:var(--azul2);}
+.field input[readonly]{background:#f8fafc;color:var(--sub);}
+.select-wrap{position:relative;}.select-wrap::after{content:'▾';position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--sub);pointer-events:none;}
+.cuota-auto{background:linear-gradient(135deg,#16a34a,#15803d);border-radius:16px;padding:18px 20px;margin:4px 0 16px;display:none;animation:popIn .3s ease;}
+.cuota-auto.visible{display:block;}
+.aviso-manual{background:linear-gradient(135deg,#ea580c,#c2410c);border-radius:12px;padding:12px 16px;margin:4px 0 8px;display:none;}
+.aviso-manual.visible{display:block;}
+.aviso-manual p{font-size:13px;color:white;font-weight:700;}
+@keyframes popIn{from{transform:scale(.95);opacity:0;}to{transform:scale(1);opacity:1;}}
+.cuota-label{font-size:11px;font-weight:800;color:rgba(255,255,255,.8);text-transform:uppercase;letter-spacing:.5px;}
+.cuota-valor{font-size:32px;font-weight:900;color:white;margin-top:2px;}
+.cuota-detalle{font-size:12px;color:rgba(255,255,255,.75);margin-top:4px;font-weight:600;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.submit-btn{background:linear-gradient(135deg,#1a3c6e,#2563eb);color:white;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;font-family:'Nunito',sans-serif;width:100%;cursor:pointer;margin-top:8px;margin-bottom:24px;box-shadow:0 4px 12px rgba(37,99,235,.35);}
+.submit-btn:active{transform:scale(.98);}
+.hidden{display:none!important;}
+.tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+.tag.verde{background:#dcfce7;color:#16a34a;}.tag.naranja{background:#ffedd5;color:#ea580c;}
+.divider{height:1px;background:#e2e8f0;margin:4px 0 16px;}
+.sec-titulo{font-size:11px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;margin-top:4px;}
+.clave-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:flex-end;justify-content:center;}
+.clave-overlay.visible{display:flex;}
+.clave-box{background:white;border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:420px;animation:slideUp .3s ease;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.clave-titulo{font-size:20px;font-weight:900;color:var(--texto);text-align:center;}
+.clave-sub{font-size:13px;color:var(--sub);text-align:center;margin-top:4px;font-weight:600;margin-bottom:24px;}
+.clave-input{width:100%;border:2px solid #e2e8f0;border-radius:14px;padding:14px;font-size:24px;font-family:'Nunito',sans-serif;font-weight:700;letter-spacing:6px;text-align:center;outline:none;margin-bottom:12px;transition:border-color .15s;}
+.clave-input:focus{border-color:var(--morado);}
+.clave-error{color:var(--rojo);font-size:13px;font-weight:700;text-align:center;margin-bottom:12px;display:none;}
+.clave-error.visible{display:block;}
+.clave-btn{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:800;font-family:'Nunito',sans-serif;width:100%;cursor:pointer;}
+.clave-cancelar{background:none;border:none;color:var(--sub);font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;width:100%;margin-top:12px;cursor:pointer;padding:8px;}
+.success-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;}
+.success-icon{font-size:72px;margin-bottom:16px;animation:bounce .5s ease;}
+@keyframes bounce{0%{transform:scale(0);}70%{transform:scale(1.1);}100%{transform:scale(1);}}
+.success-titulo{font-size:24px;font-weight:900;color:var(--texto);}
+.success-sub{font-size:14px;color:var(--sub);margin-top:8px;font-weight:600;line-height:1.5;}
+.success-back{margin-top:32px;background:var(--azul2);color:white;border:none;border-radius:14px;padding:14px 32px;font-size:15px;font-weight:800;font-family:'Nunito',sans-serif;cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+<!-- INICIO -->
+<div class="screen active" id="screen-inicio">
+  <div class="header"><h1>📱 Sistema de Ventas</h1><p>Selecciona el tipo de registro</p></div>
+  <div class="inicio-body">
+    <div id="btn-conectar" style="width:100%;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;text-align:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(22,163,74,.3);">✅ Conectado a Google Sheets</div>
+    <p class="titulo-sec">¿Qué vas a registrar?</p>
+    <p class="sec-titulo">Ventas</p>
+    <button class="btn-menu" onclick="irA('credito')"><div class="btn-icon verde">📋</div><div class="btn-info"><div class="btn-titulo">Venta a Crédito</div><div class="btn-sub">Oficina · ET Oficina · ET Claro · Recompra · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('contado')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Venta de Contado</div><div class="btn-sub">Pago inmediato</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('accesorios')"><div class="btn-icon naranja">🎧</div><div class="btn-info"><div class="btn-titulo">Venta de Accesorios</div><div class="btn-sub">Vidrios · Forros · Cargadores · más</div></div><span class="btn-arrow">›</span></button>
+    <div class="divider"></div>
+    <p class="sec-titulo">Gastos</p>
+    <button class="btn-menu" onclick="irA('gastos')"><div class="btn-icon rojo">🧾</div><div class="btn-info"><div class="btn-titulo">Gasto Diario</div><div class="btn-sub">Aseo · Papelería · Domicilio · más</div></div><span class="btn-arrow">›</span></button>
+    <div class="divider"></div>
+    <p class="sec-titulo">Acceso restringido</p>
+    <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- CRÉDITO -->
+<div class="screen" id="screen-credito">
+  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">📋 Venta a Crédito</div><div class="form-header-sub">Ingresa los datos de la venta</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha de la Venta</label><input type="date" id="c-fecha"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="c-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Tipo de Venta</label><div class="select-wrap"><select id="c-tipo" onchange="onTipoChange()"><option value="">Seleccionar...</option><option value="OFICINA">OFICINA</option><option value="RECOMPRA">RECOMPRA</option><option value="ET_OFICINA">ET OFICINA</option><option value="ET_CLARO">ET CLARO</option><option value="ALO_CREDIT">ALO CREDIT</option><option value="ADDI">ADDI</option></select></div></div>
+    <div class="field"><label>IMEI <span class="tag verde">Automático</span></label><div class="select-wrap"><select id="c-imei" onchange="autoRef()"><option value="">Seleccionar IMEI disponible...</option></select></div></div>
+    <div class="field"><label>Referencia <span class="tag verde">Automático</span></label><input type="text" id="c-ref" readonly placeholder="Se llena al elegir IMEI"></div>
+    <div class="field" id="c-porc-wrap"><label>Porcentaje</label><div class="select-wrap"><select id="c-porc" onchange="calcularCuota()"><option value="">Seleccionar...</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.25">25%</option><option value="0.30">30%</option><option value="0.35">35%</option><option value="0.40">40%</option></select></div></div>
+    <div class="cuota-auto" id="cuota-box"><div class="cuota-label">✅ Cuota Inicial Calculada</div><div class="cuota-valor" id="cuota-valor">$0</div><div class="cuota-detalle" id="cuota-detalle"></div></div>
+    <div class="aviso-manual" id="cuota-aviso"><p>✏️ Ingresa la cuota inicial manualmente</p></div>
+    <div class="field hidden" id="c-cuota-wrap"><label>Cuota Inicial <span class="tag naranja">Manual</span></label><input type="text" id="c-cuota" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Descuento</label><input type="text" id="c-descuento" placeholder="$0" oninput="formatMoney(this);manejarPago('c')"></div>
+    <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="c-pago" onchange="manejarPago('c')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="c-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('c')"></div><div class="field"><label>Transferencia</label><input type="text" id="c-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('c')"></div></div>
+    <div id="c-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma de efectivo y transferencia debe ser igual a la cuota final</div>
+    <button class="submit-btn" onclick="enviarForm('credito')">Registrar Venta ✓</button>
+  </div>
+</div>
+
+<!-- CONTADO -->
+<div class="screen" id="screen-contado">
+  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">💵 Venta de Contado</div><div class="form-header-sub">Ingresa los datos de la venta</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha de la Venta</label><input type="date" id="ct-fecha"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ct-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>IMEI <span class="tag verde">Automático</span></label><div class="select-wrap"><select id="ct-imei" onchange="autoRefContado()"><option value="">Seleccionar IMEI disponible...</option></select></div></div>
+    <div class="field"><label>Referencia <span class="tag verde">Automático</span></label><input type="text" id="ct-ref" readonly placeholder="Se llena al elegir IMEI"></div>
+    <div class="field"><label>Precio de Venta</label><input type="text" id="ct-precio" placeholder="$0" oninput="formatMoney(this);manejarPago('ct')"></div>
+    <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="ct-pago" onchange="manejarPago('ct')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="ct-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('ct')"></div><div class="field"><label>Transferencia</label><input type="text" id="ct-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('ct')"></div></div>
+    <div id="ct-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma de efectivo y transferencia debe ser igual al precio de venta</div>
+    <button class="submit-btn" onclick="enviarForm('contado')">Registrar Venta ✓</button>
+  </div>
+</div>
+
+<!-- ACCESORIOS -->
+<div class="screen" id="screen-accesorios">
+  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🎧 Venta de Accesorios</div><div class="form-header-sub">Ingresa los datos de la venta</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha de la Venta</label><input type="date" id="a-fecha"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="a-local" onchange="filtrarAccesorios()"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="a-cat" onchange="filtrarAccesorios()"><option value="">Seleccionar...</option><option>VIDRIOS</option><option>FORROS</option><option>CARGADORES</option><option>AUDIFONOS</option><option>CABLES</option><option>PARLANTES</option><option>SIM CARD</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Producto <span class="tag verde">Filtrado automático</span></label><div class="select-wrap"><select id="a-producto"><option value="">Primero elige local y categoría...</option></select></div></div>
+    <div class="row2"><div class="field"><label>Cantidad</label><input type="number" id="a-cant" placeholder="1" value="1" min="1" oninput="manejarPago('a')"></div><div class="field"><label>Precio Unitario</label><input type="text" id="a-precio" placeholder="$0" oninput="formatMoney(this);manejarPago('a')"></div></div>
+    <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="a-pago" onchange="manejarPago('a')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="a-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('a')"></div><div class="field"><label>Transferencia</label><input type="text" id="a-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('a')"></div></div>
+    <div id="a-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al total de la venta</div>
+    <button class="submit-btn" onclick="enviarForm('accesorios')">Registrar Venta ✓</button>
+  </div>
+</div>
+
+<!-- GASTOS -->
+<div class="screen" id="screen-gastos">
+  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🧾 Gasto Diario</div><div class="form-header-sub">Registra un gasto del local</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha del Gasto</label><input type="date" id="ga-fecha"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ga-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Tipo de Gasto</label><div class="select-wrap"><select id="ga-tipo"><option value="">Seleccionar...</option><option>ASEO</option><option>PAPELERIA</option><option>DOMICILIO</option><option>MANTENIMIENTO</option><option>SERVICIOS</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Descripción</label><input type="text" id="ga-desc" placeholder="Ej: Escoba y trapero"></div>
+    <div class="field"><label>Valor</label><input type="text" id="ga-valor" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="ga-metodo"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option></select></div></div>
+    <div class="field"><label>Responsable</label><div class="select-wrap"><select id="ga-resp"><option value="">Seleccionar...</option><option>ADISSON</option><option>CARO</option><option>JOHANETH</option><option>JOSE</option><option>DIANA</option></select></div></div>
+    <button class="submit-btn" onclick="enviarForm('gastos')">Registrar Gasto ✓</button>
+  </div>
+</div>
+
+<!-- GERENCIA MENU -->
+<div class="screen" id="screen-gerencia">
+  <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🔐 Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
+  <div class="form-body">
+    <p class="sec-titulo">Opciones</p>
+    <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Gastos de Gerencia</div><div class="btn-sub">Sueldos · Arriendo · Servicios · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- GASTOS GERENCIA -->
+<div class="screen" id="screen-gastos-gerencia">
+  <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💸 Gastos de Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="g-fecha"></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="g-tipo-cat"><option value="">Seleccionar...</option><option>SUELDOS</option><option>SERVICIOS</option><option>ARRIENDO</option><option>COMPRA TELEFONOS</option><option>COMPRA ACCESORIOS</option><option>MOBILIARIO</option><option>PUBLICIDAD</option><option>DEUDA</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="g-local"><option value="">Seleccionar...</option><option>GENERAL</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="Detalle del gasto"></div>
+    <div class="field"><label>Valor</label><input type="text" id="g-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('g')"></div>
+    <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="g-pago" onchange="manejarPago('g')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="g-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('g')"></div><div class="field"><label>Transferencia</label><input type="text" id="g-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('g')"></div></div>
+    <div id="g-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor del gasto</div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);box-shadow:0 4px 12px rgba(124,58,237,.35)" onclick="enviarForm('gerencia')">Registrar Gasto ✓</button>
+  </div>
+</div>
+
+<!-- ANULAR CREDITO -->
+<div class="screen" id="screen-anular-credito">
+  <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#ef4444)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🔄 Anular Crédito</div><div class="form-header-sub">Libera el IMEI para venderlo de nuevo</div></div></div>
+  <div class="form-body">
+    <div class="field">
+      <label>IMEI del teléfono a anular</label>
+      <input type="text" id="anular-imei" placeholder="Ingresa el IMEI">
+    </div>
+    <div class="field">
+      <label>Motivo</label>
+      <input type="text" id="anular-motivo" placeholder="Ej: Cliente no recogió el equipo">
+    </div>
+    <div id="anular-msg" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;"></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#dc2626,#ef4444);box-shadow:0 4px 12px rgba(220,38,38,.35)" onclick="anularCredito()">Anular Crédito ✗</button>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div class="screen" id="screen-success">
+  <div class="success-screen">
+    <div class="success-icon">✅</div>
+    <div class="success-titulo">¡Registrado!</div>
+    <div class="success-sub">El dato fue enviado correctamente.<br>Ya aparece en el Excel automáticamente.</div>
+    <button class="success-back" onclick="irA('inicio')">Volver al inicio</button>
+  </div>
+</div>
+
+</div><!-- /phone -->
+
+<!-- CLAVE -->
+<div class="clave-overlay" id="clave-overlay">
+  <div class="clave-box">
+    <div class="clave-titulo">🔐 Acceso Restringido</div>
+    <div class="clave-sub">Ingresa la clave de gerencia</div>
+    <input class="clave-input" type="password" id="clave-input" placeholder="••••" maxlength="10" onkeyup="if(event.key==='Enter')verificarClave()">
+    <div class="clave-error" id="clave-error">❌ Clave incorrecta. Intenta de nuevo.</div>
+    <button class="clave-btn" onclick="verificarClave()">Ingresar</button>
+    <button class="clave-cancelar" onclick="cerrarClave()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+const CLAVE = "0707";
+
+const PRECIOS = {
+  "OFICINA":{"SAMSUNG A06 128GB /4":{"0.15":70000,"0.20":90000,"0.25":110000,"0.30":150000,"0.35":195000,"0.40":230000},"SAMSUNG A07 128GB /6":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":170000,"0.35":210000,"0.40":250000},"SAMSUNG A16 128/6":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":180000,"0.35":225000,"0.40":270000},"SAMSUNG A16 256GB":{"0.15":120000,"0.20":175000,"0.25":230000,"0.30":285000,"0.35":340000,"0.40":395000},"SAMSUNG A17 256GB":{"0.15":120000,"0.20":180000,"0.25":240000,"0.30":300000,"0.35":360000,"0.40":420000},"REDMI 15C 128GB/4":{"0.15":100000,"0.20":140000,"0.25":185000,"0.30":220000,"0.35":265000,"0.40":305000},"REDMI 15C 256GB/8":{"0.15":110000,"0.20":155000,"0.25":200000,"0.30":245000,"0.35":290000,"0.40":330000},"REDMI 15 256GB/8":{"0.15":110000,"0.20":180000,"0.25":210000,"0.30":260000,"0.35":310000,"0.40":360000},"REDMI NOTE 14 256GB/8":{"0.15":135000,"0.20":190000,"0.25":245000,"0.30":300000,"0.35":355000,"0.40":410000},"TECNO SPARK GO 2 128GB/4":{"0.15":60000,"0.20":70000,"0.25":90000,"0.30":130000,"0.35":170000,"0.40":205000},"TECNO SPARK GO 2 256GB/4":{"0.15":70000,"0.20":100000,"0.25":130000,"0.30":170000,"0.35":210000,"0.40":250000},"TECNO SPARK GO 3 128GB/4":{"0.15":60000,"0.20":70000,"0.25":100000,"0.30":140000,"0.35":180000,"0.40":220000},"TECNO SPARK 40 256GB/4":{"0.15":70000,"0.20":110000,"0.25":150000,"0.30":190000,"0.35":230000,"0.40":270000},"TECNO SPARK 30 PRO 256GB/8":{"0.15":80000,"0.20":120000,"0.25":170000,"0.30":220000,"0.35":270000,"0.40":320000},"TECNO SPARK 40 PRO 256GB/8":{"0.15":90000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000},"INFINIX SMART 10 256GB/4":{"0.15":60000,"0.20":80000,"0.25":110000,"0.30":150000,"0.35":190000,"0.40":230000},"INFINIX 60I 256GB/4":{"0.15":85000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000},"INFINIX 60I 5G 256GB/8":{"0.15":85000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000},"HONOR X6C 256GB/8":{"0.15":80000,"0.20":90000,"0.25":110000,"0.30":130000,"0.35":180000,"0.40":230000},"HONOR PLAY 9C 256GB/6":{"0.15":70000,"0.20":80000,"0.25":90000,"0.30":110000,"0.35":150000,"0.40":200000},"HONOR 200 SMART 5G 256GB/8":{"0.15":90000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":325000},"HONOR 400 SMART 5G 256GB/16":{"0.15":100000,"0.20":145000,"0.25":210000,"0.30":275000,"0.35":340000,"0.40":405000}},
+  "ET_OFICINA":{"SAMSUNG A06 4 128GB":{"0.15":70000,"0.20":90000,"0.25":110000,"0.30":150000,"0.35":195000,"0.40":230000},"SAMSUNG A07 DE 6 128GB":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":170000,"0.35":210000,"0.40":250000},"SAMSUNG A16 6 128GB":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":180000,"0.35":225000,"0.40":270000},"SAMSUNG A16 8 256GB":{"0.15":120000,"0.20":175000,"0.25":230000,"0.30":285000,"0.35":340000,"0.40":395000},"SAMSUNG A17 DE 8 256GB":{"0.15":120000,"0.20":180000,"0.25":240000,"0.30":300000,"0.35":360000,"0.40":420000},"SAMSUNG A26 8 RAM 256GB 5G":{"0.15":150000,"0.20":210000,"0.25":270000,"0.30":330000,"0.35":390000,"0.40":450000},"SAMSUNG A36 8 256GB 5G":{"0.15":160000,"0.20":220000,"0.25":280000,"0.30":340000,"0.35":400000,"0.40":460000},"REDMI A5 4 128GB":{"0.15":50000,"0.20":80000,"0.25":100000,"0.30":130000,"0.35":160000,"0.40":190000},"XIAOMI 15C 4 128GB":{"0.15":100000,"0.20":140000,"0.25":185000,"0.30":220000,"0.35":265000,"0.40":305000},"XIAOMI 15C 8 256GB":{"0.15":110000,"0.20":155000,"0.25":200000,"0.30":245000,"0.35":290000,"0.40":330000},"XIAOMI REDMI 15 DE 8 256GB":{"0.15":120000,"0.20":165000,"0.25":210000,"0.30":255000,"0.35":300000,"0.40":340000},"TECNO SPARK GO 2 4RAM 128GB":{"0.15":60000,"0.20":70000,"0.25":90000,"0.30":130000,"0.35":170000,"0.40":205000},"TECNO SPARK GO 3 4RAM 128GB":{"0.15":60000,"0.20":70000,"0.25":100000,"0.30":140000,"0.35":180000,"0.40":220000},"SMARTH 10 4 256GB":{"0.15":60000,"0.20":80000,"0.25":110000,"0.30":150000,"0.35":190000,"0.40":230000},"INFINIX 60I 8RAM 256GB 5G":{"0.15":85000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000}},
+  "ET_CLARO":{"SAMSUNG A06 128GB /4":{"0.15":70000,"0.20":90000,"0.25":110000,"0.30":150000,"0.35":195000,"0.40":230000},"SAMSUNG A07 128GB /6":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":170000,"0.35":210000,"0.40":250000},"SAMSUNG A16 128/6":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":180000,"0.35":225000,"0.40":270000},"SAMSUNG A16 256GB":{"0.15":120000,"0.20":170000,"0.25":230000,"0.30":285000,"0.35":340000,"0.40":395000},"SAMSUNG A17 6 128GB":{"0.15":100000,"0.20":120000,"0.25":150000,"0.30":200000,"0.35":255000,"0.40":290000},"SAMSUNG A17 256GB":{"0.15":120000,"0.20":170000,"0.25":230000,"0.30":285000,"0.35":340000,"0.40":395000},"SAMSUNG A26 256GB":{"0.15":130000,"0.20":190000,"0.25":250000,"0.30":310000,"0.35":370000,"0.40":430000},"REDMI 15C 128GB/4":{"0.15":80000,"0.20":120000,"0.25":160000,"0.30":200000,"0.35":240000,"0.40":280000},"REDMI 15C 256GB/8":{"0.15":100000,"0.20":145000,"0.25":190000,"0.30":235000,"0.35":280000,"0.40":325000},"REDMI 15 256GB/8":{"0.15":110000,"0.20":160000,"0.25":210000,"0.30":260000,"0.35":310000,"0.40":360000},"TECNO SPARK 30 PRO 256GB/8":{"0.15":80000,"0.20":120000,"0.25":170000,"0.30":220000,"0.35":270000,"0.40":320000},"TECNO SPARK GO 2 128GB/4":{"0.15":60000,"0.20":70000,"0.25":90000,"0.30":130000,"0.35":170000,"0.40":205000},"TECNO SPARK GO 3 128GB/4":{"0.15":60000,"0.20":70000,"0.25":100000,"0.30":140000,"0.35":180000,"0.40":220000},"INFINIX SMART 10 256GB/4":{"0.15":60000,"0.20":80000,"0.25":110000,"0.30":150000,"0.35":190000,"0.40":230000},"INFINIX 60I 256GB/4":{"0.15":85000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000}},
+  "RECOMPRA":{"SAMSUNG A06 128GB /4":{"0.15":30000,"0.20":70000,"0.25":110000},"SAMSUNG A07 128GB /6":{"0.15":50000,"0.20":100000,"0.25":130000},"SAMSUNG A16 128/6":{"0.15":50000,"0.20":80000,"0.25":130000},"SAMSUNG A16 8 256GB":{"0.15":80000,"0.20":140000,"0.25":190000},"SAMSUNG A17 8 256GB":{"0.15":90000,"0.20":150000,"0.25":200000},"SAMSUNG A26 8 256GB":{"0.15":50000,"0.20":100000,"0.25":150000},"SAMSUNG A36 8 256GB":{"0.15":60000,"0.20":100000,"0.25":180000},"SAMSUNG A56 8 256GB":{"0.15":80000,"0.20":180000,"0.25":280000},"REDMI 15C 128GB/4":{"0.15":40000,"0.20":80000,"0.25":120000},"REDMI 15C 256GB/8":{"0.15":70000,"0.20":115000,"0.25":160000},"REDMI NOTE 15 8 256GB":{"0.15":90000,"0.20":140000,"0.25":200000},"REDMI NOTE 15 PRO 8 256GB":{"0.15":50000,"0.20":120000,"0.25":200000},"REDMI NOTE 15 PRO 8 512GB":{"0.15":80000,"0.20":180000,"0.25":260000},"REDMI NOTE 15 PRO PLUS 8 256GB":{"0.15":90000,"0.20":180000,"0.25":280000},"REDMI NOTE 14 256GB/8":{"0.15":40000,"0.20":100000,"0.25":150000},"INFINIX SMART 10 256GB/4":{"0.15":60000,"0.20":95000,"0.25":130000},"INFINIX 60I 256GB/4":{"0.15":70000,"0.20":115000,"0.25":160000},"INFINIX 60I 5G 256GB/8 5G":{"0.15":70000,"0.20":120000,"0.25":170000},"INFINIX NOTE 50S 8 256GB":{"0.15":40000,"0.20":120000,"0.25":180000},"INFINIX HOT 60 PRO PLUS 8 256GB":{"0.15":40000,"0.20":110000,"0.25":170000},"HONOR X6C 8 256GB":{"0.15":30000,"0.20":70000,"0.25":120000},"HONOR MAGIC 8 LITE 8 256GB":{"0.15":40000,"0.20":120000,"0.25":200000},"HONOR 200 SMART 5G 256GB/8":{"0.15":40000,"0.20":80000,"0.25":130000},"HONOR 400 SMART 5G 256GB/16":{"0.15":40000,"0.20":100000,"0.25":160000}}
+};
+
+// IMEIs disponibles (demo - en producción lee del Excel en OneDrive)
+const IMEIS = [
+  {imei:"12345678", ref:"SAMSUNG A07 DE 6 128GB"},
+  {imei:"99887766", ref:"SAMSUNG A16 128/6"},
+  {imei:"11223344", ref:"REDMI 15C 128GB/4"},
+  {imei:"55667788", ref:"TECNO SPARK GO 2 128GB/4"},
+];
+
+// Accesorios (demo - en producción lee del Excel en OneDrive)
+const ACCESORIOS = [
+  {local:"SABANALARGA", cat:"VIDRIOS", producto:"VIDRIO SAMSUNG A07", stock:1},
+  {local:"SABANALARGA", cat:"VIDRIOS", producto:"VIDRIO SAMSUNG A17", stock:4},
+  {local:"PALMAR DE VARELA", cat:"AUDIFONOS", producto:"MUSIC", stock:6},
+  {local:"PUERTO COLOMBIA", cat:"AUDIFONOS", producto:"BLOTU", stock:7},
+  {local:"PUERTO COLOMBIA", cat:"CABLES", producto:"CABLE PRIMUM V8", stock:8},
+];
+
+function irA(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('screen-'+s).classList.add('active');window.scrollTo(0,0);}
+function volver(){irA('inicio');}
+
+// Cargar IMEIs al iniciar
+window.onload = function() {
+  // Cargar IMEIs
+  ['c-imei','ct-imei'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    sel.innerHTML = '<option value="">Seleccionar IMEI disponible...</option>';
+    IMEIS.forEach(i => {
+      sel.innerHTML += `<option value="${i.imei}|${i.ref}">${i.imei} — ${i.ref}</option>`;
+    });
+  });
+  // Poner fecha de hoy en todos los formularios
+  const hoy = new Date().toISOString().split('T')[0];
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = hoy;
+  });
+};
+
+function formatMoney(input){
+  let val = input.value.replace(/[^0-9]/g,'');
+  if(!val){input.value='';return;}
+  input.value = '$' + parseInt(val).toLocaleString('es-CO');
+}
+
+function autoRef(){
+  const sel = document.getElementById('c-imei').value;
+  document.getElementById('c-ref').value = sel ? sel.split('|')[1] : '';
+  calcularCuota();
+}
+
+function autoRefContado(){
+  const sel = document.getElementById('ct-imei').value;
+  document.getElementById('ct-ref').value = sel ? sel.split('|')[1] : '';
+}
+
+function onTipoChange(){
+  const tipo = document.getElementById('c-tipo').value;
+  const porcWrap = document.getElementById('c-porc-wrap');
+  const cuotaWrap = document.getElementById('c-cuota-wrap');
+  const cuotaBox = document.getElementById('cuota-box');
+  const aviso = document.getElementById('cuota-aviso');
+
+  // Reset todo
+  cuotaBox.classList.remove('visible');
+  aviso.classList.remove('visible');
+  cuotaWrap.classList.add('hidden');
+  porcWrap.classList.remove('hidden');
+  document.getElementById('c-porc').value = '';
+
+  if(tipo === 'ADDI'){
+    // Sin porcentaje, cuota siempre manual
+    porcWrap.classList.add('hidden');
+    cuotaWrap.classList.remove('hidden');
+    aviso.classList.add('visible');
+  } else if(tipo === 'ALO_CREDIT'){
+    // Con porcentaje pero cuota siempre manual
+    cuotaWrap.classList.remove('hidden');
+    aviso.classList.add('visible');
+  }
+  // OFICINA, ET_OFICINA, ET_CLARO, RECOMPRA: mostrar porcentaje y dejar que calcularCuota decida
+}
+
+function calcularCuota(){
+  const tipo = document.getElementById('c-tipo').value;
+  const imeiSel = document.getElementById('c-imei').value;
+  const ref = imeiSel ? imeiSel.split('|')[1] : '';
+  const porc = document.getElementById('c-porc').value;
+  const cuotaBox = document.getElementById('cuota-box');
+  const cuotaWrap = document.getElementById('c-cuota-wrap');
+  const aviso = document.getElementById('cuota-aviso');
+
+  if(!tipo || tipo==='ALO_CREDIT' || tipo==='ADDI') return;
+
+  cuotaBox.classList.remove('visible');
+  aviso.classList.remove('visible');
+  cuotaWrap.classList.add('hidden');
+
+  if(!ref || !porc) return;
+
+  const porcKey = parseFloat(porc).toFixed(2);
+
+  // RECOMPRA 30/35/40 → manual
+  if(tipo==='RECOMPRA' && ['0.30','0.35','0.40'].includes(porcKey)){
+    cuotaWrap.classList.remove('hidden');
+    aviso.classList.add('visible');
+    return;
+  }
+
+  // Usar precios dinámicos del Google Sheets primero, luego los estáticos
+  const tabla = PRECIOS_DINAMICOS[tipo] || PRECIOS[tipo];
+  if(!tabla || !tabla[ref] || !tabla[ref][porcKey]){
+    cuotaWrap.classList.remove('hidden');
+    aviso.classList.add('visible');
+    return;
+  }
+
+  const cuota = tabla[ref][porcKey];
+  document.getElementById('cuota-valor').textContent = '$' + cuota.toLocaleString('es-CO');
+  document.getElementById('cuota-detalle').textContent = ref + ' · ' + (parseFloat(porc)*100) + '%';
+  cuotaBox.classList.add('visible');
+}
+
+function filtrarAccesorios(){
+  const local = document.getElementById('a-local').value;
+  const cat = document.getElementById('a-cat').value;
+  const sel = document.getElementById('a-producto');
+  sel.innerHTML = '';
+  if(!local || !cat){sel.innerHTML='<option value="">Primero elige local y categoría...</option>';return;}
+  // Usar accesorios del Excel si están disponibles
+  const fuente = window.ACCESORIOS_EXCEL || ACCESORIOS;
+  const found = fuente.filter(a=>a.local===local && a.cat===cat && a.stock>0);
+  if(!found.length){sel.innerHTML='<option value="">Sin stock disponible en este local</option>';return;}
+  sel.innerHTML='<option value="">Seleccionar...</option>';
+  found.forEach(a=>{sel.innerHTML+=`<option value="${a.producto}">${a.producto} (Stock: ${a.stock})</option>`;});
+}
+
+function mostrarClave(){
+  document.getElementById('clave-overlay').classList.add('visible');
+  document.getElementById('clave-input').value='';
+  document.getElementById('clave-error').classList.remove('visible');
+  setTimeout(()=>document.getElementById('clave-input').focus(),300);
+}
+function cerrarClave(){document.getElementById('clave-overlay').classList.remove('visible');}
+function verificarClave(){
+  const val = document.getElementById('clave-input').value;
+  if(val===CLAVE){
+    cerrarClave();
+    document.getElementById('g-fecha').value = new Date().toISOString().split('T')[0];
+    irA('gerencia');
+  } else {
+    document.getElementById('clave-error').classList.add('visible');
+    document.getElementById('clave-input').value='';
+    document.getElementById('clave-input').focus();
+  }
+}
+
+// ===== LÓGICA DE PAGO =====
+function getValorTotal(prefijo) {
+  if(prefijo === 'c') {
+    // Crédito: cuota final = cuota inicial - descuento
+    const cuotaAuto = document.getElementById('cuota-box').classList.contains('visible')
+      ? parseInt(document.getElementById('cuota-valor').textContent.replace(/[^0-9]/g,'')) : 0;
+    const cuotaManual = parseInt((document.getElementById('c-cuota')?.value||'').replace(/[^0-9]/g,'')) || 0;
+    const cuota = cuotaAuto || cuotaManual;
+    const descuento = parseInt((document.getElementById('c-descuento')?.value||'').replace(/[^0-9]/g,'')) || 0;
+    return cuota - descuento;
+  } else if(prefijo === 'ct') {
+    return parseInt((document.getElementById('ct-precio')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  } else if(prefijo === 'a') {
+    const cant = parseInt(document.getElementById('a-cant')?.value) || 1;
+    const precio = parseInt((document.getElementById('a-precio')?.value||'').replace(/[^0-9]/g,'')) || 0;
+    return cant * precio;
+  } else if(prefijo === 'g') {
+    return parseInt((document.getElementById('g-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  }
+  return 0;
+}
+
+function formatearMonto(valor) {
+  if (!valor) return '';
+  return '$' + valor.toLocaleString('es-CO');
+}
+
+function manejarPago(prefijo) {
+  const pago = document.getElementById(`${prefijo}-pago`)?.value;
+  const efectivoEl = document.getElementById(`${prefijo}-efectivo`);
+  const transferEl = document.getElementById(`${prefijo}-transfer`);
+  const errorEl = document.getElementById(`${prefijo}-mixto-error`);
+  
+  if (!pago || !efectivoEl || !transferEl) return;
+  
+  const total = getValorTotal(prefijo);
+  
+  if (pago === 'EFECTIVO') {
+    efectivoEl.value = total ? formatearMonto(total) : '';
+    efectivoEl.readOnly = true;
+    efectivoEl.style.background = '#f8fafc';
+    transferEl.value = '';
+    transferEl.readOnly = true;
+    transferEl.style.background = '#f8fafc';
+    if(errorEl) errorEl.style.display = 'none';
+  } else if (pago === 'TRANSFERENCIA') {
+    transferEl.value = total ? formatearMonto(total) : '';
+    transferEl.readOnly = true;
+    transferEl.style.background = '#f8fafc';
+    efectivoEl.value = '';
+    efectivoEl.readOnly = true;
+    efectivoEl.style.background = '#f8fafc';
+    if(errorEl) errorEl.style.display = 'none';
+  } else if (pago === 'MIXTO') {
+    efectivoEl.value = '';
+    efectivoEl.readOnly = false;
+    efectivoEl.style.background = 'white';
+    transferEl.value = '';
+    transferEl.readOnly = false;
+    transferEl.style.background = 'white';
+    efectivoEl.focus();
+  } else {
+    efectivoEl.value = '';
+    efectivoEl.readOnly = false;
+    efectivoEl.style.background = 'white';
+    transferEl.value = '';
+    transferEl.readOnly = false;
+    transferEl.style.background = 'white';
+    if(errorEl) errorEl.style.display = 'none';
+  }
+}
+
+function validarMixto(prefijo) {
+  const pago = document.getElementById(`${prefijo}-pago`)?.value;
+  if (pago !== 'MIXTO') return true;
+  
+  const efectivo = parseInt((document.getElementById(`${prefijo}-efectivo`)?.value||'').replace(/[^0-9]/g,'')) || 0;
+  const transfer = parseInt((document.getElementById(`${prefijo}-transfer`)?.value||'').replace(/[^0-9]/g,'')) || 0;
+  const total = getValorTotal(prefijo);
+  const errorEl = document.getElementById(`${prefijo}-mixto-error`);
+  
+  if (total > 0 && (efectivo + transfer) !== total) {
+    if(errorEl) errorEl.style.display = 'block';
+    return false;
+  }
+  if(errorEl) errorEl.style.display = 'none';
+  return true;
+}
+// ===== CONFIGURACIÓN MICROSOFT ONEDRIVE =====
+const MS_CLIENT_ID = '1c3a5663-3ecb-4d9b-bdb6-bec271a857a5';
+const MS_FILE_ID = '0AF505C4-CC10-49E9-84AD-038737307B4D';
+const MS_SCOPES = ['Files.ReadWrite', 'User.Read'];
+const GRAPH_URL = 'https://graph.microsoft.com/v1.0';
+
+let msalApp = null;
+let msAccount = null;
+let PRECIOS_DINAMICOS = {};
+
+// Inicializar MSAL
+async function initMSAL() {
+  const config = {
+    auth: {
+      clientId: MS_CLIENT_ID,
+      authority: 'https://login.microsoftonline.com/consumers',
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: 'sessionStorage' }
+  };
+  msalApp = new msal.PublicClientApplication(config);
+  await msalApp.initialize();
+
+  // Manejar respuesta de redirect
+  try {
+    const resp = await msalApp.handleRedirectPromise();
+    if (resp) {
+      msAccount = resp.account;
+      msalApp.setActiveAccount(msAccount);
+      actualizarBotonConexion(true);
+      await cargarTodo();
+    } else {
+      const accounts = msalApp.getAllAccounts();
+      if (accounts.length > 0) {
+        msAccount = accounts[0];
+        msalApp.setActiveAccount(msAccount);
+        actualizarBotonConexion(true);
+        await cargarTodo();
+      }
+    }
+  } catch(e) {
+    console.log('Error MSAL init:', e);
+  }
+}
+
+function actualizarBotonConexion(conectado) {
+  const btn = document.getElementById('btn-conectar');
+  if (!btn) return;
+  if (conectado) {
+    btn.textContent = '✅ Conectado a Excel';
+    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+    btn.onclick = null;
+  } else {
+    btn.textContent = '🔗 Conectar con Excel (OneDrive)';
+    btn.style.background = 'linear-gradient(135deg,#1a3c6e,#2563eb)';
+    btn.onclick = conectarMicrosoft;
+  }
+}
+
+async function conectarMicrosoft() {
+  try {
+    await msalApp.loginRedirect({ scopes: MS_SCOPES });
+  } catch(e) {
+    console.error('Error login:', e);
+  }
+}
+
+async function getToken() {
+  try {
+    const resp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
+    return resp.accessToken;
+  } catch(e) {
+    const resp = await msalApp.acquireTokenRedirect({ scopes: MS_SCOPES });
+    return null;
+  }
+}
+
+async function graphGet(endpoint) {
+  const token = await getToken();
+  if (!token) return null;
+  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (r.ok) return await r.json();
+  return null;
+}
+
+async function graphPost(endpoint, body) {
+  const token = await getToken();
+  if (!token) return null;
+  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) return await r.json();
+  const err = await r.text();
+  console.error('Graph error:', err);
+  return null;
+}
+
+async function graphPatch(endpoint, body) {
+  const token = await getToken();
+  if (!token) return null;
+  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+    method: 'PATCH',
+    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) return await r.json();
+  return null;
+}
+
+window.onload = async function() {
+  const hoy = new Date().toISOString().split('T')[0];
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = hoy;
+  });
+  actualizarBotonConexion(false);
+  await initMSAL();
+};
+
+async function cargarTodo() {
+  if (!msAccount) return;
+  try {
+    // Cargar IMEIs disponibles
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    if (inv && inv.values) {
+      const imeis = [];
+      for (let i = 1; i < inv.values.length; i++) {
+        const row = inv.values[i];
+        const imei = row[0];
+        const ref = row[1];
+        const estado = row[6] ? row[6].toString().toUpperCase() : '';
+        if (imei && estado !== 'VENDIDO') {
+          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0 });
+        }
+      }
+      ['c-imei','ct-imei'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.innerHTML = '<option value="">Seleccionar IMEI disponible...</option>';
+        imeis.forEach(i => {
+          sel.innerHTML += `<option value="${i.imei}|${i.ref}|${i.costo}">${i.imei} — ${i.ref}</option>`;
+        });
+      });
+    }
+    const acc = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
+    if (acc && acc.values) {
+      window.ACCESORIOS_EXCEL = [];
+      for (let i = 1; i < acc.values.length; i++) {
+        const row = acc.values[i];
+        const stock = parseInt(row[5]) || 0;
+        if (row[0] && row[1] && row[2] && stock > 0) {
+          window.ACCESORIOS_EXCEL.push({ local: row[0].toString(), cat: row[1].toString(), producto: row[2].toString(), stock, costo: parseFloat(row[4]) || 0 });
+        }
+      }
+    }
+
+    // Cargar precios de las 4 tablas
+    const tablas = ['OFICINA', 'ET_OFICINA', 'ET_CLARO', 'RECOMPRA'];
+    for (const tabla of tablas) {
+      const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${tabla}/usedRange`);
+      if (data && data.values && data.values.length > 1) {
+        PRECIOS_DINAMICOS[tabla] = {};
+        const headers = data.values[0].slice(1);
+        for (let i = 1; i < data.values.length; i++) {
+          const row = data.values[i];
+          const ref = row[0] ? row[0].toString().trim() : '';
+          if (!ref) continue;
+          PRECIOS_DINAMICOS[tabla][ref] = {};
+          headers.forEach((porc, j) => {
+            const key = parseFloat(porc).toFixed(2);
+            PRECIOS_DINAMICOS[tabla][ref][key] = row[j + 1] || 0;
+          });
+        }
+      }
+    }
+    console.log('Todo cargado desde OneDrive ✅');
+  } catch(e) {
+    console.error('Error cargando datos:', e);
+  }
+}
+
+async function agregarFilaExcel(hoja, fila) {
+  if (!msAccount) {
+    alert('⚠️ Conecta con Excel primero.');
+    return false;
+  }
+  // Buscar la tabla en la hoja
+  const tablaMap = {
+    'VENTAS_CREDITOS': 'TBL_VENTAS_CREDITOS',
+    'VENTAS_CONTADO': 'TBL_VENTAS_CONTADO',
+    'VENTAS_ACCESORIOS': 'TBL_VENTAS_ACCESORIOS',
+    'GASTOS_DIARIOS': 'TBL_GASTOS_DIARIOS',
+    'GASTOS_GERENCIA': 'TBL_GASTOS_GERENCIA'
+  };
+  const tabla = tablaMap[hoja];
+  if (!tabla) return false;
+
+  const result = await graphPost(
+    `/me/drive/items/${MS_FILE_ID}/workbook/tables/${tabla}/rows`,
+    { values: [fila] }
+  );
+  return result !== null;
+}
+
+async function marcarVendidoExcel(imei, tipoVenta) {
+  if (!imei) return;
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    if (!inv || !inv.values) return;
+    for (let i = 1; i < inv.values.length; i++) {
+      if (inv.values[i][0] && inv.values[i][0].toString() === imei.toString()) {
+        const fila = i + 1;
+        await graphPatch(
+          `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
+          { values: [['VENDIDO', tipoVenta]] }
+        );
+        break;
+      }
+    }
+  } catch(e) {
+    console.error('Error marcando vendido:', e);
+  }
+}
+
+function getNumero(id) {
+  const el = document.getElementById(id);
+  if(!el) return 0;
+  return parseInt(el.value.replace(/[^0-9]/g,'')) || 0;
+}
+
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+async function enviarForm(tipo) {
+  if (!msAccount) {
+    alert('⚠️ Conecta con Excel primero tocando el botón azul.');
+    return;
+  }
+
+  // Validar MIXTO antes de enviar
+  const prefijoMap = { credito:'c', contado:'ct', accesorios:'a', gastos:'ga', gerencia:'g' };
+  const pref = prefijoMap[tipo];
+  if (pref && pref !== 'ga') {
+    const pagoEl = document.getElementById(`${pref}-pago`);
+    if (pagoEl && pagoEl.value === 'MIXTO' && !validarMixto(pref)) {
+      alert('⚠️ La suma de efectivo y transferencia no coincide con el total. Corrígela antes de continuar.');
+      return;
+    }
+  }
+
+  const fecha = new Date().toISOString().split('T')[0];
+  let hoja = '';
+  let fila = [];
+  let imei = '';
+
+  if(tipo === 'credito') {
+    const imeiSel = getVal('c-imei');
+    imei = imeiSel ? imeiSel.split('|')[0] : '';
+    const cuotaAuto = document.getElementById('cuota-box').classList.contains('visible')
+      ? parseInt(document.getElementById('cuota-valor').textContent.replace(/[^0-9]/g,'')) : 0;
+    const cuotaManual = getNumero('c-cuota');
+    const cuota = cuotaAuto || cuotaManual;
+    const descuento = getNumero('c-descuento');
+    hoja = 'VENTAS_CREDITOS';
+    fila = [getVal('c-fecha')||fecha, getVal('c-local'), getVal('c-tipo'), getVal('c-ref'), imei, parseFloat(getVal('c-porc'))||0, cuota, descuento, cuota-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK'];
+
+  } else if(tipo === 'contado') {
+    const imeiSel = getVal('ct-imei');
+    imei = imeiSel ? imeiSel.split('|')[0] : '';
+    const costoContado = imeiSel ? (parseFloat(imeiSel.split('|')[2]) || 0) : 0;
+    const precioContado = getNumero('ct-precio');
+    const utilidadContado = precioContado - costoContado;
+    hoja = 'VENTAS_CONTADO';
+    // FECHA, LOCAL, IMEI, REFERENCIA, PRECIO VENTA, COSTO, UTILIDAD, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, TIPO DE VENTA
+    fila = [getVal('ct-fecha')||fecha, getVal('ct-local'), imei, getVal('ct-ref'), precioContado, costoContado, utilidadContado, getVal('ct-pago'), getNumero('ct-efectivo'), getNumero('ct-transfer'), 'OK', 'CONTADO'];
+
+  } else if(tipo === 'accesorios') {
+    const cant = parseInt(getVal('a-cant'))||1;
+    const precio = getNumero('a-precio');
+    const productoSel = getVal('a-producto');
+    const localSel = getVal('a-local');
+    let costoUnitario = 0;
+    if(window.ACCESORIOS_EXCEL) {
+      const found = window.ACCESORIOS_EXCEL.find(a => a.producto === productoSel && a.local === localSel);
+      if(found) costoUnitario = found.costo || 0;
+    }
+    const costoTotal = costoUnitario * cant;
+    const utilidad = (cant * precio) - costoTotal;
+    hoja = 'VENTAS_ACCESORIOS';
+    // FECHA, LOCAL, CATEGORIA, PRODUCTO, CANTIDAD, PRECIO UNITARIO, TOTAL, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, COSTO, UTILIDAD
+    fila = [getVal('a-fecha')||fecha, localSel, getVal('a-cat'), productoSel, cant, precio, cant*precio, getVal('a-pago'), getNumero('a-efectivo'), getNumero('a-transfer'), 'OK', costoTotal, utilidad];
+
+  } else if(tipo === 'gastos') {
+    hoja = 'GASTOS_DIARIOS';
+    // FECHA, LOCAL, TIPO GASTO, DESCRIPCION, VALOR, METODO PAGO, RESPONSABLE
+    fila = [getVal('ga-fecha')||fecha, getVal('ga-local'), getVal('ga-tipo'), getVal('ga-desc'), getNumero('ga-valor'), getVal('ga-metodo'), getVal('ga-resp')];
+
+  } else if(tipo === 'gerencia') {
+    hoja = 'GASTOS_GERENCIA';
+    // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, RESPONSABLE
+    fila = [getVal('g-fecha')||fecha, getVal('g-tipo-cat'), '', getVal('g-desc'), getVal('g-local'), getNumero('g-valor'), getVal('g-pago'), getNumero('g-efectivo'), getNumero('g-transfer'), 'OK', ''];
+  }
+
+  const btn = document.querySelector(`#screen-${tipo} .submit-btn`);
+  if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+
+  const ok = await agregarFilaExcel(hoja, fila);
+
+  if(ok && imei && (tipo === 'credito' || tipo === 'contado')) {
+    await marcarVendidoExcel(imei, tipo === 'contado' ? 'CONTADO' : getVal('c-tipo'));
+    await cargarTodo();
+  }
+  if(ok && tipo === 'accesorios') {
+    await cargarTodo();
+  }
+
+  if(btn){ btn.textContent = ok ? 'Registrar ✓' : 'Reintentar ⚠️'; btn.disabled = false; }
+  if(ok) {
+    limpiarFormulario(tipo);
+    irA('success');
+  } else {
+    alert('⚠️ Error al enviar. Verifica tu conexión e intenta de nuevo.');
+  }
+}
+
+function limpiarFormulario(tipo) {
+  const hoy = new Date().toISOString().split('T')[0];
+  // Reset readonly en campos de pago
+  ['c-efectivo','c-transfer','ct-efectivo','ct-transfer','a-efectivo','a-transfer','g-efectivo','g-transfer'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el){ el.readOnly = false; el.style.background = 'white'; }
+  });
+  ['c-mixto-error','ct-mixto-error','a-mixto-error','g-mixto-error'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+
+  if(tipo === 'credito') {
+    document.getElementById('c-fecha').value = hoy;
+    document.getElementById('c-local').value = '';
+    document.getElementById('c-tipo').value = '';
+    document.getElementById('c-imei').value = '';
+    document.getElementById('c-ref').value = '';
+    document.getElementById('c-porc').value = '';
+    document.getElementById('c-descuento').value = '';
+    document.getElementById('c-pago').value = '';
+    document.getElementById('c-efectivo').value = '';
+    document.getElementById('c-transfer').value = '';
+    document.getElementById('c-cuota').value = '';
+    document.getElementById('cuota-box').classList.remove('visible');
+    document.getElementById('cuota-aviso').classList.remove('visible');
+    document.getElementById('c-cuota-wrap').classList.add('hidden');
+  } else if(tipo === 'contado') {
+    document.getElementById('ct-fecha').value = hoy;
+    document.getElementById('ct-local').value = '';
+    document.getElementById('ct-imei').value = '';
+    document.getElementById('ct-ref').value = '';
+    document.getElementById('ct-precio').value = '';
+    document.getElementById('ct-pago').value = '';
+    document.getElementById('ct-efectivo').value = '';
+    document.getElementById('ct-transfer').value = '';
+  } else if(tipo === 'accesorios') {
+    document.getElementById('a-fecha').value = hoy;
+    document.getElementById('a-local').value = '';
+    document.getElementById('a-cat').value = '';
+    document.getElementById('a-producto').innerHTML = '<option value="">Primero elige local y categoría...</option>';
+    document.getElementById('a-cant').value = '1';
+    document.getElementById('a-precio').value = '';
+    document.getElementById('a-pago').value = '';
+    document.getElementById('a-efectivo').value = '';
+    document.getElementById('a-transfer').value = '';
+  } else if(tipo === 'gastos') {
+    document.getElementById('ga-fecha').value = hoy;
+    document.getElementById('ga-local').value = '';
+    document.getElementById('ga-tipo').value = '';
+    document.getElementById('ga-desc').value = '';
+    document.getElementById('ga-valor').value = '';
+    document.getElementById('ga-metodo').value = '';
+    document.getElementById('ga-resp').value = '';
+  } else if(tipo === 'gerencia') {
+    document.getElementById('g-fecha').value = hoy;
+    document.getElementById('g-tipo-cat').value = '';
+    document.getElementById('g-local').value = '';
+    document.getElementById('g-desc').value = '';
+    document.getElementById('g-valor').value = '';
+    document.getElementById('g-pago').value = '';
+    document.getElementById('g-efectivo').value = '';
+    document.getElementById('g-transfer').value = '';
+  }
+}
+async function anularCredito() {
+  const imei = document.getElementById('anular-imei').value.trim();
+  const motivo = document.getElementById('anular-motivo').value.trim();
+  const msg = document.getElementById('anular-msg');
+
+  if(!imei) { 
+    msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
+    msg.textContent='⚠️ Ingresa el IMEI del teléfono a anular.'; return; 
+  }
+
+  msg.style.display='block'; msg.style.background='#fef3c7'; msg.style.color='#92400e';
+  msg.textContent='⏳ Buscando y anulando...';
+
+  try {
+    // 1. Buscar en VENTAS_CREDITOS y marcar como ANULADO
+    // Columnas: A=FECHA,B=LOCAL,C=TIPO_VENTA,D=REFERENCIA,E=IMEI(índice 4),... N=ESTADO(índice 13)
+    const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`);
+    let filaAnulada = -1;
+    if(ventas && ventas.values) {
+      for(let i=1; i<ventas.values.length; i++) {
+        const row = ventas.values[i];
+        // IMEI está en columna E = índice 4
+        if(row[4] && row[4].toString() === imei && row[13] !== 'ANULADO') {
+          filaAnulada = i+1;
+          break;
+        }
+      }
+    }
+
+    if(filaAnulada > 0) {
+      // ESTADO columna N = columna número 14
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/cell(row=${filaAnulada},column=14)`, { values: [['ANULADO']] });
+    }
+
+    // 2. Liberar IMEI en INVENTARIO_TELEFONO
+    // Columnas: A=IMEI, B=REFERENCIA, C=COSTO, D=FECHA, E=PROVEEDOR, F=ORIGEN, G=ESTADO(col 7), H=TIPO_VENTA(col 8)
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    let filaImei = -1;
+    if(inv && inv.values) {
+      for(let i=1; i<inv.values.length; i++) {
+        if(inv.values[i][0] && inv.values[i][0].toString() === imei) {
+          filaImei = i+1;
+          break;
+        }
+      }
+    }
+
+    if(filaImei > 0) {
+      // Limpiar columna G (ESTADO) = columna 7
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/cell(row=${filaImei},column=7)`, { values: [['DISPONIBLE']] });
+      // Limpiar columna H (TIPO_VENTA) = columna 8
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/cell(row=${filaImei},column=8)`, { values: [['']] });
+    }
+
+    await cargarTodo();
+    msg.style.background='#d1fae5'; msg.style.color='#065f46';
+    msg.textContent = filaAnulada > 0 
+      ? `✅ Crédito anulado. IMEI ${imei} disponible nuevamente.`
+      : `✅ IMEI ${imei} liberado. (No se encontró venta activa en créditos)`;
+    document.getElementById('anular-imei').value = '';
+    document.getElementById('anular-motivo').value = '';
+
+  } catch(e) {
+    msg.style.background='#fee2e2'; msg.style.color='#dc2626';
+    msg.textContent='❌ Error al anular. Verifica tu conexión.';
+  }
+}
+
+</script>
+</body>
+</html>
