@@ -699,7 +699,7 @@ async function marcarVendidoExcel(imei, tipoVenta) {
     const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
     if (!inv || !inv.values) return;
     for (let i = 1; i < inv.values.length; i++) {
-      if (inv.values[i][0] && inv.values[i][0].toString() === imei.toString()) {
+      if (inv.values[i][0] && inv.values[i][0].toString().trim() === imei.toString().trim()) {
         const fila = i + 1;
         await graphPatch(
           `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
