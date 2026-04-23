@@ -895,20 +895,21 @@ async function anularCredito() {
   msg.textContent='⏳ Buscando y anulando...';
 
   try {
-    // 1. Buscar en VENTAS_CREDITOS y marcar como ANULADO
-    // Columnas: A=FECHA,B=LOCAL,C=TIPO_VENTA,D=REFERENCIA,E=IMEI(índice 4),... N=ESTADO(índice 13)
     const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`);
     let filaAnulada = -1;
     if(ventas && ventas.values) {
+      console.log('Total filas VENTAS_CREDITOS:', ventas.values.length);
       for(let i=1; i<ventas.values.length; i++) {
         const row = ventas.values[i];
-        if(!row[4]) continue; // saltar filas vacías
+        console.log(`Fila ${i+1}: IMEI=${row[4]}, tipo=${typeof row[4]}, ESTADO=${row[13]}`);
+        if(!row[4]) continue;
         if(row[4].toString().trim() === imei.trim() && row[13] !== 'ANULADO') {
           filaAnulada = i+1;
           break;
         }
       }
     }
+    console.log('filaAnulada:', filaAnulada, 'buscando IMEI:', imei);
 
     if(filaAnulada > 0) {
       // ESTADO columna N = columna número 14
