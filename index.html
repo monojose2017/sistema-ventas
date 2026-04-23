@@ -913,8 +913,8 @@ async function anularCredito() {
     console.log('filaAnulada:', filaAnulada, 'buscando IMEI:', imei);
 
     if(filaAnulada > 0) {
-      // ESTADO columna N = columna número 14
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/cell(row=${filaAnulada},column=14)`, { values: [['ANULADO']] });
+      const col = 'N'; // columna ESTADO
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/range(address='${col}${filaAnulada}')`, { values: [['ANULADO']] });
     }
 
     // 2. Liberar IMEI en INVENTARIO_TELEFONO
@@ -933,10 +933,8 @@ async function anularCredito() {
     }
 
     if(filaImei > 0) {
-      // Limpiar columna G (ESTADO) = columna 7
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/cell(row=${filaImei},column=7)`, { values: [['DISPONIBLE']] });
-      // Limpiar columna H (TIPO_VENTA) = columna 8
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/cell(row=${filaImei},column=8)`, { values: [['']] });
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='H${filaImei}')`, { values: [['']] });
     }
 
     await cargarTodo();
