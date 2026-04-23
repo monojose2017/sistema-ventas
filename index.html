@@ -904,7 +904,7 @@ async function anularCredito() {
         console.log(`Fila ${i+1}: IMEI=${row[4]}, tipo=${typeof row[4]}, ESTADO=${row[13]}`);
         if(!row[4]) continue;
         if(row[4].toString().trim() === imei.trim() && row[13] !== 'ANULADO') {
-          filaAnulada = i+2; // +2 porque header=fila1 y API es 1-based
+          filaAnulada = i+1;
           console.log('Encontrado en array i='+i+', filaExcel='+filaAnulada);
           break;
         }
@@ -925,7 +925,7 @@ async function anularCredito() {
       for(let i=1; i<inv.values.length; i++) {
         if(!inv.values[i][0]) continue; // saltar filas vacías
         if(inv.values[i][0].toString().trim() === imei.trim()) {
-          filaImei = i+2;
+          filaImei = i+1;
           console.log('IMEI encontrado en inventario, filaExcel='+filaImei);
           break;
         }
