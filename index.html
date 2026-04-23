@@ -904,7 +904,7 @@ async function anularCredito() {
         console.log(`Fila ${i+1}: IMEI=${row[4]}, tipo=${typeof row[4]}, ESTADO=${row[13]}`);
         if(!row[4]) continue;
         if(row[4].toString().trim() === imei.trim() && row[13] !== 'ANULADO') {
-          filaAnulada = i+1;
+          filaAnulada = i; // i=1 → fila 2 en Excel
           console.log('Encontrado en array i='+i+', filaExcel='+filaAnulada);
           break;
         }
@@ -914,7 +914,10 @@ async function anularCredito() {
 
     if(filaAnulada > 0) {
       const col = 'N'; // columna ESTADO
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/range(address='${col}${filaAnulada}')`, { values: [['ANULADO']] });
+      const addr = `${col}${filaAnulada}`;
+      console.log('Escribiendo ANULADO en:', addr);
+      const r = await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/range(address='${addr}')`, { values: [['ANULADO']] });
+      console.log('Respuesta patch:', JSON.stringify(r));
     }
 
     // 2. Liberar IMEI en INVENTARIO_TELEFONO
@@ -925,7 +928,7 @@ async function anularCredito() {
       for(let i=1; i<inv.values.length; i++) {
         if(!inv.values[i][0]) continue; // saltar filas vacías
         if(inv.values[i][0].toString().trim() === imei.trim()) {
-          filaImei = i+1;
+          filaImei = i; // i=1 → fila 2 en Excel
           console.log('IMEI encontrado en inventario, filaExcel='+filaImei);
           break;
         }
@@ -933,8 +936,11 @@ async function anularCredito() {
     }
 
     if(filaImei > 0) {
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='H${filaImei}')`, { values: [['']] });
+      console.log('Liberando IMEI en G'+filaImei);
+      const r1 = await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
+      console.log('Respuesta G:', JSON.stringify(r1));
+      const r2 = await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='H${filaImei}')`, { values: [['']] });
+      console.log('Respuesta H:', JSON.stringify(r2));
     }
 
     await cargarTodo();
