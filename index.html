@@ -903,7 +903,7 @@ async function anularCredito() {
       for(let i=1; i<ventas.values.length; i++) {
         const row = ventas.values[i];
         // IMEI está en columna E = índice 4
-        if(row[4] && row[4].toString() === imei && row[13] !== 'ANULADO') {
+        if(row[4] && row[4].toString().trim() === imei.trim() && row[13] !== 'ANULADO') {
           filaAnulada = i+1;
           break;
         }
@@ -921,7 +921,7 @@ async function anularCredito() {
     let filaImei = -1;
     if(inv && inv.values) {
       for(let i=1; i<inv.values.length; i++) {
-        if(inv.values[i][0] && inv.values[i][0].toString() === imei) {
+        if(inv.values[i][0] && inv.values[i][0].toString().trim() === imei.trim()) {
           filaImei = i+1;
           break;
         }
