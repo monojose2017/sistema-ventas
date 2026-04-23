@@ -904,7 +904,7 @@ async function anularCredito() {
         console.log(`Fila ${i+1}: IMEI=${row[4]}, tipo=${typeof row[4]}, ESTADO=${row[13]}`);
         if(!row[4]) continue;
         if(row[4].toString().trim() === imei.trim() && row[13] !== 'ANULADO') {
-          filaAnulada = i; // i=1 → fila 2 en Excel
+          filaAnulada = i+1; // i=1 → fila 2 en Excel (API 1-based)
           console.log('Encontrado en array i='+i+', filaExcel='+filaAnulada);
           break;
         }
@@ -928,7 +928,7 @@ async function anularCredito() {
       for(let i=1; i<inv.values.length; i++) {
         if(!inv.values[i][0]) continue; // saltar filas vacías
         if(inv.values[i][0].toString().trim() === imei.trim()) {
-          filaImei = i; // i=1 → fila 2 en Excel
+          filaImei = i+1; // i=1 → fila 2 en Excel
           console.log('IMEI encontrado en inventario, filaExcel='+filaImei);
           break;
         }
