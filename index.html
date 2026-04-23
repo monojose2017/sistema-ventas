@@ -755,7 +755,7 @@ async function enviarForm(tipo) {
     const cuota = cuotaAuto || cuotaManual;
     const descuento = getNumero('c-descuento');
     hoja = 'VENTAS_CREDITOS';
-    fila = [getVal('c-fecha')||fecha, getVal('c-local'), getVal('c-tipo'), getVal('c-ref'), imei, parseFloat(getVal('c-porc'))||0, cuota, descuento, cuota-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK'];
+    fila = [getVal('c-fecha')||fecha, getVal('c-local'), getVal('c-tipo'), getVal('c-ref'), imei, parseFloat(getVal('c-porc'))||0, cuota, descuento, cuota-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO'];
 
   } else if(tipo === 'contado') {
     const imeiSel = getVal('ct-imei');
