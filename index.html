@@ -557,8 +557,15 @@ async function getToken() {
     const resp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
     return resp.accessToken;
   } catch(e) {
-    const resp = await msalApp.acquireTokenRedirect({ scopes: MS_SCOPES });
-    return null;
+    try {
+      // Intenta popup en lugar de redirect para no perder la sesión
+      const resp = await msalApp.acquireTokenPopup({ scopes: MS_SCOPES, account: msAccount });
+      msAccount = resp.account;
+      return resp.accessToken;
+    } catch(e2) {
+      console.error('Error renovando token:', e2);
+      return null;
+    }
   }
 }
 
