@@ -90,6 +90,9 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <p class="sec-titulo">Gastos</p>
     <button class="btn-menu" onclick="irA('gastos')"><div class="btn-icon rojo">🧾</div><div class="btn-info"><div class="btn-titulo">Gasto Diario</div><div class="btn-sub">Aseo · Papelería · Domicilio · más</div></div><span class="btn-arrow">›</span></button>
     <div class="divider"></div>
+    <p class="sec-titulo">Ingresos</p>
+    <button class="btn-menu" onclick="irA('ingresos-local')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos Adicionales</div><div class="btn-sub">Abonos · Otros ingresos</div></div><span class="btn-arrow">›</span></button>
+    <div class="divider"></div>
     <p class="sec-titulo">Acceso restringido</p>
     <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
   </div>
@@ -158,7 +161,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Descripción</label><input type="text" id="ga-desc" placeholder="Ej: Escoba y trapero"></div>
     <div class="field"><label>Valor</label><input type="text" id="ga-valor" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="ga-metodo"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option></select></div></div>
-    <div class="field"><label>Responsable</label><div class="select-wrap"><select id="ga-resp"><option value="">Seleccionar...</option><option>ADISSON</option><option>CARO</option><option>JOHANETH</option><option>JOSE</option><option>DIANA</option></select></div></div>
+    <div class="field"><label>Responsable</label><div class="select-wrap"><select id="ga-resp"><option value="">Seleccionar...</option><option>ADISSON</option><option>CARO</option><option>JOHANETH</option><option>DIANA</option></select></div></div>
     <button class="submit-btn" onclick="enviarForm('gastos')">Registrar Gasto ✓</button>
   </div>
 </div>
@@ -169,6 +172,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <p class="sec-titulo">Opciones</p>
     <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Gastos de Gerencia</div><div class="btn-sub">Sueldos · Arriendo · Servicios · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('ingresos-gerencia')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
@@ -190,7 +194,39 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   </div>
 </div>
 
-<!-- ANULAR CREDITO -->
+<!-- INGRESOS LOCAL -->
+<div class="screen" id="screen-ingresos-local">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">📥 Ingresos Adicionales</div><div class="form-header-sub">Registra un ingreso del local</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="il-fecha"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="il-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="il-tipo"><option value="">Seleccionar...</option><option>ABONO CLIENTE</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Descripción</label><input type="text" id="il-desc" placeholder="Detalle del ingreso"></div>
+    <div class="field"><label>Valor</label><input type="text" id="il-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('il')"></div>
+    <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="il-pago" onchange="manejarPago('il')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="il-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('il')"></div><div class="field"><label>Transferencia</label><input type="text" id="il-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('il')"></div></div>
+    <div id="il-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor</div>
+    <div class="field"><label>Responsable</label><div class="select-wrap"><select id="il-resp"><option value="">Seleccionar...</option><option>CARO</option><option>ADISSON</option><option>JOHANETH</option><option>DIANA</option></select></div></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(22,163,74,.35)" onclick="enviarForm('ingresos-local')">Registrar Ingreso ✓</button>
+  </div>
+</div>
+
+<!-- INGRESOS GERENCIA -->
+<div class="screen" id="screen-ingresos-gerencia">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📥 Ingresos de Gerencia</div><div class="form-header-sub">Registra un ingreso de gerencia</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="ig-fecha"></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="ig-tipo" onchange="onTipoIngresoGerencia()"><option value="">Seleccionar...</option><option>PAGO DE PROVEEDOR</option><option>PRESTAMO RECIBIDO</option><option>ABONO CLIENTE</option><option>OTROS</option></select></div></div>
+    <div class="field" id="ig-proveedor-wrap" style="display:none"><label>Proveedor</label><div class="select-wrap"><select id="ig-proveedor"><option value="">Seleccionar...</option><option>MOVISIM</option><option>COMTEL</option></select></div></div>
+    <div class="field"><label>Descripción</label><input type="text" id="ig-desc" placeholder="Detalle del ingreso"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ig-local"><option value="">Seleccionar...</option><option>GENERAL</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Valor</label><input type="text" id="ig-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('ig')"></div>
+    <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="ig-pago" onchange="manejarPago('ig')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="ig-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('ig')"></div><div class="field"><label>Transferencia</label><input type="text" id="ig-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('ig')"></div></div>
+    <div id="ig-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor</div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7);box-shadow:0 4px 12px rgba(3,105,161,.35)" onclick="enviarForm('ingresos-gerencia')">Registrar Ingreso ✓</button>
+  </div>
+</div>
 <div class="screen" id="screen-anular-credito">
   <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#ef4444)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🔄 Anular Crédito</div><div class="form-header-sub">Libera el IMEI para venderlo de nuevo</div></div></div>
   <div class="form-body">
@@ -791,6 +827,14 @@ async function enviarForm(tipo) {
     // FECHA, LOCAL, CATEGORIA, PRODUCTO, CANTIDAD, PRECIO UNITARIO, TOTAL, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, COSTO, UTILIDAD
     fila = [getVal('a-fecha')||fecha, localSel, getVal('a-cat'), productoSel, cant, precio, cant*precio, getVal('a-pago'), getNumero('a-efectivo'), getNumero('a-transfer'), 'OK', costoTotal, utilidad];
 
+  } else if(tipo === 'ingresos-local') {
+    hoja = 'INGRESOS_LOCAL';
+    fila = [getVal('il-fecha')||fecha, getVal('il-local'), getVal('il-tipo'), getVal('il-desc'), getNumero('il-valor'), getVal('il-pago'), getNumero('il-efectivo'), getNumero('il-transfer'), getVal('il-resp')];
+
+  } else if(tipo === 'ingresos-gerencia') {
+    hoja = 'INGRESOS_GERENCIA';
+    fila = [getVal('ig-fecha')||fecha, getVal('ig-tipo'), getVal('ig-proveedor'), getVal('ig-desc'), getVal('ig-local'), getNumero('ig-valor'), getVal('ig-pago'), getNumero('ig-efectivo'), getNumero('ig-transfer')];
+
   } else if(tipo === 'gastos') {
     hoja = 'GASTOS_DIARIOS';
     // FECHA, LOCAL, TIPO GASTO, DESCRIPCION, VALOR, METODO PAGO, RESPONSABLE
@@ -878,6 +922,29 @@ function limpiarFormulario(tipo) {
     document.getElementById('ga-valor').value = '';
     document.getElementById('ga-metodo').value = '';
     document.getElementById('ga-resp').value = '';
+  } else if(tipo === 'ingresos-local') {
+    document.getElementById('il-fecha').value = hoy;
+    document.getElementById('il-local').value = '';
+    document.getElementById('il-tipo').value = '';
+    document.getElementById('il-desc').value = '';
+    document.getElementById('il-valor').value = '';
+    document.getElementById('il-pago').value = '';
+    document.getElementById('il-efectivo').value = '';
+    document.getElementById('il-transfer').value = '';
+    document.getElementById('il-resp').value = '';
+  } else if(tipo === 'ingresos-gerencia') {
+    document.getElementById('ig-fecha').value = hoy;
+    document.getElementById('ig-tipo').value = '';
+    document.getElementById('ig-proveedor').value = '';
+    document.getElementById('ig-desc').value = '';
+    document.getElementById('ig-local').value = '';
+    document.getElementById('ig-local').disabled = false;
+    document.getElementById('ig-local').style.background = 'white';
+    document.getElementById('ig-proveedor-wrap').style.display = 'none';
+    document.getElementById('ig-valor').value = '';
+    document.getElementById('ig-pago').value = '';
+    document.getElementById('ig-efectivo').value = '';
+    document.getElementById('ig-transfer').value = '';
   } else if(tipo === 'gerencia') {
     document.getElementById('g-fecha').value = hoy;
     document.getElementById('g-tipo').value = '';
@@ -890,6 +957,22 @@ function limpiarFormulario(tipo) {
     document.getElementById('g-transfer').value = '';
   }
 }
+function onTipoIngresoGerencia() {
+  const tipo = document.getElementById('ig-tipo').value;
+  const provWrap = document.getElementById('ig-proveedor-wrap');
+  const localSel = document.getElementById('ig-local');
+  if(tipo === 'PAGO DE PROVEEDOR') {
+    provWrap.style.display = 'block';
+    localSel.value = 'GENERAL';
+    localSel.disabled = true;
+    localSel.style.background = '#f1f5f9';
+  } else {
+    provWrap.style.display = 'none';
+    localSel.disabled = false;
+    localSel.style.background = 'white';
+  }
+}
+
 async function anularCredito() {
   const imei = document.getElementById('anular-imei').value.trim();
   const motivo = document.getElementById('anular-motivo').value.trim();
