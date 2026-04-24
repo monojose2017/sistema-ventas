@@ -171,26 +171,26 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🔐 Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
   <div class="form-body">
     <p class="sec-titulo">Opciones</p>
-    <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Gastos de Gerencia</div><div class="btn-sub">Sueldos · Arriendo · Servicios · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Egresos de Gerencia</div><div class="btn-sub">Operativo · Inversión</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingresos-gerencia')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
 
-<!-- GASTOS GERENCIA -->
+<!-- EGRESOS GERENCIA -->
 <div class="screen" id="screen-gastos-gerencia">
-  <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💸 Gastos de Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
+  <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💸 Egresos de Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
   <div class="form-body">
     <div class="field"><label>Fecha</label><input type="date" id="g-fecha"></div>
-    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="g-tipo"><option value="">Seleccionar...</option><option>OPERATIVO</option><option>INVERSION</option><option>FINANCIERO</option></select></div></div>
-    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="g-tipo-cat"><option value="">Seleccionar...</option><option>SUELDOS</option><option>SERVICIOS</option><option>ARRIENDO</option><option>COMPRA TELEFONOS</option><option>COMPRA ACCESORIOS</option><option>MOBILIARIO</option><option>PUBLICIDAD</option><option>DEUDA</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="g-tipo" onchange="filtrarCategoriasEgresos()"><option value="">Seleccionar...</option><option>OPERATIVO</option><option>INVERSION</option></select></div></div>
+    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="g-tipo-cat"><option value="">Primero selecciona el tipo...</option></select></div></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="g-local"><option value="">Seleccionar...</option><option>GENERAL</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
-    <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="Detalle del gasto"></div>
+    <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="Detalle del egreso"></div>
     <div class="field"><label>Valor</label><input type="text" id="g-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('g')"></div>
     <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="g-pago" onchange="manejarPago('g')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="g-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('g')"></div><div class="field"><label>Transferencia</label><input type="text" id="g-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('g')"></div></div>
-    <div id="g-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor del gasto</div>
-    <button class="submit-btn" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);box-shadow:0 4px 12px rgba(124,58,237,.35)" onclick="enviarForm('gerencia')">Registrar Gasto ✓</button>
+    <div id="g-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor del egreso</div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);box-shadow:0 4px 12px rgba(124,58,237,.35)" onclick="enviarForm('gerencia')">Registrar Egreso ✓</button>
   </div>
 </div>
 
@@ -729,7 +729,7 @@ async function agregarFilaExcel(hoja, fila) {
     'VENTAS_CONTADO': 'TBL_VENTAS_CONTADO',
     'VENTAS_ACCESORIOS': 'TBL_VENTAS_ACCESORIOS',
     'GASTOS_DIARIOS': 'TBL_GASTOS_DIARIOS',
-    'GASTOS_GERENCIA': 'TBL_GASTOS_GERENCIA',
+    'EGRESOS_GERENCIA': 'TBL_EGRESOS_GERENCIA',
     'INGRESOS_LOCAL': 'TBL_INGRESOS_LOCAL',
     'INGRESOS_GERENCIA': 'TBL_INGRESOS_GERENCIA'
   };
@@ -851,7 +851,7 @@ async function enviarForm(tipo) {
     fila = [getVal('ga-fecha')||fecha, getVal('ga-local'), getVal('ga-tipo'), getVal('ga-desc'), getNumero('ga-valor'), getVal('ga-metodo'), getVal('ga-resp')];
 
   } else if(tipo === 'gerencia') {
-    hoja = 'GASTOS_GERENCIA';
+    hoja = 'EGRESOS_GERENCIA';
     // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, RESPONSABLE
     fila = [getVal('g-fecha')||fecha, getVal('g-tipo'), getVal('g-tipo-cat'), getVal('g-desc'), getVal('g-local'), getNumero('g-valor'), getVal('g-pago'), getNumero('g-efectivo'), getNumero('g-transfer'), 'OK', ''];
   }
@@ -967,6 +967,16 @@ function limpiarFormulario(tipo) {
     document.getElementById('g-transfer').value = '';
   }
 }
+function filtrarCategoriasEgresos() {
+  const tipo = document.getElementById('g-tipo').value;
+  const cat = document.getElementById('g-tipo-cat');
+  const operativo = ['SUELDOS','SERVICIOS','ARRIENDO','PUBLICIDAD','TRANSPORTE','ALIMENTACION','OTROS'];
+  const inversion = ['COMPRA TELEFONOS','COMPRA ACCESORIOS','MOBILIARIO','EQUIPOS DE COMPUTO'];
+  const opciones = tipo === 'OPERATIVO' ? operativo : tipo === 'INVERSION' ? inversion : [];
+  cat.innerHTML = '<option value="">Seleccionar...</option>';
+  opciones.forEach(o => cat.innerHTML += `<option>${o}</option>`);
+}
+
 function onTipoIngresoGerencia() {
   const tipo = document.getElementById('ig-tipo').value;
   const provWrap = document.getElementById('ig-proveedor-wrap');
