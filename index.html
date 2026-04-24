@@ -310,7 +310,7 @@ window.onload = function() {
   });
   // Poner fecha de hoy en todos los formularios
   const hoy = new Date().toISOString().split('T')[0];
-  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha'].forEach(id => {
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
@@ -452,6 +452,10 @@ function getValorTotal(prefijo) {
     return cant * precio;
   } else if(prefijo === 'g') {
     return parseInt((document.getElementById('g-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  } else if(prefijo === 'il') {
+    return parseInt((document.getElementById('il-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  } else if(prefijo === 'ig') {
+    return parseInt((document.getElementById('ig-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
   }
   return 0;
 }
@@ -644,7 +648,7 @@ async function graphPatch(endpoint, body) {
 
 window.onload = async function() {
   const hoy = new Date().toISOString().split('T')[0];
-  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha'].forEach(id => {
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
