@@ -734,7 +734,11 @@ async function agregarFilaExcel(hoja, fila) {
     'INGRESOS_GERENCIA': 'TBL_INGRESOS_GERENCIA'
   };
   const tabla = tablaMap[hoja];
-  if (!tabla) return false;
+  console.log('Enviando a hoja:', hoja, 'tabla:', tabla, 'fila:', JSON.stringify(fila));
+  if (!tabla) {
+    console.error('Tabla no encontrada para hoja:', hoja);
+    return false;
+  }
 
   const result = await graphPost(
     `/me/drive/items/${MS_FILE_ID}/workbook/tables/${tabla}/rows`,
