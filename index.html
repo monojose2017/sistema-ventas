@@ -178,7 +178,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💸 Gastos de Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
   <div class="form-body">
     <div class="field"><label>Fecha</label><input type="date" id="g-fecha"></div>
-    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="g-tipo-cat"><option value="">Seleccionar...</option><option>SUELDOS</option><option>SERVICIOS</option><option>ARRIENDO</option><option>COMPRA TELEFONOS</option><option>COMPRA ACCESORIOS</option><option>MOBILIARIO</option><option>PUBLICIDAD</option><option>DEUDA</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="g-tipo"><option value="">Seleccionar...</option><option>OPERATIVO</option><option>INVERSION</option><option>FINANCIERO</option></select></div></div>
+    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="g-tipo-cat"><option value="">Seleccionar...</option><option>SUELDOS</option><option>SERVICIOS</option><option>ARRIENDO</option><option>COMPRA TELEFONOS</option><option>COMPRA ACCESORIOS</option><option>MOBILIARIO</option><option>PUBLICIDAD</option><option>DEUDA</option><option>OTROS</option></select></div></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="g-local"><option value="">Seleccionar...</option><option>GENERAL</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
     <div class="field"><label>Descripción</label><input type="text" id="g-desc" placeholder="Detalle del gasto"></div>
     <div class="field"><label>Valor</label><input type="text" id="g-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('g')"></div>
@@ -798,7 +799,7 @@ async function enviarForm(tipo) {
   } else if(tipo === 'gerencia') {
     hoja = 'GASTOS_GERENCIA';
     // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, RESPONSABLE
-    fila = [getVal('g-fecha')||fecha, getVal('g-tipo-cat'), '', getVal('g-desc'), getVal('g-local'), getNumero('g-valor'), getVal('g-pago'), getNumero('g-efectivo'), getNumero('g-transfer'), 'OK', ''];
+    fila = [getVal('g-fecha')||fecha, getVal('g-tipo'), getVal('g-tipo-cat'), getVal('g-desc'), getVal('g-local'), getNumero('g-valor'), getVal('g-pago'), getNumero('g-efectivo'), getNumero('g-transfer'), 'OK', ''];
   }
 
   const btn = document.querySelector(`#screen-${tipo} .submit-btn`);
@@ -879,6 +880,7 @@ function limpiarFormulario(tipo) {
     document.getElementById('ga-resp').value = '';
   } else if(tipo === 'gerencia') {
     document.getElementById('g-fecha').value = hoy;
+    document.getElementById('g-tipo').value = '';
     document.getElementById('g-tipo-cat').value = '';
     document.getElementById('g-local').value = '';
     document.getElementById('g-desc').value = '';
