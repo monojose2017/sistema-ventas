@@ -582,7 +582,13 @@ function filtrarAccesorios(){
   found.forEach(a=>{sel.innerHTML+=`<option value="${a.producto}">${a.producto} (Stock: ${a.stock})</option>`;});
 }
 
+let gerenciaAutenticada = false;
+
 function mostrarClave(){
+  if(gerenciaAutenticada) {
+    irA('gerencia');
+    return;
+  }
   document.getElementById('clave-overlay').classList.add('visible');
   document.getElementById('clave-input').value='';
   document.getElementById('clave-error').classList.remove('visible');
@@ -592,6 +598,7 @@ function cerrarClave(){document.getElementById('clave-overlay').classList.remove
 function verificarClave(){
   const val = document.getElementById('clave-input').value;
   if(val===CLAVE){
+    gerenciaAutenticada = true;
     cerrarClave();
     document.getElementById('g-fecha').value = new Date().toISOString().split('T')[0];
     irA('gerencia');
