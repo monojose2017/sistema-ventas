@@ -1119,7 +1119,16 @@ async function enviarForm(tipo) {
   if(btn){ btn.textContent = ok ? 'Registrar ✓' : 'Reintentar ⚠️'; btn.disabled = false; }
   if(ok) {
     limpiarFormulario(tipo);
-    irA('success');
+    if(tipo === 'ingreso-telefono' || tipo === 'ingreso-accesorio') {
+      irA('inventario');
+    } else if(tipo === 'nueva-deuda' || tipo === 'abono-deuda') {
+      await cargarDeudas();
+      irA('control-deudas');
+    } else if(tipo === 'gerencia' || tipo === 'ingresos-gerencia') {
+      irA('gerencia');
+    } else {
+      irA('success');
+    }
   } else {
     alert('⚠️ Error al enviar. Verifica tu conexión e intenta de nuevo.');
   }
