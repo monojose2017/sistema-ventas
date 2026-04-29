@@ -175,6 +175,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Egresos de Gerencia</div><div class="btn-sub">Operativo · Inversión</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingresos-gerencia')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('inventario')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Inventario</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
@@ -229,6 +230,56 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7);box-shadow:0 4px 12px rgba(3,105,161,.35)" onclick="enviarForm('ingresos-gerencia')">Registrar Ingreso ✓</button>
   </div>
 </div>
+<!-- INVENTARIO MENU -->
+<div class="screen" id="screen-inventario">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📦 Inventario</div><div class="form-header-sub">Gestiona tu inventario</div></div></div>
+  <div class="form-body">
+    <button class="btn-menu" onclick="irA('ingreso-telefono')"><div class="btn-icon azul">📱</div><div class="btn-info"><div class="btn-titulo">Ingresar Teléfono</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('ingreso-accesorio')"><div class="btn-icon verde">🎧</div><div class="btn-info"><div class="btn-titulo">Ingresar Accesorio</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- INGRESO TELEFONO -->
+<div class="screen" id="screen-ingreso-telefono">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">📱 Ingresar Teléfono</div><div class="form-header-sub">Agregar al inventario</div></div></div>
+  <div class="form-body">
+    <div class="field">
+      <label>IMEI</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="it-imei" placeholder="Escribe el IMEI" inputmode="numeric" style="flex:1;">
+        <button type="button" onclick="toggleScanner()" id="scan-btn" style="padding:10px 14px;background:#0369a1;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">📷 Escanear</button>
+      </div>
+    </div>
+    <div id="scanner-container" style="display:none;margin-bottom:12px;">
+      <div style="position:relative;width:100%;max-width:400px;margin:0 auto;">
+        <video id="scanner-video" style="width:100%;border-radius:12px;"></video>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:2px;background:red;opacity:0.7;"></div>
+      </div>
+      <button type="button" onclick="stopScanner()" style="width:100%;margin-top:8px;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">❌ Cancelar escaneo</button>
+    </div>
+    <div class="field"><label>Referencia</label><input type="text" id="it-ref" placeholder="Ej: SAMSUNG A07 6 128GB"></div>
+    <div class="field"><label>Costo</label><input type="text" id="it-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Fecha Ingreso</label><input type="date" id="it-fecha"></div>
+    <div class="field"><label>Proveedor</label><input type="text" id="it-proveedor" placeholder="Ej: MR MOVIL, OFICINA, K CELL..."></div>
+    <div class="field"><label>Origen</label><div class="select-wrap"><select id="it-origen"><option value="">Seleccionar...</option><option>COMPRA PROPIA</option><option>OFICINA</option><option>CONSIGNACION</option></select></div></div>
+    <div class="field"><label>Ubicación (Local)</label><div class="select-wrap"><select id="it-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7);box-shadow:0 4px 12px rgba(3,105,161,.35)" onclick="enviarForm('ingreso-telefono')">Agregar al Inventario ✓</button>
+  </div>
+</div>
+
+<!-- INGRESO ACCESORIO -->
+<div class="screen" id="screen-ingreso-accesorio">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">🎧 Ingresar Accesorio</div><div class="form-header-sub">Agregar al inventario</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ia-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-cat"><option value="">Seleccionar...</option><option>VIDRIOS</option><option>AUDIFONOS</option><option>CABLES</option><option>CARGADORES</option><option>FORROS</option><option>OTROS</option></select></div></div>
+    <div class="field"><label>Producto</label><input type="text" id="ia-producto" placeholder="Ej: VIDRIO SAMSUNG A07"></div>
+    <div class="field"><label>Cantidad (Stock)</label><input type="number" id="ia-stock" placeholder="0" min="1"></div>
+    <div class="field"><label>Costo Unitario</label><input type="text" id="ia-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(22,163,74,.35)" onclick="enviarForm('ingreso-accesorio')">Agregar al Inventario ✓</button>
+  </div>
+</div>
+
 <!-- CONTROL DEUDAS MENU -->
 <div class="screen" id="screen-control-deudas">
   <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🏦 Control de Deudas</div><div class="form-header-sub">Gestiona tus deudas</div></div></div>
@@ -359,7 +410,7 @@ window.onload = function() {
   });
   // Poner fecha de hoy en todos los formularios
   const hoy = new Date().toISOString().split('T')[0];
-  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha'].forEach(id => {
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
@@ -380,6 +431,70 @@ function autoRef(){
 function autoRefContado(){
   const sel = document.getElementById('ct-imei').value;
   document.getElementById('ct-ref').value = sel ? sel.split('|')[1] : '';
+}
+
+let scannerStream = null;
+let scannerInterval = null;
+
+async function toggleScanner() {
+  const container = document.getElementById('scanner-container');
+  if(container.style.display === 'none') {
+    container.style.display = 'block';
+    document.getElementById('scan-btn').textContent = '⏸ Escaneando...';
+    await startScanner();
+  } else {
+    stopScanner();
+  }
+}
+
+async function startScanner() {
+  try {
+    const video = document.getElementById('scanner-video');
+    scannerStream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+    });
+    video.srcObject = scannerStream;
+    video.play();
+
+    // Usar BarcodeDetector si está disponible (Chrome moderno)
+    if('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'code_39'] });
+      scannerInterval = setInterval(async () => {
+        try {
+          const barcodes = await detector.detect(video);
+          if(barcodes.length > 0) {
+            const imei = barcodes[0].rawValue.replace(/\D/g, '');
+            if(imei.length >= 10) {
+              document.getElementById('it-imei').value = imei;
+              stopScanner();
+              alert('✅ IMEI escaneado: ' + imei);
+            }
+          }
+        } catch(e) {}
+      }, 500);
+    } else {
+      alert('⚠️ Tu navegador no soporta escaneo automático. Ingresa el IMEI manualmente.');
+      stopScanner();
+    }
+  } catch(e) {
+    alert('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
+    stopScanner();
+  }
+}
+
+function stopScanner() {
+  if(scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  if(scannerInterval) {
+    clearInterval(scannerInterval);
+    scannerInterval = null;
+  }
+  const container = document.getElementById('scanner-container');
+  if(container) container.style.display = 'none';
+  const btn = document.getElementById('scan-btn');
+  if(btn) btn.textContent = '📷 Escanear';
 }
 
 function calcularCuotaPayjoy() {
@@ -717,7 +832,7 @@ async function graphPatch(endpoint, body) {
 
 window.onload = async function() {
   const hoy = new Date().toISOString().split('T')[0];
-  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha'].forEach(id => {
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
@@ -802,7 +917,9 @@ async function agregarFilaExcel(hoja, fila) {
     'INGRESOS_LOCAL': 'TBL_INGRESOS_LOCAL',
     'INGRESOS_GERENCIA': 'TBL_INGRESOS_GERENCIA',
     'DEUDAS': 'TBL_DEUDAS',
-    'ABONOS_DEUDAS': 'TBL_ABONOS_DEUDAS'
+    'ABONOS_DEUDAS': 'TBL_ABONOS_DEUDAS',
+    'INVENTARIO_TELEFONO': 'TBL_INVENTARIO_TELEFONO',
+    'INVENTARIO_ACCESORIOS': 'TBL_INVENTARIO_ACCESORIOS'
   };
   const tabla = tablaMap[hoja];
   console.log('Enviando a hoja:', hoja, 'tabla:', tabla, 'fila:', JSON.stringify(fila));
@@ -912,6 +1029,16 @@ async function enviarForm(tipo) {
     hoja = 'VENTAS_ACCESORIOS';
     // FECHA, LOCAL, CATEGORIA, PRODUCTO, CANTIDAD, PRECIO UNITARIO, TOTAL, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, COSTO, UTILIDAD
     fila = [getVal('a-fecha')||fecha, localSel, getVal('a-cat'), productoSel, cant, precio, cant*precio, getVal('a-pago'), getNumero('a-efectivo'), getNumero('a-transfer'), 'OK', costoTotal, utilidad];
+
+  } else if(tipo === 'ingreso-telefono') {
+    hoja = 'INVENTARIO_TELEFONO';
+    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION
+    fila = [getVal('it-imei'), getVal('it-ref'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor'), getVal('it-origen'), 'DISPONIBLE', '', '', getVal('it-local')];
+
+  } else if(tipo === 'ingreso-accesorio') {
+    hoja = 'INVENTARIO_ACCESORIOS';
+    // LOCAL, CATEGORIA, PRODUCTO, STOCK, COSTO UNITARIO
+    fila = [getVal('ia-local'), getVal('ia-cat'), getVal('ia-producto'), parseInt(getVal('ia-stock'))||0, getNumero('ia-costo')];
 
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
@@ -1034,6 +1161,20 @@ function limpiarFormulario(tipo) {
     document.getElementById('ga-valor').value = '';
     document.getElementById('ga-metodo').value = '';
     document.getElementById('ga-resp').value = '';
+  } else if(tipo === 'ingreso-telefono') {
+    document.getElementById('it-imei').value = '';
+    document.getElementById('it-ref').value = '';
+    document.getElementById('it-costo').value = '';
+    document.getElementById('it-fecha').value = hoy;
+    document.getElementById('it-proveedor').value = '';
+    document.getElementById('it-origen').value = '';
+    document.getElementById('it-local').value = '';
+  } else if(tipo === 'ingreso-accesorio') {
+    document.getElementById('ia-local').value = '';
+    document.getElementById('ia-cat').value = '';
+    document.getElementById('ia-producto').value = '';
+    document.getElementById('ia-stock').value = '';
+    document.getElementById('ia-costo').value = '';
   } else if(tipo === 'ingresos-local') {
     document.getElementById('il-fecha').value = hoy;
     document.getElementById('il-local').value = '';
