@@ -173,6 +173,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <p class="sec-titulo">Opciones</p>
     <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Egresos de Gerencia</div><div class="btn-sub">Operativo · Inversión</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingresos-gerencia')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
@@ -227,6 +228,53 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7);box-shadow:0 4px 12px rgba(3,105,161,.35)" onclick="enviarForm('ingresos-gerencia')">Registrar Ingreso ✓</button>
   </div>
 </div>
+<!-- CONTROL DEUDAS MENU -->
+<div class="screen" id="screen-control-deudas">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🏦 Control de Deudas</div><div class="form-header-sub">Gestiona tus deudas</div></div></div>
+  <div class="form-body">
+    <div id="deudas-lista" style="margin-bottom:16px;"></div>
+    <button class="btn-menu" onclick="irA('nueva-deuda')"><div class="btn-icon naranja">➕</div><div class="btn-info"><div class="btn-titulo">Registrar Deuda Nueva</div><div class="btn-sub">Agrega una deuda</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="cargarDeudas();irA('abono-deuda')"><div class="btn-icon verde">💳</div><div class="btn-info"><div class="btn-titulo">Registrar Abono</div><div class="btn-sub">Paga una deuda</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- NUEVA DEUDA -->
+<div class="screen" id="screen-nueva-deuda">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('control-deudas')">‹</button><div><div class="form-header-title">➕ Nueva Deuda</div><div class="form-header-sub">Registra una deuda nueva</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="nd-fecha"></div>
+    <div class="field"><label>Acreedor</label><input type="text" id="nd-acreedor" placeholder="¿A quién le debes?"></div>
+    <div class="field"><label>Concepto</label><input type="text" id="nd-concepto" placeholder="¿Para qué es la deuda?"></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="nd-tipo"><option value="">Seleccionar...</option><option>SIMPLE</option><option>TARJETA</option></select></div></div>
+    <div class="field"><label>Monto Total</label><input type="text" id="nd-monto" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Fecha Próximo Pago</label><input type="date" id="nd-vence"></div>
+    <div class="field" style="background:#fef3c7;border-radius:12px;padding:14px;">
+      <label style="color:#92400e;font-weight:700;">¿Ya recibiste este dinero?</label>
+      <div style="display:flex;gap:12px;margin-top:8px;">
+        <button type="button" id="nd-recibido-si" onclick="selRecibido(true)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;font-weight:700;cursor:pointer;">✅ SÍ</button>
+        <button type="button" id="nd-recibido-no" onclick="selRecibido(false)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;font-weight:700;cursor:pointer;">❌ NO</button>
+      </div>
+    </div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 4px 12px rgba(180,83,9,.35)" onclick="enviarForm('nueva-deuda')">Registrar Deuda ✓</button>
+  </div>
+</div>
+
+<!-- ABONO DEUDA -->
+<div class="screen" id="screen-abono-deuda">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('control-deudas')">‹</button><div><div class="form-header-title">💳 Registrar Abono</div><div class="form-header-sub">Paga una deuda</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="ab-fecha"></div>
+    <div class="field"><label>Deuda</label><div class="select-wrap"><select id="ab-acreedor" onchange="mostrarInfoDeuda()"><option value="">Seleccionar deuda...</option></select></div></div>
+    <div id="ab-info-deuda" style="display:none;background:#fef3c7;border-radius:12px;padding:14px;margin-bottom:12px;font-size:13px;color:#92400e;font-weight:700;"></div>
+    <div class="field"><label>Concepto</label><input type="text" id="ab-concepto" placeholder="Ej: Cuota marzo, Pago total..."></div>
+    <div class="field"><label>Valor Abono</label><input type="text" id="ab-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('ab')"></div>
+    <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="ab-pago" onchange="manejarPago('ab')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="ab-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('ab')"></div><div class="field"><label>Transferencia</label><input type="text" id="ab-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('ab')"></div></div>
+    <div id="ab-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor del abono</div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(22,163,74,.35)" onclick="enviarForm('abono-deuda')">Registrar Abono ✓</button>
+  </div>
+</div>
+
 <div class="screen" id="screen-anular-credito">
   <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#ef4444)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🔄 Anular Crédito</div><div class="form-header-sub">Libera el IMEI para venderlo de nuevo</div></div></div>
   <div class="form-body">
@@ -731,7 +779,9 @@ async function agregarFilaExcel(hoja, fila) {
     'GASTOS_DIARIOS': 'TBL_GASTOS_DIARIOS',
     'EGRESOS_GERENCIA': 'TBL_EGRESOS_GERENCIA',
     'INGRESOS_LOCAL': 'TBL_INGRESOS_LOCAL',
-    'INGRESOS_GERENCIA': 'TBL_INGRESOS_GERENCIA'
+    'INGRESOS_GERENCIA': 'TBL_INGRESOS_GERENCIA',
+    'DEUDAS': 'TBL_DEUDAS',
+    'ABONOS_DEUDAS': 'TBL_ABONOS_DEUDAS'
   };
   const tabla = tablaMap[hoja];
   console.log('Enviando a hoja:', hoja, 'tabla:', tabla, 'fila:', JSON.stringify(fila));
@@ -836,6 +886,20 @@ async function enviarForm(tipo) {
     hoja = 'VENTAS_ACCESORIOS';
     // FECHA, LOCAL, CATEGORIA, PRODUCTO, CANTIDAD, PRECIO UNITARIO, TOTAL, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, COSTO, UTILIDAD
     fila = [getVal('a-fecha')||fecha, localSel, getVal('a-cat'), productoSel, cant, precio, cant*precio, getVal('a-pago'), getNumero('a-efectivo'), getNumero('a-transfer'), 'OK', costoTotal, utilidad];
+
+  } else if(tipo === 'nueva-deuda') {
+    const monto = getNumero('nd-monto');
+    hoja = 'DEUDAS';
+    fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), ''];
+    if(ndRecibido) {
+      await agregarFilaExcel('INGRESOS_GERENCIA', [getVal('nd-fecha')||fecha, 'PRESTAMO RECIBIDO', '', 'Prestamo de '+getVal('nd-acreedor'), 'GENERAL', monto, 'EFECTIVO', monto, 0]);
+    }
+
+  } else if(tipo === 'abono-deuda') {
+    const idx = document.getElementById('ab-acreedor').value;
+    const deuda = idx !== '' ? deudasActivas[parseInt(idx)] : null;
+    hoja = 'ABONOS_DEUDAS';
+    fila = [getVal('ab-fecha')||fecha, deuda ? deuda.acreedor : '', getVal('ab-concepto'), getNumero('ab-valor'), getVal('ab-pago'), getNumero('ab-efectivo'), getNumero('ab-transfer')];
 
   } else if(tipo === 'ingresos-local') {
     hoja = 'INGRESOS_LOCAL';
@@ -967,6 +1031,84 @@ function limpiarFormulario(tipo) {
     document.getElementById('g-transfer').value = '';
   }
 }
+let ndRecibido = null;
+function selRecibido(val) {
+  ndRecibido = val;
+  document.getElementById('nd-recibido-si').style.background = val ? '#d97706' : 'white';
+  document.getElementById('nd-recibido-si').style.color = val ? 'white' : 'black';
+  document.getElementById('nd-recibido-no').style.background = !val ? '#d97706' : 'white';
+  document.getElementById('nd-recibido-no').style.color = !val ? 'white' : 'black';
+}
+
+let deudasActivas = [];
+
+async function cargarDeudas() {
+  try {
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/usedRange`);
+    deudasActivas = [];
+    if(data && data.values && data.values.length > 1) {
+      const hoy = new Date();
+      for(let i=1; i<data.values.length; i++) {
+        const row = data.values[i];
+        if(!row[0]) continue;
+        const acreedor = row[1];
+        const concepto = row[2];
+        const saldo = parseFloat(row[5]) || 0;
+        const estado = row[6];
+        const vence = row[7];
+        if(estado === 'PAGADA') continue;
+        const fechaVence = new Date(vence);
+        const diasRestantes = Math.ceil((fechaVence - hoy) / (1000*60*60*24));
+        const alerta = diasRestantes <= 5 ? '🔴' : diasRestantes <= 15 ? '🟡' : '🟢';
+        deudasActivas.push({ acreedor, concepto, saldo, vence, alerta, diasRestantes });
+      }
+    }
+    renderDeudas();
+    llenarSelectorDeudas();
+  } catch(e) {
+    console.error('Error cargando deudas:', e);
+  }
+}
+
+function renderDeudas() {
+  const lista = document.getElementById('deudas-lista');
+  if(!lista) return;
+  if(deudasActivas.length === 0) {
+    lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">✅ No tienes deudas activas</div>';
+    return;
+  }
+  lista.innerHTML = deudasActivas.map(d => `
+    <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:15px;">${d.alerta} ${d.acreedor}</div>
+          <div style="font-size:12px;color:#64748b;">${d.concepto}</div>
+          <div style="font-size:12px;color:#64748b;">Vence: ${d.vence}</div>
+        </div>
+        <div style="font-weight:800;font-size:16px;color:#b45309;">$${d.saldo.toLocaleString('es-CO')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function llenarSelectorDeudas() {
+  const sel = document.getElementById('ab-acreedor');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">Seleccionar deuda...</option>';
+  deudasActivas.forEach((d, i) => {
+    sel.innerHTML += `<option value="${i}">${d.alerta} ${d.acreedor} - $${d.saldo.toLocaleString('es-CO')} - Vence: ${d.vence}</option>`;
+  });
+}
+
+function mostrarInfoDeuda() {
+  const idx = document.getElementById('ab-acreedor').value;
+  const info = document.getElementById('ab-info-deuda');
+  if(idx === '') { info.style.display='none'; return; }
+  const d = deudasActivas[parseInt(idx)];
+  info.style.display = 'block';
+  info.innerHTML = `${d.alerta} <b>${d.acreedor}</b> — Saldo: $${d.saldo.toLocaleString('es-CO')} — Vence: ${d.vence}`;
+}
+
 function filtrarCategoriasEgresos() {
   const tipo = document.getElementById('g-tipo').value;
   const cat = document.getElementById('g-tipo-cat');
