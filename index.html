@@ -104,14 +104,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <div class="field"><label>Fecha de la Venta</label><input type="date" id="c-fecha"></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="c-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
-    <div class="field"><label>Tipo de Venta</label><div class="select-wrap"><select id="c-tipo" onchange="onTipoChange()"><option value="">Seleccionar...</option><option value="OFICINA">OFICINA</option><option value="RECOMPRA">RECOMPRA</option><option value="ET_OFICINA">ET OFICINA</option><option value="ET_CLARO">ET CLARO</option><option value="ALO_CREDIT">ALO CREDIT</option><option value="ADDI">ADDI</option></select></div></div>
+    <div class="field"><label>Tipo de Venta</label><div class="select-wrap"><select id="c-tipo" onchange="onTipoChange()"><option value="">Seleccionar...</option><option value="OFICINA">OFICINA</option><option value="RECOMPRA">RECOMPRA</option><option value="ET_OFICINA">ET OFICINA</option><option value="ET_CLARO">ET CLARO</option><option value="ALO_CREDIT">ALO CREDIT</option><option value="ADDI">ADDI</option><option value="PAYJOY">PAYJOY</option></select></div></div>
     <div class="field"><label>IMEI <span class="tag verde">Automático</span></label><div class="select-wrap"><select id="c-imei" onchange="autoRef()"><option value="">Seleccionar IMEI disponible...</option></select></div></div>
     <div class="field"><label>Referencia <span class="tag verde">Automático</span></label><input type="text" id="c-ref" readonly placeholder="Se llena al elegir IMEI"></div>
     <div class="field" id="c-porc-wrap"><label>Porcentaje</label><div class="select-wrap"><select id="c-porc" onchange="calcularCuota()"><option value="">Seleccionar...</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.25">25%</option><option value="0.30">30%</option><option value="0.35">35%</option><option value="0.40">40%</option></select></div></div>
+    <div class="field" id="c-payjoy-wrap" style="display:none"><label id="c-cuota-sug-label">Cuota Sugerida</label><input type="text" id="c-cuota-sug" placeholder="$0" oninput="formatMoney(this);calcularCuotaPayjoy()"></div>
     <div class="cuota-auto" id="cuota-box"><div class="cuota-label">✅ Cuota Inicial Calculada</div><div class="cuota-valor" id="cuota-valor">$0</div><div class="cuota-detalle" id="cuota-detalle"></div></div>
     <div class="aviso-manual" id="cuota-aviso"><p>✏️ Ingresa la cuota inicial manualmente</p></div>
     <div class="field hidden" id="c-cuota-wrap"><label>Cuota Inicial <span class="tag naranja">Manual</span></label><input type="text" id="c-cuota" placeholder="$0" oninput="formatMoney(this)"></div>
-    <div class="field"><label>Descuento</label><input type="text" id="c-descuento" placeholder="$0" oninput="formatMoney(this);manejarPago('c')"></div>
+    <div class="field"><label>Descuento</label><input type="text" id="c-descuento" placeholder="$0" oninput="formatMoney(this);manejarPago('c');if(document.getElementById('c-tipo').value==='PAYJOY')calcularCuotaPayjoy()"></div>
     <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="c-pago" onchange="manejarPago('c')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="c-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('c')"></div><div class="field"><label>Transferencia</label><input type="text" id="c-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('c')"></div></div>
     <div id="c-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma de efectivo y transferencia debe ser igual a la cuota final</div>
@@ -245,7 +246,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Fecha</label><input type="date" id="nd-fecha"></div>
     <div class="field"><label>Acreedor</label><input type="text" id="nd-acreedor" placeholder="¿A quién le debes?"></div>
     <div class="field"><label>Concepto</label><input type="text" id="nd-concepto" placeholder="¿Para qué es la deuda?"></div>
-    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="nd-tipo"><option value="">Seleccionar...</option><option>SIMPLE</option><option>TARJETA</option></select></div></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="nd-tipo"><option value="">Seleccionar...</option><option>SIMPLE</option><option>CON INTERES</option></select></div></div>
     <div class="field"><label>Monto Total</label><input type="text" id="nd-monto" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Fecha Próximo Pago</label><input type="date" id="nd-vence"></div>
     <div class="field" style="background:#fef3c7;border-radius:12px;padding:14px;">
@@ -381,27 +382,41 @@ function autoRefContado(){
   document.getElementById('ct-ref').value = sel ? sel.split('|')[1] : '';
 }
 
+function calcularCuotaPayjoy() {
+  const cuotaSug = getNumero('c-cuota-sug');
+  const descuento = getNumero('c-descuento');
+  const cuotaFinal = cuotaSug - descuento;
+  const cuotaWrap = document.getElementById('c-cuota-wrap');
+  cuotaWrap.classList.remove('hidden');
+  document.getElementById('c-cuota').value = '$' + cuotaFinal.toLocaleString('es-CO');
+}
+
 function onTipoChange(){
   const tipo = document.getElementById('c-tipo').value;
   const porcWrap = document.getElementById('c-porc-wrap');
   const cuotaWrap = document.getElementById('c-cuota-wrap');
   const cuotaBox = document.getElementById('cuota-box');
   const aviso = document.getElementById('cuota-aviso');
+  const payjoyWrap = document.getElementById('c-payjoy-wrap');
 
   // Reset todo
   cuotaBox.classList.remove('visible');
   aviso.classList.remove('visible');
   cuotaWrap.classList.add('hidden');
   porcWrap.classList.remove('hidden');
+  payjoyWrap.style.display = 'none';
   document.getElementById('c-porc').value = '';
 
   if(tipo === 'ADDI'){
-    // Sin porcentaje, cuota siempre manual
     porcWrap.classList.add('hidden');
     cuotaWrap.classList.remove('hidden');
     aviso.classList.add('visible');
   } else if(tipo === 'ALO_CREDIT'){
-    // Con porcentaje pero cuota siempre manual
+    cuotaWrap.classList.remove('hidden');
+    aviso.classList.add('visible');
+  } else if(tipo === 'PAYJOY'){
+    porcWrap.classList.add('hidden');
+    payjoyWrap.style.display = 'block';
     cuotaWrap.classList.remove('hidden');
     aviso.classList.add('visible');
   }
@@ -855,13 +870,18 @@ async function enviarForm(tipo) {
   if(tipo === 'credito') {
     const imeiSel = getVal('c-imei');
     imei = imeiSel ? imeiSel.split('|')[0] : '';
+    const tipoVenta = getVal('c-tipo');
     const cuotaAuto = document.getElementById('cuota-box').classList.contains('visible')
       ? parseInt(document.getElementById('cuota-valor').textContent.replace(/[^0-9]/g,'')) : 0;
     const cuotaManual = getNumero('c-cuota');
     const cuota = cuotaAuto || cuotaManual;
     const descuento = getNumero('c-descuento');
+    // Para PAYJOY: porcentaje = cuota sugerida, cuota = cuota sugerida, descuento = descuento
+    const cuotaSug = tipoVenta === 'PAYJOY' ? getNumero('c-cuota-sug') : 0;
+    const porcFinal = tipoVenta === 'PAYJOY' ? cuotaSug : parseFloat(getVal('c-porc'))||0;
+    const cuotaFinal = tipoVenta === 'PAYJOY' ? cuotaSug : cuota;
     hoja = 'VENTAS_CREDITOS';
-    fila = [getVal('c-fecha')||fecha, getVal('c-local'), getVal('c-tipo'), getVal('c-ref'), imei, parseFloat(getVal('c-porc'))||0, cuota, descuento, cuota-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO'];
+    fila = [getVal('c-fecha')||fecha, getVal('c-local'), tipoVenta, getVal('c-ref'), imei, porcFinal, cuotaFinal, descuento, cuotaFinal-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO'];
 
   } else if(tipo === 'contado') {
     const imeiSel = getVal('ct-imei');
@@ -970,6 +990,8 @@ function limpiarFormulario(tipo) {
     document.getElementById('c-fecha').value = hoy;
     document.getElementById('c-local').value = '';
     document.getElementById('c-tipo').value = '';
+    document.getElementById('c-cuota-sug').value = '';
+    document.getElementById('c-payjoy-wrap').style.display = 'none';
     document.getElementById('c-imei').value = '';
     document.getElementById('c-ref').value = '';
     document.getElementById('c-porc').value = '';
