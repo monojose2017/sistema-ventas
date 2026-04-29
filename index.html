@@ -350,6 +350,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   </div>
 </div>
 
+<div class="screen" id="screen-exito-gerencia">
+  <div class="success-screen">
+    <div class="success-icon">✅</div>
+    <div class="success-titulo">¡Registrado!</div>
+    <div class="success-sub">El dato fue enviado correctamente.<br>Ya aparece en el Excel automáticamente.</div>
+    <button class="success-back" id="exito-volver-btn">Volver</button>
+  </div>
+</div>
+
 </div><!-- /phone -->
 
 <!-- CLAVE -->
@@ -1120,18 +1129,23 @@ async function enviarForm(tipo) {
   if(ok) {
     limpiarFormulario(tipo);
     if(tipo === 'ingreso-telefono' || tipo === 'ingreso-accesorio') {
-      irA('inventario');
+      mostrarExito('inventario');
     } else if(tipo === 'nueva-deuda' || tipo === 'abono-deuda') {
       await cargarDeudas();
-      irA('control-deudas');
+      mostrarExito('control-deudas');
     } else if(tipo === 'gerencia' || tipo === 'ingresos-gerencia') {
-      irA('gerencia');
+      mostrarExito('gerencia');
     } else {
       irA('success');
     }
   } else {
     alert('⚠️ Error al enviar. Verifica tu conexión e intenta de nuevo.');
   }
+}
+
+function mostrarExito(destino) {
+  document.getElementById('exito-volver-btn').onclick = () => irA(destino);
+  irA('exito-gerencia');
 }
 
 function limpiarFormulario(tipo) {
