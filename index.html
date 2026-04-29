@@ -504,6 +504,8 @@ function getValorTotal(prefijo) {
     return parseInt((document.getElementById('il-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
   } else if(prefijo === 'ig') {
     return parseInt((document.getElementById('ig-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  } else if(prefijo === 'ab') {
+    return parseInt((document.getElementById('ab-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
   }
   return 0;
 }
@@ -1085,7 +1087,17 @@ async function cargarDeudas() {
         const concepto = row[2];
         const saldo = parseFloat(row[5]) || 0;
         const estado = row[6];
-        const vence = row[7];
+        const venceRaw = row[7];
+        let vence = '';
+        if(venceRaw) {
+          if(typeof venceRaw === 'number') {
+            // Convertir número serial de Excel a fecha
+            const d = new Date((venceRaw - 25569) * 86400 * 1000);
+            vence = d.toLocaleDateString('es-CO');
+          } else {
+            vence = venceRaw.toString();
+          }
+        }
         if(estado === 'PAGADA') continue;
         const fechaVence = new Date(vence);
         const diasRestantes = Math.ceil((fechaVence - hoy) / (1000*60*60*24));
