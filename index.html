@@ -899,12 +899,12 @@ async function cargarTodo() {
       for(let i=1; i<cfg.values.length; i++) {
         const row = cfg.values[i];
         if(row[0]) window.CONFIG_DATA.locales.push(row[0].toString());
-        if(row[2]) window.CONFIG_DATA.ubicaciones.push(row[1].toString());
+        if(row[2]) window.CONFIG_DATA.ubicaciones.push(row[2].toString());
         if(row[4]) window.CONFIG_DATA.tipoGastos.push(row[4].toString());
         if(row[6]) window.CONFIG_DATA.responsables.push(row[6].toString());
-        if(row[7]) window.CONFIG_DATA.categorias.push(row[7].toString());
-        if(row[10]) window.CONFIG_DATA.categoriasAcc.push(row[9].toString());
-        if(row[13]) window.CONFIG_DATA.proveedores.push(row[12].toString());
+        if(row[8]) window.CONFIG_DATA.categorias.push(row[8].toString());
+        if(row[10]) window.CONFIG_DATA.categoriasAcc.push(row[10].toString());
+        if(row[13]) window.CONFIG_DATA.proveedores.push(row[13].toString());
         if(row[15]) window.CONFIG_DATA.referencias.push(row[15].toString());
       }
       llenarSelectsDesdeConfig();
