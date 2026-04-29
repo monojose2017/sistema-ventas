@@ -932,6 +932,16 @@ async function enviarForm(tipo) {
   if(ok && tipo === 'accesorios') {
     await cargarTodo();
   }
+  if(ok && tipo === 'abono-deuda') {
+    const idx = document.getElementById('ab-acreedor').value;
+    if(idx !== '') {
+      const deuda = deudasActivas[parseInt(idx)];
+      const abono = getNumero('ab-valor');
+      const nuevoSaldo = deuda.saldo - abono;
+      await actualizarSaldoDeuda(deuda.acreedor, nuevoSaldo);
+      await cargarDeudas();
+    }
+  }
 
   if(btn){ btn.textContent = ok ? 'Registrar ✓' : 'Reintentar ⚠️'; btn.disabled = false; }
   if(ok) {
@@ -1041,6 +1051,26 @@ function selRecibido(val) {
 }
 
 let deudasActivas = [];
+
+async function actualizarSaldoDeuda(acreedor, nuevoSaldo) {
+  try {
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/usedRange`);
+    if(!data || !data.values) return;
+    for(let i=1; i<data.values.length; i++) {
+      if(!data.values[i][1]) continue;
+      if(data.values[i][1].toString().trim() === acreedor.toString().trim()) {
+        const filaExcel = i+1;
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/range(address='F${filaExcel}')`, { values: [[nuevoSaldo]] });
+        if(nuevoSaldo <= 0) {
+          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/range(address='G${filaExcel}')`, { values: [['PAGADA']] });
+        }
+        break;
+      }
+    }
+  } catch(e) {
+    console.error('Error actualizando saldo:', e);
+  }
+}
 
 async function cargarDeudas() {
   try {
