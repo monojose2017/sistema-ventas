@@ -386,8 +386,7 @@ function calcularCuotaPayjoy() {
   const cuotaSug = getNumero('c-cuota-sug');
   const descuento = getNumero('c-descuento');
   const cuotaFinal = cuotaSug - descuento;
-  const cuotaWrap = document.getElementById('c-cuota-wrap');
-  cuotaWrap.classList.remove('hidden');
+  // No mostrar cuota manual — solo actualizar el valor interno
   document.getElementById('c-cuota').value = '$' + cuotaFinal.toLocaleString('es-CO');
 }
 
@@ -417,8 +416,8 @@ function onTipoChange(){
   } else if(tipo === 'PAYJOY'){
     porcWrap.classList.add('hidden');
     payjoyWrap.style.display = 'block';
-    cuotaWrap.classList.remove('hidden');
-    aviso.classList.add('visible');
+    cuotaWrap.classList.add('hidden'); // ocultar cuota manual
+    aviso.classList.remove('visible'); // ocultar aviso manual
   }
   // OFICINA, ET_OFICINA, ET_CLARO, RECOMPRA: mostrar porcentaje y dejar que calcularCuota decida
 }
@@ -500,7 +499,12 @@ function verificarClave(){
 // ===== LÓGICA DE PAGO =====
 function getValorTotal(prefijo) {
   if(prefijo === 'c') {
-    // Crédito: cuota final = cuota inicial - descuento
+    const tipoVenta = document.getElementById('c-tipo')?.value || '';
+    if(tipoVenta === 'PAYJOY') {
+      const cuotaSug = parseInt((document.getElementById('c-cuota-sug')?.value||'').replace(/[^0-9]/g,'')) || 0;
+      const descuento = parseInt((document.getElementById('c-descuento')?.value||'').replace(/[^0-9]/g,'')) || 0;
+      return cuotaSug - descuento;
+    }
     const cuotaAuto = document.getElementById('cuota-box').classList.contains('visible')
       ? parseInt(document.getElementById('cuota-valor').textContent.replace(/[^0-9]/g,'')) : 0;
     const cuotaManual = parseInt((document.getElementById('c-cuota')?.value||'').replace(/[^0-9]/g,'')) || 0;
