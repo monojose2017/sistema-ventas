@@ -251,10 +251,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </div>
     </div>
     <div id="scanner-container" style="display:none;margin-bottom:12px;">
-      <div style="position:relative;width:100%;max-width:400px;margin:0 auto;">
-        <video id="scanner-video" style="width:100%;border-radius:12px;"></video>
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:2px;background:red;opacity:0.7;"></div>
-      </div>
+      <div id="qr-reader" style="width:100%;border-radius:12px;overflow:hidden;"></div>
       <button type="button" onclick="stopScanner()" style="width:100%;margin-top:8px;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">❌ Cancelar escaneo</button>
     </div>
     <div class="field"><label>Referencia</label><div class="select-wrap"><select id="it-ref-sel"><option value="">Seleccionar referencia...</option></select></div></div>
@@ -433,14 +430,13 @@ function autoRefContado(){
   document.getElementById('ct-ref').value = sel ? sel.split('|')[1] : '';
 }
 
-let scannerStream = null;
-let zxingReader = null;
+let html5Scanner = null;
 
 async function toggleScanner() {
   const container = document.getElementById('scanner-container');
   if(container.style.display === 'none') {
     container.style.display = 'block';
-    document.getElementById('scan-btn').textContent = '⏸ Escaneando...';
+    document.getElementById('scan-btn').textContent = '⏸ Parar';
     await startScanner();
   } else {
     stopScanner();
@@ -448,50 +444,43 @@ async function toggleScanner() {
 }
 
 async function startScanner() {
-  try {
-    const video = document.getElementById('scanner-video');
-    scannerStream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'environment' } 
+  // Cargar html5-qrcode si no está cargado
+  if(!window.Html5Qrcode) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
     });
-    video.srcObject = scannerStream;
-    video.play();
+  }
 
-    // Cargar ZXing dinámicamente
-    if(!window.ZXing) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
-    }
-
-    zxingReader = new ZXing.BrowserMultiFormatReader();
-    zxingReader.decodeFromVideoElement(video, (result, err) => {
-      if(result) {
-        const imei = result.getText().replace(/\D/g, '');
+  try {
+    html5Scanner = new Html5Qrcode('qr-reader');
+    await html5Scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 100 } },
+      (decodedText) => {
+        const match = decodedText.match(/\d{15}/);
+        const imei = match ? match[0] : decodedText.replace(/\D/g, '');
         if(imei.length >= 10) {
           document.getElementById('it-imei').value = imei;
           stopScanner();
-          alert('✅ IMEI escaneado: ' + imei);
+          alert('✅ IMEI: ' + imei);
         }
-      }
-    });
+      },
+      () => {} // error silencioso mientras busca
+    );
   } catch(e) {
     alert('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
     stopScanner();
   }
 }
 
-function stopScanner() {
-  if(zxingReader) {
-    zxingReader.reset();
-    zxingReader = null;
-  }
-  if(scannerStream) {
-    scannerStream.getTracks().forEach(t => t.stop());
-    scannerStream = null;
+async function stopScanner() {
+  if(html5Scanner) {
+    try { await html5Scanner.stop(); } catch(e) {}
+    html5Scanner = null;
   }
   const container = document.getElementById('scanner-container');
   if(container) container.style.display = 'none';
