@@ -257,12 +257,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </div>
       <button type="button" onclick="stopScanner()" style="width:100%;margin-top:8px;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">❌ Cancelar escaneo</button>
     </div>
-    <div class="field"><label>Referencia</label><input type="text" id="it-ref" placeholder="Ej: SAMSUNG A07 6 128GB"></div>
+    <div class="field"><label>Referencia</label><div class="select-wrap"><select id="it-ref-sel"><option value="">Seleccionar referencia...</option></select></div></div>
     <div class="field"><label>Costo</label><input type="text" id="it-costo" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Fecha Ingreso</label><input type="date" id="it-fecha"></div>
-    <div class="field"><label>Proveedor</label><input type="text" id="it-proveedor" placeholder="Ej: MR MOVIL, OFICINA, K CELL..."></div>
-    <div class="field"><label>Origen</label><div class="select-wrap"><select id="it-origen"><option value="">Seleccionar...</option><option>COMPRA PROPIA</option><option>OFICINA</option><option>CONSIGNACION</option></select></div></div>
-    <div class="field"><label>Ubicación (Local)</label><div class="select-wrap"><select id="it-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Proveedor</label><div class="select-wrap"><select id="it-proveedor-sel"><option value="">Seleccionar proveedor...</option></select></div></div>
+    <div class="field"><label>¿Es repuesto?</label><div class="select-wrap"><select id="it-repuesto"><option value="">No</option><option value="REPUESTO">Sí - Es repuesto</option></select></div></div>
+    <div class="field"><label>Ubicación</label><div class="select-wrap"><select id="it-local"><option value="">Seleccionar ubicación...</option></select></div></div>
     <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7);box-shadow:0 4px 12px rgba(3,105,161,.35)" onclick="enviarForm('ingreso-telefono')">Agregar al Inventario ✓</button>
   </div>
 </div>
@@ -434,7 +434,7 @@ function autoRefContado(){
 }
 
 let scannerStream = null;
-let scannerInterval = null;
+let zxingReader = null;
 
 async function toggleScanner() {
   const container = document.getElementById('scanner-container');
@@ -451,31 +451,33 @@ async function startScanner() {
   try {
     const video = document.getElementById('scanner-video');
     scannerStream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+      video: { facingMode: 'environment' } 
     });
     video.srcObject = scannerStream;
     video.play();
 
-    // Usar BarcodeDetector si está disponible (Chrome moderno)
-    if('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'code_39'] });
-      scannerInterval = setInterval(async () => {
-        try {
-          const barcodes = await detector.detect(video);
-          if(barcodes.length > 0) {
-            const imei = barcodes[0].rawValue.replace(/\D/g, '');
-            if(imei.length >= 10) {
-              document.getElementById('it-imei').value = imei;
-              stopScanner();
-              alert('✅ IMEI escaneado: ' + imei);
-            }
-          }
-        } catch(e) {}
-      }, 500);
-    } else {
-      alert('⚠️ Tu navegador no soporta escaneo automático. Ingresa el IMEI manualmente.');
-      stopScanner();
+    // Cargar ZXing dinámicamente
+    if(!window.ZXing) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
     }
+
+    zxingReader = new ZXing.BrowserMultiFormatReader();
+    zxingReader.decodeFromVideoElement(video, (result, err) => {
+      if(result) {
+        const imei = result.getText().replace(/\D/g, '');
+        if(imei.length >= 10) {
+          document.getElementById('it-imei').value = imei;
+          stopScanner();
+          alert('✅ IMEI escaneado: ' + imei);
+        }
+      }
+    });
   } catch(e) {
     alert('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
     stopScanner();
@@ -483,13 +485,13 @@ async function startScanner() {
 }
 
 function stopScanner() {
+  if(zxingReader) {
+    zxingReader.reset();
+    zxingReader = null;
+  }
   if(scannerStream) {
     scannerStream.getTracks().forEach(t => t.stop());
     scannerStream = null;
-  }
-  if(scannerInterval) {
-    clearInterval(scannerInterval);
-    scannerInterval = null;
   }
   const container = document.getElementById('scanner-container');
   if(container) container.style.display = 'none';
@@ -897,6 +899,27 @@ async function cargarTodo() {
       }
     }
     console.log('Todo cargado desde OneDrive ✅');
+
+    // Cargar CONFIG
+    const cfg = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/usedRange`);
+    if(cfg && cfg.values) {
+      window.CONFIG_DATA = {
+        locales: [], ubicaciones: [], proveedores: [], referencias: [],
+        responsables: [], categorias: [], categoriasAcc: [], tipoGastos: []
+      };
+      for(let i=1; i<cfg.values.length; i++) {
+        const row = cfg.values[i];
+        if(row[0]) window.CONFIG_DATA.locales.push(row[0].toString());
+        if(row[1]) window.CONFIG_DATA.ubicaciones.push(row[1].toString());
+        if(row[4]) window.CONFIG_DATA.tipoGastos.push(row[4].toString());
+        if(row[6]) window.CONFIG_DATA.responsables.push(row[6].toString());
+        if(row[7]) window.CONFIG_DATA.categorias.push(row[7].toString());
+        if(row[9]) window.CONFIG_DATA.categoriasAcc.push(row[9].toString());
+        if(row[12]) window.CONFIG_DATA.proveedores.push(row[12].toString());
+        if(row[15]) window.CONFIG_DATA.referencias.push(row[15].toString());
+      }
+      llenarSelectsDesdeConfig();
+    }
   } catch(e) {
     console.error('Error cargando datos:', e);
   }
@@ -1032,8 +1055,9 @@ async function enviarForm(tipo) {
 
   } else if(tipo === 'ingreso-telefono') {
     hoja = 'INVENTARIO_TELEFONO';
+    const repuesto = getVal('it-repuesto');
     // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION
-    fila = [getVal('it-imei'), getVal('it-ref'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor'), getVal('it-origen'), 'DISPONIBLE', '', '', getVal('it-local')];
+    fila = [getVal('it-imei'), getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local')];
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
@@ -1163,11 +1187,11 @@ function limpiarFormulario(tipo) {
     document.getElementById('ga-resp').value = '';
   } else if(tipo === 'ingreso-telefono') {
     document.getElementById('it-imei').value = '';
-    document.getElementById('it-ref').value = '';
+    document.getElementById('it-ref-sel').value = '';
     document.getElementById('it-costo').value = '';
     document.getElementById('it-fecha').value = hoy;
-    document.getElementById('it-proveedor').value = '';
-    document.getElementById('it-origen').value = '';
+    document.getElementById('it-proveedor-sel').value = '';
+    document.getElementById('it-repuesto').value = '';
     document.getElementById('it-local').value = '';
   } else if(tipo === 'ingreso-accesorio') {
     document.getElementById('ia-local').value = '';
@@ -1239,6 +1263,37 @@ async function actualizarSaldoDeuda(acreedor, nuevoSaldo) {
   } catch(e) {
     console.error('Error actualizando saldo:', e);
   }
+}
+
+function llenarSelectsDesdeConfig() {
+  const c = window.CONFIG_DATA;
+  if(!c) return;
+
+  // Helper para llenar un select
+  function llenar(id, lista, placeholder) {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const val = el.value;
+    el.innerHTML = `<option value="">${placeholder}</option>`;
+    lista.forEach(item => el.innerHTML += `<option value="${item}">${item}</option>`);
+    if(val) el.value = val;
+  }
+
+  // Ingresar Teléfono
+  llenar('it-proveedor-sel', c.proveedores, 'Seleccionar proveedor...');
+  llenar('it-ref-sel', c.referencias, 'Seleccionar referencia...');
+  llenar('it-local', c.ubicaciones, 'Seleccionar ubicación...');
+
+  // Responsables en gastos diarios
+  llenar('ga-resp', c.responsables, 'Seleccionar...');
+
+  // Ingresos local responsables
+  llenar('il-resp', c.responsables, 'Seleccionar...');
+
+  // Locales
+  ['c-local','ct-local','a-local','ga-local','g-local','il-local','ig-local','nd-local'].forEach(id => {
+    llenar(id, c.locales, 'Seleccionar...');
+  });
 }
 
 async function cargarDeudas() {
