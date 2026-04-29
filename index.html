@@ -1090,9 +1090,9 @@ async function cargarDeudas() {
         const venceRaw = row[7];
         let vence = '';
         if(venceRaw) {
-          if(typeof venceRaw === 'number') {
-            // Convertir número serial de Excel a fecha
-            const d = new Date((venceRaw - 25569) * 86400 * 1000);
+        if(typeof venceRaw === 'number') {
+            const d = new Date(Math.round((venceRaw - 25569) * 86400 * 1000));
+            d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
             vence = d.toLocaleDateString('es-CO');
           } else {
             vence = venceRaw.toString();
