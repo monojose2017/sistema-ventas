@@ -330,6 +330,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <!-- CAMPOS REPONER -->
     <div id="acc-reponer-fields" style="display:none;">
+      <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-reponer-cat" onchange="onLocalAccChange()"><option value="">Todas las categorías</option></select></div></div>
       <div class="field"><label>Producto</label><div class="select-wrap"><select id="ia-reponer-producto" onchange="onProductoReponerChange()"><option value="">Seleccionar producto...</option></select></div></div>
       <div id="ia-info-actual" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
         <div>📦 Stock actual: <b id="ia-stock-actual">0</b></div>
@@ -1136,8 +1137,19 @@ async function enviarForm(tipo) {
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
-    // LOCAL, CATEGORIA, PRODUCTO, STOCK, COSTO UNITARIO
-    fila = [getVal('ia-local'), getVal('ia-cat'), getVal('ia-producto'), parseInt(getVal('ia-stock'))||0, getNumero('ia-costo')];
+    const localAcc = getVal('ia-local');
+    const productoAcc = getVal('ia-producto').toUpperCase().trim();
+    // Validar duplicado
+    if(window.ACCESORIOS_EXCEL) {
+      const duplicado = window.ACCESORIOS_EXCEL.find(a =>
+        a.local === localAcc && a.producto.toUpperCase() === productoAcc
+      );
+      if(duplicado) {
+        alert(`⚠️ Ya existe "${productoAcc}" en ${localAcc}.\nUsa la opción REPONER para actualizar el stock.`);
+        return;
+      }
+    }
+    fila = [localAcc, getVal('ia-cat'), productoAcc, parseInt(getVal('ia-stock'))||0, getNumero('ia-costo')];
 
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
@@ -1356,10 +1368,21 @@ function modoAccesorio(modo) {
 
 function onLocalAccChange() {
   const local = document.getElementById('ia-local').value;
+  const catSel = document.getElementById('ia-reponer-cat');
   const sel = document.getElementById('ia-reponer-producto');
   if(!sel || !local || !window.ACCESORIOS_EXCEL) return;
+
+  // Llenar categorías disponibles para ese local
+  const cats = [...new Set(window.ACCESORIOS_EXCEL.filter(a => a.local === local).map(a => a.cat))];
+  catSel.innerHTML = '<option value="">Todas las categorías</option>';
+  cats.forEach(c => catSel.innerHTML += `<option value="${c}">${c}</option>`);
+
+  // Llenar productos
+  const catFiltro = catSel.value;
+  const productos = window.ACCESORIOS_EXCEL.filter(a => 
+    a.local === local && (!catFiltro || a.cat === catFiltro)
+  );
   sel.innerHTML = '<option value="">Seleccionar producto...</option>';
-  const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
   productos.forEach((p, i) => {
     sel.innerHTML += `<option value="${i}">${p.producto} (Stock: ${p.stock})</option>`;
   });
@@ -1589,6 +1612,7 @@ function llenarSelectsDesdeConfig() {
   // Categorias accesorios
   llenar('ia-cat', c.categoriasAcc, 'Seleccionar...');
   llenar('a-cat', c.categoriasAcc, 'Seleccionar...');
+  llenar('ia-reponer-cat', c.categoriasAcc, 'Todas las categorías');
 
   // Locales
   ['c-local','ct-local','a-local','ga-local','g-local','il-local','ig-local','nd-local','ia-local'].forEach(id => {
