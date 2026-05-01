@@ -105,7 +105,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Fecha de la Venta</label><input type="date" id="c-fecha"></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="c-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
     <div class="field"><label>Tipo de Venta</label><div class="select-wrap"><select id="c-tipo" onchange="onTipoChange()"><option value="">Seleccionar...</option><option value="OFICINA">OFICINA</option><option value="RECOMPRA">RECOMPRA</option><option value="ET_OFICINA">ET OFICINA</option><option value="ET_CLARO">ET CLARO</option><option value="ALO_CREDIT">ALO CREDIT</option><option value="ADDI">ADDI</option><option value="PAYJOY">PAYJOY</option></select></div></div>
-    <div class="field"><label>IMEI <span class="tag verde">Automático</span></label><div class="select-wrap"><select id="c-imei" onchange="autoRef()"><option value="">Seleccionar IMEI disponible...</option></select></div></div>
+    <div class="field"><label>IMEI <span class="tag verde">Automático</span></label>
+      <input type="text" id="c-imei-search" placeholder="Buscar por IMEI o referencia..." oninput="filtrarIMEI('c')" style="margin-bottom:6px;">
+      <div class="select-wrap"><select id="c-imei" onchange="autoRef()"><option value="">Seleccionar IMEI disponible...</option></select></div>
+    </div>
     <div class="field"><label>Referencia <span class="tag verde">Automático</span></label><input type="text" id="c-ref" readonly placeholder="Se llena al elegir IMEI"></div>
     <div class="field" id="c-porc-wrap"><label>Porcentaje</label><div class="select-wrap"><select id="c-porc" onchange="calcularCuota()"><option value="">Seleccionar...</option><option value="0.15">15%</option><option value="0.20">20%</option><option value="0.25">25%</option><option value="0.30">30%</option><option value="0.35">35%</option><option value="0.40">40%</option></select></div></div>
     <div class="field" id="c-payjoy-wrap" style="display:none"><label id="c-cuota-sug-label">Cuota Sugerida</label><input type="text" id="c-cuota-sug" placeholder="$0" oninput="formatMoney(this);calcularCuotaPayjoy()"></div>
@@ -126,7 +129,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <div class="field"><label>Fecha de la Venta</label><input type="date" id="ct-fecha"></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="ct-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
-    <div class="field"><label>IMEI <span class="tag verde">Automático</span></label><div class="select-wrap"><select id="ct-imei" onchange="autoRefContado()"><option value="">Seleccionar IMEI disponible...</option></select></div></div>
+    <div class="field"><label>IMEI <span class="tag verde">Automático</span></label>
+      <input type="text" id="ct-imei-search" placeholder="Buscar por IMEI o referencia..." oninput="filtrarIMEI('ct')" style="margin-bottom:6px;">
+      <div class="select-wrap"><select id="ct-imei" onchange="autoRefContado()"><option value="">Seleccionar IMEI disponible...</option></select></div>
+    </div>
     <div class="field"><label>Referencia <span class="tag verde">Automático</span></label><input type="text" id="ct-ref" readonly placeholder="Se llena al elegir IMEI"></div>
     <div class="field"><label>Precio de Venta</label><input type="text" id="ct-precio" placeholder="$0" oninput="formatMoney(this);manejarPago('ct')"></div>
     <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="ct-pago" onchange="manejarPago('ct')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
@@ -143,7 +149,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Fecha de la Venta</label><input type="date" id="a-fecha"></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="a-local" onchange="filtrarAccesorios()"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
     <div class="field"><label>Categoría</label><div class="select-wrap"><select id="a-cat" onchange="filtrarAccesorios()"><option value="">Seleccionar...</option><option>VIDRIOS</option><option>FORROS</option><option>CARGADORES</option><option>AUDIFONOS</option><option>CABLES</option><option>PARLANTES</option><option>SIM CARD</option><option>OTROS</option></select></div></div>
-    <div class="field"><label>Producto <span class="tag verde">Filtrado automático</span></label><div class="select-wrap"><select id="a-producto"><option value="">Primero elige local y categoría...</option></select></div></div>
+    <div class="field"><label>Producto <span class="tag verde">Filtrado automático</span></label>
+      <input type="text" id="a-producto-search" placeholder="Buscar producto..." oninput="filtrarProductoAcc()" style="margin-bottom:6px;">
+      <div class="select-wrap"><select id="a-producto"><option value="">Primero elige local y categoría...</option></select></div>
+    </div>
     <div class="row2"><div class="field"><label>Cantidad</label><input type="number" id="a-cant" placeholder="1" value="1" min="1" oninput="manejarPago('a')"></div><div class="field"><label>Precio Unitario</label><input type="text" id="a-precio" placeholder="$0" oninput="formatMoney(this);manejarPago('a')"></div></div>
     <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="a-pago" onchange="manejarPago('a')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="a-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('a')"></div><div class="field"><label>Transferencia</label><input type="text" id="a-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('a')"></div></div>
@@ -923,6 +932,7 @@ async function cargarTodo() {
           imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0 });
         }
       }
+      window.IMEIS_TODOS = imeis;
       ['c-imei','ct-imei'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
@@ -1287,6 +1297,46 @@ async function eliminarConfigItem(lista, idx) {
   }
 }
 
+function filtrarIMEI(prefijo) {
+  const busqueda = document.getElementById(`${prefijo}-imei-search`).value.toLowerCase();
+  const sel = document.getElementById(`${prefijo}-imei`);
+  const onchange = prefijo === 'c' ? 'autoRef()' : 'autoRefContado()';
+  
+  sel.innerHTML = '<option value="">Seleccionar IMEI...</option>';
+  if(!window.IMEIS_TODOS) return;
+  
+  const filtrados = busqueda 
+    ? window.IMEIS_TODOS.filter(i => 
+        i.imei.includes(busqueda) || 
+        i.ref.toLowerCase().includes(busqueda))
+    : window.IMEIS_TODOS;
+    
+  filtrados.forEach(i => {
+    sel.innerHTML += `<option value="${i.imei}|${i.ref}|${i.costo}">${i.imei} — ${i.ref}</option>`;
+  });
+}
+
+function filtrarProductoAcc() {
+  const busqueda = document.getElementById('a-producto-search').value.toLowerCase();
+  const sel = document.getElementById('a-producto');
+  if(!window.ACCESORIOS_EXCEL) return;
+  
+  const local = document.getElementById('a-local').value;
+  const cat = document.getElementById('a-cat').value;
+  
+  let filtrados = window.ACCESORIOS_EXCEL.filter(a => {
+    const matchLocal = !local || a.local === local;
+    const matchCat = !cat || a.cat === cat;
+    const matchBusqueda = !busqueda || a.producto.toLowerCase().includes(busqueda);
+    return matchLocal && matchCat && matchBusqueda && a.stock > 0;
+  });
+  
+  sel.innerHTML = '<option value="">Seleccionar...</option>';
+  filtrados.forEach(a => {
+    sel.innerHTML += `<option value="${a.producto}">${a.producto} (Stock: ${a.stock})</option>`;
+  });
+}
+
 function modoAccesorio(modo) {
   const btnNuevo = document.getElementById('btn-nuevo-acc');
   const btnReponer = document.getElementById('btn-reponer-acc');
@@ -1541,7 +1591,7 @@ function llenarSelectsDesdeConfig() {
   llenar('a-cat', c.categoriasAcc, 'Seleccionar...');
 
   // Locales
-  ['c-local','ct-local','a-local','ga-local','g-local','il-local','ig-local','nd-local'].forEach(id => {
+  ['c-local','ct-local','a-local','ga-local','g-local','il-local','ig-local','nd-local','ia-local'].forEach(id => {
     llenar(id, c.locales, 'Seleccionar...');
   });
 }
