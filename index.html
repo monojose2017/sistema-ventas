@@ -176,6 +176,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="irA('ingresos-gerencia')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('inventario')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Inventario</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
@@ -230,6 +231,36 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7);box-shadow:0 4px 12px rgba(3,105,161,.35)" onclick="enviarForm('ingresos-gerencia')">Registrar Ingreso ✓</button>
   </div>
 </div>
+<!-- ADMIN CONFIG -->
+<div class="screen" id="screen-admin-config">
+  <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">⚙️ Administrar Listas</div><div class="form-header-sub">Agrega o elimina opciones</div></div></div>
+  <div class="form-body">
+    <div class="field">
+      <label>Selecciona la lista</label>
+      <div class="select-wrap">
+        <select id="config-lista-sel" onchange="renderConfigLista()">
+          <option value="">Seleccionar...</option>
+          <option value="proveedores">Proveedores</option>
+          <option value="referencias">Referencias</option>
+          <option value="ubicaciones">Ubicaciones</option>
+          <option value="locales">Locales</option>
+          <option value="responsables">Responsables</option>
+          <option value="categorias">Categorías Gastos</option>
+          <option value="categoriasAcc">Categorías Accesorios</option>
+          <option value="tipoGastos">Tipo Gastos</option>
+        </select>
+      </div>
+    </div>
+    <div id="config-lista-container" style="margin-bottom:16px;"></div>
+    <div id="config-agregar-wrap" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="text" id="config-nuevo-item" placeholder="Nuevo item..." style="flex:1;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;">
+        <button onclick="agregarConfigItem()" style="padding:12px 16px;background:#5b21b6;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">➕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- INVENTARIO MENU -->
 <div class="screen" id="screen-inventario">
   <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📦 Inventario</div><div class="form-header-sub">Gestiona tu inventario</div></div></div>
@@ -268,12 +299,41 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-ingreso-accesorio">
   <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">🎧 Ingresar Accesorio</div><div class="form-header-sub">Agregar al inventario</div></div></div>
   <div class="form-body">
-    <div class="field"><label>Local</label><div class="select-wrap"><select id="ia-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
-    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-cat"><option value="">Seleccionar...</option></select></div></div>
-    <div class="field"><label>Producto</label><input type="text" id="ia-producto" placeholder="Ej: VIDRIO SAMSUNG A07"></div>
-    <div class="field"><label>Cantidad (Stock)</label><input type="number" id="ia-stock" placeholder="0" min="1"></div>
-    <div class="field"><label>Costo Unitario</label><input type="text" id="ia-costo" placeholder="$0" oninput="formatMoney(this)"></div>
-    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(22,163,74,.35)" onclick="enviarForm('ingreso-accesorio')">Agregar al Inventario ✓</button>
+    <div class="field">
+      <label>¿Qué vas a hacer?</label>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button type="button" id="btn-nuevo-acc" onclick="modoAccesorio('nuevo')" style="flex:1;padding:12px;border-radius:10px;border:2px solid #16a34a;background:white;font-weight:700;cursor:pointer;font-size:13px;">➕ NUEVO</button>
+        <button type="button" id="btn-reponer-acc" onclick="modoAccesorio('reponer')" style="flex:1;padding:12px;border-radius:10px;border:2px solid #16a34a;background:white;font-weight:700;cursor:pointer;font-size:13px;">🔄 REPONER</button>
+      </div>
+    </div>
+
+    <!-- CAMPOS COMUNES -->
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ia-local" onchange="onLocalAccChange()"><option value="">Seleccionar...</option></select></div></div>
+
+    <!-- CAMPOS NUEVO -->
+    <div id="acc-nuevo-fields">
+      <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-cat"><option value="">Seleccionar...</option></select></div></div>
+      <div class="field"><label>Producto</label><input type="text" id="ia-producto" placeholder="Ej: VIDRIO SAMSUNG A07"></div>
+      <div class="field"><label>Cantidad</label><input type="number" id="ia-stock" placeholder="0" min="1"></div>
+      <div class="field"><label>Costo Unitario</label><input type="text" id="ia-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d)" onclick="enviarForm('ingreso-accesorio')">Agregar al Inventario ✓</button>
+    </div>
+
+    <!-- CAMPOS REPONER -->
+    <div id="acc-reponer-fields" style="display:none;">
+      <div class="field"><label>Producto</label><div class="select-wrap"><select id="ia-reponer-producto" onchange="onProductoReponerChange()"><option value="">Seleccionar producto...</option></select></div></div>
+      <div id="ia-info-actual" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
+        <div>📦 Stock actual: <b id="ia-stock-actual">0</b></div>
+        <div>💰 Precio actual: <b id="ia-precio-actual">$0</b></div>
+      </div>
+      <div class="field"><label>Cantidad a agregar</label><input type="number" id="ia-reponer-cant" placeholder="0" min="1" oninput="calcularPrecioPromedio()"></div>
+      <div class="field"><label>Nuevo precio unitario</label><input type="text" id="ia-reponer-precio" placeholder="$0" oninput="formatMoney(this);calcularPrecioPromedio()"></div>
+      <div id="ia-promedio-wrap" style="display:none;background:#fef3c7;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
+        <div>📊 Precio promedio: <b id="ia-precio-promedio">$0</b></div>
+        <div>📦 Nuevo stock total: <b id="ia-stock-total">0</b></div>
+      </div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7)" onclick="reponerAccesorio()">Reponer Stock ✓</button>
+    </div>
   </div>
 </div>
 
@@ -1140,6 +1200,176 @@ async function enviarForm(tipo) {
     }
   } else {
     alert('⚠️ Error al enviar. Verifica tu conexión e intenta de nuevo.');
+  }
+}
+
+// CONFIG ADMIN
+const CONFIG_COLUMNAS = {
+  locales: { col: 'A', idx: 0 },
+  ubicaciones: { col: 'C', idx: 2 },
+  tipoGastos: { col: 'E', idx: 4 },
+  responsables: { col: 'G', idx: 6 },
+  categorias: { col: 'I', idx: 8 },
+  categoriasAcc: { col: 'K', idx: 10 },
+  proveedores: { col: 'N', idx: 13 },
+  referencias: { col: 'P', idx: 15 }
+};
+
+async function cargarConfigAdmin() {
+  // Ya está cargado en CONFIG_DATA, solo renderizar
+  renderConfigLista();
+}
+
+function renderConfigLista() {
+  const lista = document.getElementById('config-lista-sel').value;
+  const container = document.getElementById('config-lista-container');
+  const agregarWrap = document.getElementById('config-agregar-wrap');
+  
+  if(!lista || !window.CONFIG_DATA) {
+    container.innerHTML = '';
+    agregarWrap.style.display = 'none';
+    return;
+  }
+
+  agregarWrap.style.display = 'block';
+  const items = window.CONFIG_DATA[lista] || [];
+  
+  if(items.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#64748b;padding:16px;">No hay items. Agrega el primero.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map((item, i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);">
+      <span style="font-size:14px;font-weight:600;">${item}</span>
+      <button onclick="eliminarConfigItem('${lista}', ${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
+    </div>
+  `).join('');
+}
+
+async function agregarConfigItem() {
+  const lista = document.getElementById('config-lista-sel').value;
+  const nuevoItem = document.getElementById('config-nuevo-item').value.trim().toUpperCase();
+  
+  if(!lista || !nuevoItem) { alert('Escribe un item primero'); return; }
+  if(window.CONFIG_DATA[lista].includes(nuevoItem)) { alert('Ya existe ese item'); return; }
+
+  const col = CONFIG_COLUMNAS[lista];
+  const fila = window.CONFIG_DATA[lista].length + 2; // +2 por encabezado y 1-based
+
+  try {
+    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/range(address='${col.col}${fila}')`, { values: [[nuevoItem]] });
+    window.CONFIG_DATA[lista].push(nuevoItem);
+    document.getElementById('config-nuevo-item').value = '';
+    renderConfigLista();
+    llenarSelectsDesdeConfig();
+    alert('✅ Agregado correctamente');
+  } catch(e) {
+    alert('❌ Error al agregar. Verifica conexión.');
+  }
+}
+
+async function eliminarConfigItem(lista, idx) {
+  if(!confirm('¿Eliminar este item?')) return;
+  
+  const col = CONFIG_COLUMNAS[lista];
+  const fila = idx + 2; // +2 por encabezado y 1-based
+
+  try {
+    // Borrar la celda en Excel
+    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/range(address='${col.col}${fila}')`, { values: [['']] });
+    window.CONFIG_DATA[lista].splice(idx, 1);
+    renderConfigLista();
+    llenarSelectsDesdeConfig();
+    alert('✅ Eliminado correctamente');
+  } catch(e) {
+    alert('❌ Error al eliminar.');
+  }
+}
+
+function modoAccesorio(modo) {
+  const btnNuevo = document.getElementById('btn-nuevo-acc');
+  const btnReponer = document.getElementById('btn-reponer-acc');
+  const nuevoFields = document.getElementById('acc-nuevo-fields');
+  const reponerFields = document.getElementById('acc-reponer-fields');
+  if(modo === 'nuevo') {
+    btnNuevo.style.background = '#16a34a'; btnNuevo.style.color = 'white';
+    btnReponer.style.background = 'white'; btnReponer.style.color = 'black';
+    nuevoFields.style.display = 'block'; reponerFields.style.display = 'none';
+  } else {
+    btnReponer.style.background = '#16a34a'; btnReponer.style.color = 'white';
+    btnNuevo.style.background = 'white'; btnNuevo.style.color = 'black';
+    nuevoFields.style.display = 'none'; reponerFields.style.display = 'block';
+    onLocalAccChange();
+  }
+}
+
+function onLocalAccChange() {
+  const local = document.getElementById('ia-local').value;
+  const sel = document.getElementById('ia-reponer-producto');
+  if(!sel || !local || !window.ACCESORIOS_EXCEL) return;
+  sel.innerHTML = '<option value="">Seleccionar producto...</option>';
+  const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
+  productos.forEach((p, i) => {
+    sel.innerHTML += `<option value="${i}">${p.producto} (Stock: ${p.stock})</option>`;
+  });
+  document.getElementById('ia-info-actual').style.display = 'none';
+  document.getElementById('ia-promedio-wrap').style.display = 'none';
+}
+
+function onProductoReponerChange() {
+  const local = document.getElementById('ia-local').value;
+  const idx = document.getElementById('ia-reponer-producto').value;
+  if(idx === '') { document.getElementById('ia-info-actual').style.display = 'none'; return; }
+  const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
+  const prod = productos[parseInt(idx)];
+  document.getElementById('ia-stock-actual').textContent = prod.stock;
+  document.getElementById('ia-precio-actual').textContent = '$' + prod.costo.toLocaleString('es-CO');
+  document.getElementById('ia-info-actual').style.display = 'block';
+}
+
+function calcularPrecioPromedio() {
+  const local = document.getElementById('ia-local').value;
+  const idx = document.getElementById('ia-reponer-producto').value;
+  if(idx === '') return;
+  const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
+  const prod = productos[parseInt(idx)];
+  const cantNueva = parseInt(document.getElementById('ia-reponer-cant').value) || 0;
+  const precioNuevo = parseInt((document.getElementById('ia-reponer-precio').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(cantNueva > 0 && precioNuevo > 0) {
+    const promedio = Math.round((prod.stock * prod.costo + cantNueva * precioNuevo) / (prod.stock + cantNueva));
+    document.getElementById('ia-precio-promedio').textContent = '$' + promedio.toLocaleString('es-CO');
+    document.getElementById('ia-stock-total').textContent = prod.stock + cantNueva;
+    document.getElementById('ia-promedio-wrap').style.display = 'block';
+  }
+}
+
+async function reponerAccesorio() {
+  const local = document.getElementById('ia-local').value;
+  const idx = document.getElementById('ia-reponer-producto').value;
+  const cantNueva = parseInt(document.getElementById('ia-reponer-cant').value) || 0;
+  const precioNuevo = parseInt((document.getElementById('ia-reponer-precio').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(!local || idx === '' || cantNueva <= 0 || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
+  const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
+  const prod = productos[parseInt(idx)];
+  const promedio = Math.round((prod.stock * prod.costo + cantNueva * precioNuevo) / (prod.stock + cantNueva));
+  const nuevoStock = prod.stock + cantNueva;
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
+    if(!inv || !inv.values) { alert('❌ Error al buscar el producto'); return; }
+    for(let i=1; i<inv.values.length; i++) {
+      const row = inv.values[i];
+      if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
+        const filaExcel = i+1;
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStock, promedio]] });
+        await cargarTodo();
+        mostrarExito('inventario');
+        return;
+      }
+    }
+    alert('❌ No se encontró el producto');
+  } catch(e) {
+    alert('❌ Error al actualizar. Verifica conexión.');
   }
 }
 
