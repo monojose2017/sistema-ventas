@@ -277,6 +277,32 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="irA('ingreso-telefono')"><div class="btn-icon azul">📱</div><div class="btn-info"><div class="btn-titulo">Ingresar Teléfono</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingreso-accesorio')"><div class="btn-icon verde">🎧</div><div class="btn-info"><div class="btn-titulo">Ingresar Accesorio</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('cambiar-precios')"><div class="btn-icon naranja">💰</div><div class="btn-info"><div class="btn-titulo">Cambiar Precio de Venta</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="verInventario()"><div class="btn-icon verde">🔍</div><div class="btn-info"><div class="btn-titulo">Ver Inventario</div><div class="btn-sub">Consultar stock · Precios</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- VER INVENTARIO -->
+<div class="screen" id="screen-ver-inventario">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">🔍 Ver Inventario</div><div class="form-header-sub">Consulta stock y precios</div></div></div>
+  <div class="form-body">
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button id="tab-tel-btn" onclick="tabInventario('tel')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #0369a1;background:#0369a1;color:white;font-weight:700;cursor:pointer;">📱 Teléfonos</button>
+      <button id="tab-acc-btn" onclick="tabInventario('acc')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #0369a1;background:white;color:#0369a1;font-weight:700;cursor:pointer;">🎧 Accesorios</button>
+    </div>
+
+    <!-- Buscador -->
+    <input type="text" id="inv-search" placeholder="Buscar..." oninput="renderInventario()" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;">
+
+    <!-- Filtro local -->
+    <div class="select-wrap" style="margin-bottom:12px;">
+      <select id="inv-local-filter" onchange="renderInventario()">
+        <option value="">Todos los locales</option>
+      </select>
+    </div>
+
+    <!-- Lista -->
+    <div id="inv-lista"></div>
   </div>
 </div>
 
@@ -1361,6 +1387,90 @@ async function eliminarConfigItem(lista, idx) {
     alert('✅ Eliminado correctamente');
   } catch(e) {
     alert('❌ Error al eliminar.');
+  }
+}
+
+let invTab = 'tel';
+
+function verInventario() {
+  invTab = 'tel';
+  // Llenar filtro de locales
+  const sel = document.getElementById('inv-local-filter');
+  sel.innerHTML = '<option value="">Todos los locales</option>';
+  if(window.CONFIG_DATA) {
+    window.CONFIG_DATA.locales.forEach(l => sel.innerHTML += `<option>${l}</option>`);
+  }
+  document.getElementById('inv-search').value = '';
+  tabInventario('tel');
+  irA('ver-inventario');
+}
+
+function tabInventario(tab) {
+  invTab = tab;
+  const btnTel = document.getElementById('tab-tel-btn');
+  const btnAcc = document.getElementById('tab-acc-btn');
+  btnTel.style.background = tab === 'tel' ? '#0369a1' : 'white';
+  btnTel.style.color = tab === 'tel' ? 'white' : '#0369a1';
+  btnAcc.style.background = tab === 'acc' ? '#0369a1' : 'white';
+  btnAcc.style.color = tab === 'acc' ? 'white' : '#0369a1';
+  renderInventario();
+}
+
+function renderInventario() {
+  const busqueda = (document.getElementById('inv-search').value || '').toLowerCase();
+  const localFiltro = document.getElementById('inv-local-filter').value;
+  const lista = document.getElementById('inv-lista');
+
+  if(invTab === 'tel') {
+    if(!window.IMEIS_TODOS || window.IMEIS_TODOS.length === 0) {
+      lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay teléfonos disponibles</div>';
+      return;
+    }
+    let items = window.IMEIS_TODOS;
+    if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
+    
+    lista.innerHTML = items.map(i => `
+      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
+        <div style="font-weight:700;font-size:14px;color:#0369a1;">${i.ref}</div>
+        <div style="font-size:12px;color:#64748b;margin:2px 0;">IMEI: ${i.imei}</div>
+        <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;">
+          <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
+          <span>🏷️ Venta: <b style="color:#16a34a;">$${(i.precioVenta||0).toLocaleString('es-CO')}</b></span>
+        </div>
+      </div>
+    `).join('');
+
+  } else {
+    if(!window.ACCESORIOS_EXCEL || window.ACCESORIOS_EXCEL.length === 0) {
+      lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay accesorios</div>';
+      return;
+    }
+    let items = window.ACCESORIOS_EXCEL.filter(a => a.stock > 0);
+    if(localFiltro) items = items.filter(a => a.local === localFiltro);
+    if(busqueda) items = items.filter(a => a.producto.toLowerCase().includes(busqueda) || a.cat.toLowerCase().includes(busqueda));
+
+    if(items.length === 0) {
+      lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay resultados</div>';
+      return;
+    }
+
+    lista.innerHTML = items.map(a => `
+      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:14px;">${a.producto}</div>
+            <div style="font-size:12px;color:#64748b;">${a.local} · ${a.cat}</div>
+            <div style="display:flex;gap:12px;margin-top:4px;font-size:13px;">
+              <span>💰 Costo: <b>$${(a.costo||0).toLocaleString('es-CO')}</b></span>
+              <span>🏷️ Venta: <b style="color:#16a34a;">$${(a.precioVenta||0).toLocaleString('es-CO')}</b></span>
+            </div>
+          </div>
+          <div style="background:#0369a1;color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;">
+            ${a.stock}
+          </div>
+        </div>
+      </div>
+    `).join('');
   }
 }
 
