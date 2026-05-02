@@ -1015,11 +1015,14 @@ async function cargarTodo() {
         const imei = row[0];
         const ref = row[1];
         const estado = row[6] ? row[6].toString().toUpperCase() : '';
-        if (imei && estado !== 'VENDIDO') {
-          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0 });
+        const ubicacion = row[9] ? row[9].toString() : '';
+        if (imei) {
+          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, estado, ubicacion });
         }
       }
-      window.IMEIS_TODOS = imeis;
+      // Guardar todos incluyendo vendidos para ver inventario
+      window.IMEIS_TODOS_CON_ESTADO = imeis;
+      window.IMEIS_TODOS = imeis.filter(i => i.estado !== 'VENDIDO');
       ['c-imei','ct-imei'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
@@ -1440,21 +1443,30 @@ function renderInventario() {
   const lista = document.getElementById('inv-lista');
 
   if(invTab === 'tel') {
-    if(!window.IMEIS_TODOS || window.IMEIS_TODOS.length === 0) {
-      lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay teléfonos disponibles</div>';
+    if(!window.IMEIS_TODOS_CON_ESTADO || window.IMEIS_TODOS_CON_ESTADO.length === 0) {
+      lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay teléfonos</div>';
       return;
     }
-    let items = window.IMEIS_TODOS;
+    let items = window.IMEIS_TODOS_CON_ESTADO;
+    if(localFiltro) items = items.filter(i => i.ubicacion === localFiltro);
     if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
     
     lista.innerHTML = items.length === 0 ? '<div style="text-align:center;color:#64748b;padding:20px;">Sin resultados</div>' :
     items.map(i => `
-      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
-        <div style="font-weight:700;font-size:14px;color:#0369a1;">${i.ref}</div>
-        <div style="font-size:12px;color:#64748b;margin:2px 0;">IMEI: ${i.imei}</div>
-        <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;">
-          <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
-          <span>🏷️ Venta: <b style="color:${i.precioVenta>0?'#16a34a':'#dc2626'};">${i.precioVenta>0?'$'+i.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
+      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-left:4px solid ${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#0369a1;">${i.ref}</div>
+            <div style="font-size:12px;color:#64748b;margin:2px 0;">IMEI: ${i.imei}</div>
+            ${i.ubicacion ? `<div style="font-size:12px;color:#64748b;">📍 ${i.ubicacion}</div>` : ''}
+            <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;">
+              <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
+              <span>🏷️ Venta: <b style="color:${i.precioVenta>0?'#16a34a':'#dc2626'};">${i.precioVenta>0?'$'+i.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
+            </div>
+          </div>
+          <div style="background:${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};color:white;border-radius:8px;padding:6px 10px;font-weight:700;font-size:11px;margin-left:8px;text-align:center;">
+            ${i.estado==='VENDIDO'?'VENDIDO':'DISPONIBLE'}
+          </div>
         </div>
       </div>
     `).join('');
@@ -1547,12 +1559,18 @@ function cargarProductosPrecio() {
   const cat = document.getElementById('cp-acc-cat').value;
   const sel = document.getElementById('cp-acc-producto');
   sel.innerHTML = '<option value="">Seleccionar producto...</option>';
+  document.getElementById('cp-acc-info').style.display = 'none';
   if(!local || !window.ACCESORIOS_EXCEL) return;
-  const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
+  const filtrados = window.ACCESORIOS_EXCEL.filter(a => 
+    a.local === local && (!cat || a.cat === cat)
+  );
+  if(filtrados.length === 0) {
+    sel.innerHTML = '<option value="">No hay productos para este filtro</option>';
+    return;
+  }
   filtrados.forEach(a => { 
     sel.innerHTML += `<option value="${a.producto}">${a.producto}</option>`; 
   });
-  document.getElementById('cp-acc-info').style.display = 'none';
 }
 
 function mostrarPrecioActualAcc() {
