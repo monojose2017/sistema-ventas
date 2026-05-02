@@ -295,9 +295,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <input type="text" id="inv-search" placeholder="Buscar..." oninput="renderInventario()" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;">
 
     <!-- Filtro local -->
-    <div class="select-wrap" style="margin-bottom:12px;">
+    <div class="select-wrap" style="margin-bottom:8px;">
       <select id="inv-local-filter" onchange="renderInventario()">
         <option value="">Todos los locales</option>
+      </select>
+    </div>
+    <!-- Filtro categoria (solo accesorios) -->
+    <div id="inv-cat-wrap" class="select-wrap" style="margin-bottom:12px;display:none;">
+      <select id="inv-cat-filter" onchange="renderInventario()">
+        <option value="">Todas las categorías</option>
       </select>
     </div>
 
@@ -1010,7 +1016,7 @@ async function cargarTodo() {
         const ref = row[1];
         const estado = row[6] ? row[6].toString().toUpperCase() : '';
         if (imei && estado !== 'VENDIDO') {
-          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[11]) || 0 });
+          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0 });
         }
       }
       window.IMEIS_TODOS = imeis;
@@ -1030,7 +1036,7 @@ async function cargarTodo() {
         const row = acc.values[i];
         const stock = parseInt(row[5]) || 0;
         if (row[0] && row[1] && row[2] && stock > 0) {
-          window.ACCESORIOS_EXCEL.push({ local: row[0].toString(), cat: row[1].toString(), producto: row[2].toString(), stock, costo: parseFloat(row[4]) || 0, precioVenta: parseFloat(row[6]) || 0 });
+          window.ACCESORIOS_EXCEL.push({ local: row[0].toString(), cat: row[1].toString(), producto: row[2].toString(), stock, costo: parseFloat(row[4]) || 0, precioVenta: parseFloat(row[5]) || 0 });
         }
       }
     }
@@ -1212,8 +1218,8 @@ async function enviarForm(tipo) {
   } else if(tipo === 'ingreso-telefono') {
     hoja = 'INVENTARIO_TELEFONO';
     const repuesto = getVal('it-repuesto');
-    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, ALERTA_REPOS, PRECIO_VENTA
-    fila = [getVal('it-imei'), getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), '', getNumero('it-precio-venta')];
+    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, PRECIO_VENTA
+    fila = [getVal('it-imei'), getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta')];
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
@@ -1229,8 +1235,8 @@ async function enviarForm(tipo) {
         return;
       }
     }
-    // LOCAL, CATEGORIA, PRODUCTO, STOCK, COSTO UNITARIO, STOCK_ACTUAL(formula), PRECIO_VENTA
-    fila = [localAcc, getVal('ia-cat'), productoAcc, parseInt(getVal('ia-stock'))||0, getNumero('ia-costo'), '', getNumero('ia-precio-venta')];
+    // LOCAL, CATEGORIA, PRODUCTO, STOCK, COSTO UNITARIO, PRECIO_VENTA
+    fila = [localAcc, getVal('ia-cat'), productoAcc, parseInt(getVal('ia-stock'))||0, getNumero('ia-costo'), getNumero('ia-precio-venta')];
 
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
@@ -1409,10 +1415,22 @@ function tabInventario(tab) {
   invTab = tab;
   const btnTel = document.getElementById('tab-tel-btn');
   const btnAcc = document.getElementById('tab-acc-btn');
+  const catWrap = document.getElementById('inv-cat-wrap');
   btnTel.style.background = tab === 'tel' ? '#0369a1' : 'white';
   btnTel.style.color = tab === 'tel' ? 'white' : '#0369a1';
   btnAcc.style.background = tab === 'acc' ? '#0369a1' : 'white';
   btnAcc.style.color = tab === 'acc' ? 'white' : '#0369a1';
+  
+  if(tab === 'acc') {
+    catWrap.style.display = 'block';
+    const catSel = document.getElementById('inv-cat-filter');
+    catSel.innerHTML = '<option value="">Todas las categorías</option>';
+    if(window.CONFIG_DATA) {
+      window.CONFIG_DATA.categoriasAcc.forEach(c => catSel.innerHTML += `<option>${c}</option>`);
+    }
+  } else {
+    catWrap.style.display = 'none';
+  }
   renderInventario();
 }
 
@@ -1429,13 +1447,14 @@ function renderInventario() {
     let items = window.IMEIS_TODOS;
     if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
     
-    lista.innerHTML = items.map(i => `
+    lista.innerHTML = items.length === 0 ? '<div style="text-align:center;color:#64748b;padding:20px;">Sin resultados</div>' :
+    items.map(i => `
       <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
         <div style="font-weight:700;font-size:14px;color:#0369a1;">${i.ref}</div>
         <div style="font-size:12px;color:#64748b;margin:2px 0;">IMEI: ${i.imei}</div>
         <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;">
           <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
-          <span>🏷️ Venta: <b style="color:#16a34a;">$${(i.precioVenta||0).toLocaleString('es-CO')}</b></span>
+          <span>🏷️ Venta: <b style="color:${i.precioVenta>0?'#16a34a':'#dc2626'};">${i.precioVenta>0?'$'+i.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
         </div>
       </div>
     `).join('');
@@ -1445,8 +1464,10 @@ function renderInventario() {
       lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay accesorios</div>';
       return;
     }
-    let items = window.ACCESORIOS_EXCEL.filter(a => a.stock > 0);
+    let items = window.ACCESORIOS_EXCEL;
+    const catFiltro = document.getElementById('inv-cat-filter')?.value || '';
     if(localFiltro) items = items.filter(a => a.local === localFiltro);
+    if(catFiltro) items = items.filter(a => a.cat === catFiltro);
     if(busqueda) items = items.filter(a => a.producto.toLowerCase().includes(busqueda) || a.cat.toLowerCase().includes(busqueda));
 
     if(items.length === 0) {
@@ -1457,15 +1478,15 @@ function renderInventario() {
     lista.innerHTML = items.map(a => `
       <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
+          <div style="flex:1;">
             <div style="font-weight:700;font-size:14px;">${a.producto}</div>
             <div style="font-size:12px;color:#64748b;">${a.local} · ${a.cat}</div>
-            <div style="display:flex;gap:12px;margin-top:4px;font-size:13px;">
+            <div style="display:flex;gap:12px;margin-top:4px;font-size:13px;flex-wrap:wrap;">
               <span>💰 Costo: <b>$${(a.costo||0).toLocaleString('es-CO')}</b></span>
-              <span>🏷️ Venta: <b style="color:#16a34a;">$${(a.precioVenta||0).toLocaleString('es-CO')}</b></span>
+              <span>🏷️ Venta: <b style="color:${a.precioVenta>0?'#16a34a':'#dc2626'};">${a.precioVenta>0?'$'+a.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
             </div>
           </div>
-          <div style="background:#0369a1;color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;">
+          <div style="background:${a.stock>0?'#0369a1':'#dc2626'};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;margin-left:8px;">
             ${a.stock}
           </div>
         </div>
@@ -1557,7 +1578,7 @@ async function actualizarPrecioTelefono() {
     if(!inv || !inv.values) { alert('❌ Error'); return; }
     for(let i=1; i<inv.values.length; i++) {
       if(inv.values[i][0] && inv.values[i][0].toString() === imei) {
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='L${i+1}')`, { values: [[precioNuevo]] });
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='K${i+1}')`, { values: [[precioNuevo]] });
         await cargarTodo();
         mostrarExito('cambiar-precios');
         return;
@@ -1737,7 +1758,7 @@ async function reponerAccesorio() {
         const precioVentaNuevo = parseInt((document.getElementById('ia-reponer-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
         await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStock, promedio]] });
         if(precioVentaNuevo > 0) {
-          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='G${filaExcel}')`, { values: [[precioVentaNuevo]] });
+          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${filaExcel}')`, { values: [[precioVentaNuevo]] });
         }
         await cargarTodo();
         mostrarExito('inventario');
