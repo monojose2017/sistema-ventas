@@ -276,8 +276,112 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <button class="btn-menu" onclick="irA('ingreso-telefono')"><div class="btn-icon azul">📱</div><div class="btn-info"><div class="btn-titulo">Ingresar Teléfono</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingreso-accesorio')"><div class="btn-icon verde">🎧</div><div class="btn-info"><div class="btn-titulo">Ingresar Accesorio</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('ingresar-mercancia')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Ingresar Mercancía</div><div class="btn-sub">Inteligente · Detecta duplicados</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('cambiar-precios')"><div class="btn-icon naranja">💰</div><div class="btn-info"><div class="btn-titulo">Cambiar Precio de Venta</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="verInventario()"><div class="btn-icon verde">🔍</div><div class="btn-info"><div class="btn-titulo">Ver Inventario</div><div class="btn-sub">Consultar stock · Precios</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- INGRESAR MERCANCIA INTELIGENTE -->
+<div class="screen" id="screen-ingresar-mercancia">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">📦 Ingresar Mercancía</div><div class="form-header-sub">Detección inteligente de productos</div></div></div>
+  <div class="form-body">
+
+    <!-- PASO 1 -->
+    <div id="merc-paso1">
+      <div style="background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#1e40af;font-weight:600;">
+        📋 Paso 1 — Selecciona local y categoría
+      </div>
+      <div class="field"><label>Local</label><div class="select-wrap"><select id="merc-local" onchange="resetMercancia()"><option value="">Seleccionar...</option></select></div></div>
+      <div class="field"><label>Categoría</label><div class="select-wrap"><select id="merc-cat" onchange="resetMercancia()"><option value="">Seleccionar...</option></select></div></div>
+      <div class="field">
+        <label>Buscar producto</label>
+        <input type="text" id="merc-busqueda" placeholder="Escribe para buscar..." oninput="buscarMercancia()" style="font-size:15px;">
+      </div>
+      <!-- Resultados similares -->
+      <div id="merc-similares" style="display:none;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;color:#64748b;margin-bottom:8px;">📦 Productos existentes similares:</div>
+        <div id="merc-similares-lista"></div>
+        <div style="margin-top:8px;">
+          <button onclick="confirmarNuevo()" style="width:100%;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">➕ No está en la lista — Ingresar como NUEVO</button>
+        </div>
+      </div>
+      <!-- Sin resultados -->
+      <div id="merc-sin-resultados" style="display:none;margin-bottom:16px;">
+        <div style="background:#f0fdf4;border-radius:12px;padding:14px;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:#16a34a;">✅ No existe este producto</div>
+          <div style="font-size:12px;color:#64748b;margin:4px 0;">Se ingresará como producto nuevo</div>
+          <button onclick="confirmarNuevo()" style="margin-top:8px;padding:10px 20px;background:#16a34a;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">➕ Ingresar como NUEVO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 2A: REPONER -->
+    <div id="merc-paso2-reponer" style="display:none;">
+      <div style="background:#fef3c7;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#92400e;font-weight:600;">
+        🔄 Reponiendo: <span id="merc-reponer-nombre" style="color:#b45309;"></span>
+      </div>
+      <div id="merc-info-actual" style="background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
+        <div>📦 Stock actual: <b id="merc-stock-actual">0</b></div>
+        <div>💰 Costo actual: <b id="merc-costo-actual">$0</b></div>
+        <div>🏷️ Precio venta actual: <b id="merc-pventa-actual">$0</b></div>
+      </div>
+      <div class="field"><label>Cantidad a agregar</label><input type="number" id="merc-cant" placeholder="0" min="1" oninput="calcularPromedio()"></div>
+      <div class="field"><label>Nuevo costo unitario</label><input type="text" id="merc-costo-nuevo" placeholder="$0" oninput="formatMoney(this);calcularPromedio()"></div>
+      <div id="merc-promedio-wrap" style="display:none;background:#fef3c7;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
+        <div>📊 Precio promedio costo: <b id="merc-promedio">$0</b></div>
+        <div>📦 Nuevo stock total: <b id="merc-stock-nuevo">0</b></div>
+      </div>
+      <div class="field"><label>Nuevo precio de venta (opcional)</label><input type="text" id="merc-pventa-nuevo" placeholder="Dejar vacío si no cambia" oninput="formatMoney(this)"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="resetMercancia()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:10px;font-weight:700;cursor:pointer;">← Volver</button>
+        <button id="merc-btn-reponer" onclick="ejecutarReponer()" style="flex:2;padding:12px;background:#d97706;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">🔄 Reponer Stock ✓</button>
+      </div>
+    </div>
+
+    <!-- PASO 2B: NUEVO -->
+    <div id="merc-paso2-nuevo" style="display:none;">
+      <div style="background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#16a34a;font-weight:600;">
+        ➕ Nuevo producto: <span id="merc-nuevo-nombre" style="color:#15803d;"></span>
+      </div>
+      <div class="field"><label>Nombre del producto</label><input type="text" id="merc-nuevo-nombre-input" placeholder="Nombre exacto"></div>
+      <div class="field"><label>Cantidad</label><input type="number" id="merc-nuevo-cant" placeholder="0" min="1"></div>
+      <div class="field"><label>Costo Unitario</label><input type="text" id="merc-nuevo-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+      <div class="field"><label>Precio de Venta</label><input type="text" id="merc-nuevo-pventa" placeholder="$0" oninput="formatMoney(this)"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="resetMercancia()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:10px;font-weight:700;cursor:pointer;">← Volver</button>
+        <button id="merc-btn-nuevo" onclick="ejecutarNuevo()" style="flex:2;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">➕ Ingresar Nuevo ✓</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- EDITAR TELEFONO -->
+<div class="screen" id="screen-editar-telefono">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('ver-inventario')">‹</button><div><div class="form-header-title">✏️ Editar Teléfono</div><div class="form-header-sub">Modifica los datos</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>IMEI</label><input type="text" id="edit-tel-imei" readonly style="background:#f1f5f9;color:#64748b;"></div>
+    <div class="field"><label>Referencia</label><div class="select-wrap"><select id="edit-tel-ref"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Costo</label><input type="text" id="edit-tel-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Precio de Venta</label><input type="text" id="edit-tel-precio-venta" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Proveedor</label><div class="select-wrap"><select id="edit-tel-proveedor"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Ubicación</label><div class="select-wrap"><select id="edit-tel-ubicacion"><option value="">Seleccionar...</option></select></div></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7)" onclick="guardarEdicionTelefono()">Guardar Cambios ✓</button>
+  </div>
+</div>
+
+<!-- EDITAR ACCESORIO -->
+<div class="screen" id="screen-editar-accesorio">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('ver-inventario')">‹</button><div><div class="form-header-title">✏️ Editar Accesorio</div><div class="form-header-sub">Modifica los datos</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Local</label><input type="text" id="edit-acc-local" readonly style="background:#f1f5f9;color:#64748b;"></div>
+    <div class="field"><label>Categoría</label><div class="select-wrap"><select id="edit-acc-cat"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Producto</label><input type="text" id="edit-acc-producto" placeholder="Nombre del producto"></div>
+    <div class="field"><label>Stock</label><input type="number" id="edit-acc-stock" placeholder="0" min="0"></div>
+    <div class="field"><label>Costo Unitario</label><input type="text" id="edit-acc-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Precio de Venta</label><input type="text" id="edit-acc-precio-venta" placeholder="$0" oninput="formatMoney(this)"></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d)" onclick="guardarEdicionAccesorio()">Guardar Cambios ✓</button>
   </div>
 </div>
 
@@ -300,6 +404,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <option value="">Todos</option>
         <option value="DISPONIBLE">Solo Disponibles</option>
         <option value="VENDIDO">Solo Vendidos</option>
+      </select>
+    </div>
+    <!-- Filtro proveedor (solo telefonos) -->
+    <div id="inv-prov-wrap" class="select-wrap" style="margin-bottom:8px;">
+      <select id="inv-prov-filter" onchange="renderInventario()">
+        <option value="">Todos los proveedores</option>
       </select>
     </div>
     <!-- Filtro local -->
@@ -558,7 +668,12 @@ const ACCESORIOS = [
   {local:"PUERTO COLOMBIA", cat:"CABLES", producto:"CABLE PRIMUM V8", stock:8},
 ];
 
-function irA(s){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('screen-'+s).classList.add('active');window.scrollTo(0,0);}
+function irA(s){
+  document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+  document.getElementById('screen-'+s).classList.add('active');
+  window.scrollTo(0,0);
+  if(s === 'ingresar-mercancia') iniciarMercancia();
+}
 function volver(){irA('inicio');}
 
 // Cargar IMEIs al iniciar
@@ -1027,8 +1142,9 @@ async function cargarTodo() {
         const ref = row[1];
         const estado = row[6] ? row[6].toString().toUpperCase() : '';
         const ubicacion = row[9] ? row[9].toString() : '';
+        const proveedor = row[4] ? row[4].toString() : '';
         if (imei) {
-          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, estado, ubicacion });
+          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, estado, ubicacion, proveedor, rowIndex: i+1 });
         }
       }
       // Guardar todos incluyendo vendidos para ver inventario
@@ -1418,6 +1534,257 @@ async function eliminarConfigItem(lista, idx) {
 
 let invTab = 'tel';
 
+// INGRESAR MERCANCIA INTELIGENTE
+let mercProductoSeleccionado = null;
+
+function iniciarMercancia() {
+  const c = window.CONFIG_DATA;
+  if(!c) return;
+  const localSel = document.getElementById('merc-local');
+  localSel.innerHTML = '<option value="">Seleccionar...</option>';
+  c.locales.forEach(l => localSel.innerHTML += `<option>${l}</option>`);
+  const catSel = document.getElementById('merc-cat');
+  catSel.innerHTML = '<option value="">Seleccionar...</option>';
+  c.categoriasAcc.forEach(c2 => catSel.innerHTML += `<option>${c2}</option>`);
+  resetMercancia();
+}
+
+function resetMercancia() {
+  document.getElementById('merc-busqueda').value = '';
+  document.getElementById('merc-similares').style.display = 'none';
+  document.getElementById('merc-sin-resultados').style.display = 'none';
+  document.getElementById('merc-paso2-reponer').style.display = 'none';
+  document.getElementById('merc-paso2-nuevo').style.display = 'none';
+  document.getElementById('merc-paso1').style.display = 'block';
+  mercProductoSeleccionado = null;
+}
+
+function buscarMercancia() {
+  const local = document.getElementById('merc-local').value;
+  const cat = document.getElementById('merc-cat').value;
+  const busqueda = document.getElementById('merc-busqueda').value.toLowerCase().trim();
+
+  document.getElementById('merc-similares').style.display = 'none';
+  document.getElementById('merc-sin-resultados').style.display = 'none';
+
+  if(!busqueda || busqueda.length < 2) return;
+  if(!window.ACCESORIOS_EXCEL) return;
+
+  const similares = window.ACCESORIOS_EXCEL.filter(a => {
+    const matchLocal = !local || a.local === local;
+    const matchCat = !cat || a.cat === cat;
+    const matchBusqueda = a.producto.toLowerCase().includes(busqueda);
+    return matchLocal && matchCat && matchBusqueda;
+  });
+
+  if(similares.length > 0) {
+    document.getElementById('merc-similares').style.display = 'block';
+    document.getElementById('merc-similares-lista').innerHTML = similares.map(p => `
+      <div onclick="seleccionarReponer('${p.local}','${p.producto}')" style="background:white;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);cursor:pointer;border:2px solid transparent;" onmouseover="this.style.border='2px solid #d97706'" onmouseout="this.style.border='2px solid transparent'">
+        <div style="font-weight:700;font-size:14px;">${p.producto}</div>
+        <div style="font-size:12px;color:#64748b;">${p.local} · ${p.cat}</div>
+        <div style="font-size:13px;margin-top:4px;">📦 Stock: <b>${p.stock}</b> · 💰 Costo: <b>$${(p.costo||0).toLocaleString('es-CO')}</b></div>
+        <div style="margin-top:6px;text-align:right;font-size:12px;color:#d97706;font-weight:700;">Toca para REPONER →</div>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('merc-sin-resultados').style.display = 'block';
+  }
+}
+
+function seleccionarReponer(local, producto) {
+  const prod = window.ACCESORIOS_EXCEL.find(a => a.local === local && a.producto === producto);
+  if(!prod) return;
+  mercProductoSeleccionado = prod;
+
+  document.getElementById('merc-paso1').style.display = 'none';
+  document.getElementById('merc-paso2-reponer').style.display = 'block';
+  document.getElementById('merc-reponer-nombre').textContent = producto;
+  document.getElementById('merc-stock-actual').textContent = prod.stock;
+  document.getElementById('merc-costo-actual').textContent = '$' + (prod.costo||0).toLocaleString('es-CO');
+  document.getElementById('merc-pventa-actual').textContent = '$' + (prod.precioVenta||0).toLocaleString('es-CO');
+  document.getElementById('merc-cant').value = '';
+  document.getElementById('merc-costo-nuevo').value = '';
+  document.getElementById('merc-pventa-nuevo').value = '';
+  document.getElementById('merc-promedio-wrap').style.display = 'none';
+}
+
+function confirmarNuevo() {
+  const busqueda = document.getElementById('merc-busqueda').value.trim();
+  document.getElementById('merc-paso1').style.display = 'none';
+  document.getElementById('merc-paso2-nuevo').style.display = 'block';
+  document.getElementById('merc-nuevo-nombre').textContent = busqueda;
+  document.getElementById('merc-nuevo-nombre-input').value = busqueda.toUpperCase();
+  document.getElementById('merc-nuevo-cant').value = '';
+  document.getElementById('merc-nuevo-costo').value = '';
+  document.getElementById('merc-nuevo-pventa').value = '';
+}
+
+function calcularPromedio() {
+  if(!mercProductoSeleccionado) return;
+  const cantNueva = parseInt(document.getElementById('merc-cant').value) || 0;
+  const costoNuevo = parseInt((document.getElementById('merc-costo-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(cantNueva > 0 && costoNuevo > 0) {
+    const s = mercProductoSeleccionado.stock;
+    const c = mercProductoSeleccionado.costo;
+    const promedio = Math.round((s * c + cantNueva * costoNuevo) / (s + cantNueva));
+    document.getElementById('merc-promedio').textContent = '$' + promedio.toLocaleString('es-CO');
+    document.getElementById('merc-stock-nuevo').textContent = s + cantNueva;
+    document.getElementById('merc-promedio-wrap').style.display = 'block';
+  }
+}
+
+async function ejecutarReponer() {
+  if(!mercProductoSeleccionado) return;
+  const cantNueva = parseInt(document.getElementById('merc-cant').value) || 0;
+  const costoNuevo = parseInt((document.getElementById('merc-costo-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
+  const pventaNuevo = parseInt((document.getElementById('merc-pventa-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(cantNueva <= 0 || costoNuevo <= 0) { alert('⚠️ Ingresa cantidad y costo'); return; }
+
+  const btn = document.getElementById('merc-btn-reponer');
+  btn.textContent = 'Enviando...'; btn.disabled = true;
+
+  const prod = mercProductoSeleccionado;
+  const promedio = Math.round((prod.stock * prod.costo + cantNueva * costoNuevo) / (prod.stock + cantNueva));
+  const nuevoStock = prod.stock + cantNueva;
+
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
+    for(let i=1; i<inv.values.length; i++) {
+      const row = inv.values[i];
+      if(row[0]?.toString()===prod.local && row[2]?.toString()===prod.producto) {
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${i+1}:E${i+1}')`, { values: [[nuevoStock, promedio]] });
+        if(pventaNuevo > 0) await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${i+1}')`, { values: [[pventaNuevo]] });
+        await cargarTodo();
+        mostrarExito('inventario');
+        return;
+      }
+    }
+    alert('❌ Producto no encontrado');
+  } catch(e) { alert('❌ Error al actualizar'); }
+  btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
+}
+
+async function ejecutarNuevo() {
+  const local = document.getElementById('merc-local').value;
+  const cat = document.getElementById('merc-cat').value;
+  const producto = document.getElementById('merc-nuevo-nombre-input').value.toUpperCase().trim();
+  const cant = parseInt(document.getElementById('merc-nuevo-cant').value) || 0;
+  const costo = parseInt((document.getElementById('merc-nuevo-costo').value||'').replace(/[^0-9]/g,'')) || 0;
+  const pventa = parseInt((document.getElementById('merc-nuevo-pventa').value||'').replace(/[^0-9]/g,'')) || 0;
+
+  if(!local || !cat || !producto || cant <= 0 || costo <= 0) { alert('⚠️ Completa todos los campos'); return; }
+
+  const btn = document.getElementById('merc-btn-nuevo');
+  btn.textContent = 'Enviando...'; btn.disabled = true;
+
+  // Verificar duplicado
+  const dup = window.ACCESORIOS_EXCEL?.find(a => a.local === local && a.producto === producto);
+  if(dup) { alert(`⚠️ Ya existe "${producto}" en ${local}. Usa REPONER.`); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; return; }
+
+  try {
+    const fila = [local, cat, producto, cant, costo, pventa];
+    const ok = await agregarFilaExcel('INVENTARIO_ACCESORIOS', fila);
+    if(ok) { await cargarTodo(); mostrarExito('inventario'); }
+    else { alert('❌ Error al ingresar'); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; }
+  } catch(e) { alert('❌ Error'); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; }
+}
+
+let editTelRowIndex = null;
+let editAccLocal = null;
+let editAccProducto = null;
+
+function editarTelefono(imei) {
+  const tel = window.IMEIS_TODOS_CON_ESTADO.find(i => i.imei === imei);
+  if(!tel) return;
+  editTelRowIndex = tel.rowIndex;
+  document.getElementById('edit-tel-imei').value = tel.imei;
+  // Llenar refs desde CONFIG
+  const refSel = document.getElementById('edit-tel-ref');
+  refSel.innerHTML = '<option value="">Seleccionar...</option>';
+  if(window.CONFIG_DATA) window.CONFIG_DATA.referencias.forEach(r => refSel.innerHTML += `<option${r===tel.ref?' selected':''}>${r}</option>`);
+  // Llenar proveedores
+  const provSel = document.getElementById('edit-tel-proveedor');
+  provSel.innerHTML = '<option value="">Seleccionar...</option>';
+  if(window.CONFIG_DATA) window.CONFIG_DATA.proveedores.forEach(p => provSel.innerHTML += `<option${p===tel.proveedor?' selected':''}>${p}</option>`);
+  // Llenar ubicaciones
+  const ubSel = document.getElementById('edit-tel-ubicacion');
+  ubSel.innerHTML = '<option value="">Seleccionar...</option>';
+  if(window.CONFIG_DATA) window.CONFIG_DATA.ubicaciones.forEach(u => ubSel.innerHTML += `<option${u===tel.ubicacion?' selected':''}>${u}</option>`);
+  document.getElementById('edit-tel-costo').value = tel.costo > 0 ? '$' + tel.costo.toLocaleString('es-CO') : '';
+  document.getElementById('edit-tel-precio-venta').value = tel.precioVenta > 0 ? '$' + tel.precioVenta.toLocaleString('es-CO') : '';
+  irA('editar-telefono');
+}
+
+function editarAccesorio(local, producto) {
+  const acc = window.ACCESORIOS_EXCEL.find(a => a.local === local && a.producto === producto);
+  if(!acc) return;
+  editAccLocal = local;
+  editAccProducto = producto;
+  document.getElementById('edit-acc-local').value = local;
+  const catSel = document.getElementById('edit-acc-cat');
+  catSel.innerHTML = '<option value="">Seleccionar...</option>';
+  if(window.CONFIG_DATA) window.CONFIG_DATA.categoriasAcc.forEach(c => catSel.innerHTML += `<option${c===acc.cat?' selected':''}>${c}</option>`);
+  document.getElementById('edit-acc-producto').value = acc.producto;
+  document.getElementById('edit-acc-stock').value = acc.stock;
+  document.getElementById('edit-acc-costo').value = acc.costo > 0 ? '$' + acc.costo.toLocaleString('es-CO') : '';
+  document.getElementById('edit-acc-precio-venta').value = acc.precioVenta > 0 ? '$' + acc.precioVenta.toLocaleString('es-CO') : '';
+  irA('editar-accesorio');
+}
+
+async function guardarEdicionTelefono() {
+  if(!editTelRowIndex) return;
+  const btn = document.querySelector('#screen-editar-telefono .submit-btn');
+  if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+  const ref = document.getElementById('edit-tel-ref').value;
+  const costo = parseInt((document.getElementById('edit-tel-costo').value||'').replace(/[^0-9]/g,'')) || 0;
+  const precioVenta = parseInt((document.getElementById('edit-tel-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
+  const proveedor = document.getElementById('edit-tel-proveedor').value;
+  const ubicacion = document.getElementById('edit-tel-ubicacion').value;
+  try {
+    // B=ref, C=costo, E=proveedor, J=ubicacion, K=precioVenta
+    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='B${editTelRowIndex}:C${editTelRowIndex}')`, { values: [[ref, costo]] });
+    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='E${editTelRowIndex}')`, { values: [[proveedor]] });
+    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='J${editTelRowIndex}')`, { values: [[ubicacion]] });
+    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='K${editTelRowIndex}')`, { values: [[precioVenta]] });
+    await cargarTodo();
+    mostrarExito('ver-inventario');
+  } catch(e) {
+    alert('❌ Error al guardar');
+    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
+  }
+}
+
+async function guardarEdicionAccesorio() {
+  if(!editAccLocal || !editAccProducto) return;
+  const btn = document.querySelector('#screen-editar-accesorio .submit-btn');
+  if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+  const cat = document.getElementById('edit-acc-cat').value;
+  const producto = document.getElementById('edit-acc-producto').value.toUpperCase().trim();
+  const stock = parseInt(document.getElementById('edit-acc-stock').value) || 0;
+  const costo = parseInt((document.getElementById('edit-acc-costo').value||'').replace(/[^0-9]/g,'')) || 0;
+  const precioVenta = parseInt((document.getElementById('edit-acc-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
+    for(let i=1; i<inv.values.length; i++) {
+      const row = inv.values[i];
+      if(row[0]?.toString()===editAccLocal && row[2]?.toString()===editAccProducto) {
+        const f = i+1;
+        // A=local(no editar), B=cat, C=producto, D=stock, E=costo, F=precioVenta
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='B${f}:F${f}')`, { values: [[cat, producto, stock, costo, precioVenta]] });
+        await cargarTodo();
+        mostrarExito('ver-inventario');
+        return;
+      }
+    }
+    alert('❌ Producto no encontrado');
+    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
+  } catch(e) {
+    alert('❌ Error al guardar');
+    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
+  }
+}
+
 function verInventario() {
   invTab = 'tel';
   // Llenar filtro de locales
@@ -1441,10 +1808,11 @@ function tabInventario(tab) {
   btnAcc.style.background = tab === 'acc' ? '#0369a1' : 'white';
   btnAcc.style.color = tab === 'acc' ? 'white' : '#0369a1';
   
-  const estadoWrap = document.getElementById('inv-estado-wrap');
+  const provWrap = document.getElementById('inv-prov-wrap');
   if(tab === 'acc') {
     catWrap.style.display = 'block';
     estadoWrap.style.display = 'none';
+    provWrap.style.display = 'none';
     const catSel = document.getElementById('inv-cat-filter');
     catSel.innerHTML = '<option value="">Todas las categorías</option>';
     if(window.CONFIG_DATA) {
@@ -1453,6 +1821,13 @@ function tabInventario(tab) {
   } else {
     catWrap.style.display = 'none';
     estadoWrap.style.display = 'block';
+    provWrap.style.display = 'block';
+    // Llenar proveedores
+    const provSel = document.getElementById('inv-prov-filter');
+    provSel.innerHTML = '<option value="">Todos los proveedores</option>';
+    if(window.CONFIG_DATA) {
+      window.CONFIG_DATA.proveedores.forEach(p => provSel.innerHTML += `<option>${p}</option>`);
+    }
   }
   renderInventario();
 }
@@ -1469,25 +1844,29 @@ function renderInventario() {
     }
     let items = window.IMEIS_TODOS_CON_ESTADO;
     const estadoFiltro = document.getElementById('inv-estado-filter')?.value || '';
+    const provFiltro = document.getElementById('inv-prov-filter')?.value || '';
     if(localFiltro) items = items.filter(i => i.ubicacion === localFiltro);
     if(estadoFiltro) items = items.filter(i => i.estado === estadoFiltro);
+    if(provFiltro) items = items.filter(i => i.proveedor === provFiltro);
     if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
     
     lista.innerHTML = items.length === 0 ? '<div style="text-align:center;color:#64748b;padding:20px;">Sin resultados</div>' :
     items.map(i => `
       <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);border-left:4px solid ${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="flex:1;">
             <div style="font-weight:700;font-size:14px;color:#0369a1;">${i.ref}</div>
             <div style="font-size:12px;color:#64748b;margin:2px 0;">IMEI: ${i.imei}</div>
             ${i.ubicacion ? `<div style="font-size:12px;color:#64748b;">📍 ${i.ubicacion}</div>` : ''}
-            <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;">
+            ${i.proveedor ? `<div style="font-size:12px;color:#64748b;">🏢 ${i.proveedor}</div>` : ''}
+            <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;flex-wrap:wrap;">
               <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
               <span>🏷️ Venta: <b style="color:${i.precioVenta>0?'#16a34a':'#dc2626'};">${i.precioVenta>0?'$'+i.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
             </div>
           </div>
-          <div style="background:${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};color:white;border-radius:8px;padding:6px 10px;font-weight:700;font-size:11px;margin-left:8px;text-align:center;">
-            ${i.estado==='VENDIDO'?'VENDIDO':'DISPONIBLE'}
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-left:8px;">
+            <div style="background:${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};color:white;border-radius:8px;padding:4px 8px;font-weight:700;font-size:11px;text-align:center;">${i.estado==='VENDIDO'?'VENDIDO':'DISPONIBLE'}</div>
+            ${i.estado!=='VENDIDO'?`<button onclick="editarTelefono('${i.imei}')" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">✏️</button>`:''}
           </div>
         </div>
       </div>
@@ -1520,8 +1899,9 @@ function renderInventario() {
               <span>🏷️ Venta: <b style="color:${a.precioVenta>0?'#16a34a':'#dc2626'};">${a.precioVenta>0?'$'+a.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
             </div>
           </div>
-          <div style="background:${a.stock>0?'#0369a1':'#dc2626'};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;margin-left:8px;">
-            ${a.stock}
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-left:8px;">
+            <div style="background:${a.stock>0?'#0369a1':'#dc2626'};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;">${a.stock}</div>
+            <button onclick="editarAccesorio('${a.local}','${a.producto}')" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">✏️</button>
           </div>
         </div>
       </div>
