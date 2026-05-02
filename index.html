@@ -375,7 +375,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-editar-accesorio">
   <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('ver-inventario')">‹</button><div><div class="form-header-title">✏️ Editar Accesorio</div><div class="form-header-sub">Modifica los datos</div></div></div>
   <div class="form-body">
-    <div class="field"><label>Local</label><input type="text" id="edit-acc-local" readonly style="background:#f1f5f9;color:#64748b;"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="edit-acc-local"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Categoría</label><div class="select-wrap"><select id="edit-acc-cat"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Producto</label><input type="text" id="edit-acc-producto" placeholder="Nombre del producto"></div>
     <div class="field"><label>Stock</label><input type="number" id="edit-acc-stock" placeholder="0" min="0"></div>
@@ -1121,6 +1121,16 @@ async function graphPatch(endpoint, body) {
   return null;
 }
 
+async function graphDelete(endpoint) {
+  const token = await getToken();
+  if (!token) return false;
+  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  return r.ok;
+}
+
 window.onload = async function() {
   const hoy = new Date().toISOString().split('T')[0];
   ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
@@ -1692,6 +1702,68 @@ async function ejecutarNuevo() {
   } catch(e) { alert('❌ Error'); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; }
 }
 
+let imeiAEliminar = null;
+
+function confirmarEliminarTelefono(imei, ref) {
+  imeiAEliminar = imei;
+  // Mostrar overlay de clave con mensaje especial
+  document.getElementById('clave-overlay').classList.add('visible');
+  document.getElementById('clave-input').value = '';
+  document.getElementById('clave-error').classList.remove('visible');
+  // Cambiar título temporalmente
+  document.querySelector('.clave-titulo').textContent = `🗑️ Eliminar ${ref}`;
+  document.querySelector('.clave-sub').textContent = 'Ingresa la clave para confirmar';
+  document.querySelector('.clave-btn').onclick = ejecutarEliminarTelefono;
+  setTimeout(() => document.getElementById('clave-input').focus(), 300);
+}
+
+async function ejecutarEliminarTelefono() {
+  const val = document.getElementById('clave-input').value;
+  if(val !== CLAVE) {
+    document.getElementById('clave-error').classList.add('visible');
+    document.getElementById('clave-input').value = '';
+    return;
+  }
+  cerrarClave();
+  // Restaurar botón de clave
+  document.querySelector('.clave-titulo').textContent = '🔐 Acceso Restringido';
+  document.querySelector('.clave-sub').textContent = 'Ingresa la clave de gerencia';
+  document.querySelector('.clave-btn').onclick = verificarClave;
+
+  if(!imeiAEliminar) return;
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    if(!inv || !inv.values) { alert('❌ Error'); return; }
+    for(let i=1; i<inv.values.length; i++) {
+      if(inv.values[i][0]?.toString() === imeiAEliminar) {
+        // Eliminar la fila
+        await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/rows/$/itemAt(index=${i})`);
+        await cargarTodo();
+        verInventario();
+        mostrarToastVerde('✅ IMEI eliminado correctamente');
+        return;
+      }
+    }
+    alert('❌ IMEI no encontrado');
+  } catch(e) {
+    alert('❌ Error al eliminar');
+    console.error(e);
+  }
+}
+
+function mostrarToastVerde(msg) {
+  let toast = document.getElementById('toast-verde');
+  if(!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-verde';
+    toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#065f46;color:white;padding:12px 24px;border-radius:12px;font-weight:700;font-size:14px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  setTimeout(() => toast.style.display = 'none', 2500);
+}
+
 let editTelRowIndex = null;
 let editAccLocal = null;
 let editAccProducto = null;
@@ -1723,7 +1795,12 @@ function editarAccesorio(local, producto) {
   if(!acc) return;
   editAccLocal = local;
   editAccProducto = producto;
-  document.getElementById('edit-acc-local').value = local;
+  
+  // Llenar local como select
+  const localSel = document.getElementById('edit-acc-local');
+  localSel.innerHTML = '<option value="">Seleccionar...</option>';
+  if(window.CONFIG_DATA) window.CONFIG_DATA.locales.forEach(l => localSel.innerHTML += `<option${l===local?' selected':''}>${l}</option>`);
+  
   const catSel = document.getElementById('edit-acc-cat');
   catSel.innerHTML = '<option value="">Seleccionar...</option>';
   if(window.CONFIG_DATA) window.CONFIG_DATA.categoriasAcc.forEach(c => catSel.innerHTML += `<option${c===acc.cat?' selected':''}>${c}</option>`);
@@ -1761,6 +1838,7 @@ async function guardarEdicionAccesorio() {
   if(!editAccLocal || !editAccProducto) return;
   const btn = document.querySelector('#screen-editar-accesorio .submit-btn');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+  const nuevoLocal = document.getElementById('edit-acc-local').value;
   const cat = document.getElementById('edit-acc-cat').value;
   const producto = document.getElementById('edit-acc-producto').value.toUpperCase().trim();
   const stock = parseInt(document.getElementById('edit-acc-stock').value) || 0;
@@ -1772,8 +1850,7 @@ async function guardarEdicionAccesorio() {
       const row = inv.values[i];
       if(row[0]?.toString()===editAccLocal && row[2]?.toString()===editAccProducto) {
         const f = i+1;
-        // A=local(no editar), B=cat, C=producto, D=stock, E=costo, F=precioVenta
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='B${f}:F${f}')`, { values: [[cat, producto, stock, costo, precioVenta]] });
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='A${f}:F${f}')`, { values: [[nuevoLocal, cat, producto, stock, costo, precioVenta]] });
         await cargarTodo();
         mostrarExito('ver-inventario');
         return;
@@ -1880,6 +1957,7 @@ function renderInventario() {
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-left:8px;">
             <div style="background:${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};color:white;border-radius:8px;padding:4px 8px;font-weight:700;font-size:11px;text-align:center;">${i.estado==='VENDIDO'?'VENDIDO':'DISPONIBLE'}</div>
             ${i.estado!=='VENDIDO'?`<button onclick="editarTelefono('${i.imei}')" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">✏️</button>`:''}
+            <button onclick="confirmarEliminarTelefono('${i.imei}','${i.ref}')" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">🗑️</button>
           </div>
         </div>
       </div>
