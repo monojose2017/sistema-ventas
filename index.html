@@ -415,7 +415,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <!-- CAMPOS REPONER -->
     <div id="acc-reponer-fields" style="display:none;">
       <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-reponer-cat" onchange="filtrarProductosReponer()"><option value="">Todas las categorías</option></select></div></div>
-      <div class="field"><label>Producto</label><div class="select-wrap"><select id="ia-reponer-producto" onchange="onProductoReponerChange()"><option value="">Seleccionar producto...</option></select></div></div>
+      <div class="field"><label>Producto</label>
+        <input type="text" id="ia-reponer-search" placeholder="Buscar producto..." oninput="filtrarProductosReponer()" style="margin-bottom:6px;">
+        <div class="select-wrap"><select id="ia-reponer-producto" onchange="onProductoReponerChange()"><option value="">Seleccionar producto...</option></select></div>
+      </div>
       <div id="ia-info-actual" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
         <div>📦 Stock actual: <b id="ia-stock-actual">0</b></div>
         <div>💰 Precio actual: <b id="ia-precio-actual">$0</b></div>
@@ -1754,11 +1757,14 @@ function onLocalAccChange() {
 function filtrarProductosReponer() {
   const local = document.getElementById('ia-local').value;
   const catFiltro = document.getElementById('ia-reponer-cat').value;
+  const busqueda = (document.getElementById('ia-reponer-search')?.value || '').toLowerCase();
   const sel = document.getElementById('ia-reponer-producto');
   if(!local || !window.ACCESORIOS_EXCEL) return;
 
   const productos = window.ACCESORIOS_EXCEL.filter(a =>
-    a.local === local && (!catFiltro || a.cat === catFiltro)
+    a.local === local && 
+    (!catFiltro || a.cat === catFiltro) &&
+    (!busqueda || a.producto.toLowerCase().includes(busqueda))
   );
   sel.innerHTML = '<option value="">Seleccionar producto...</option>';
   productos.forEach((p, i) => {
