@@ -294,6 +294,14 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <!-- Buscador -->
     <input type="text" id="inv-search" placeholder="Buscar..." oninput="renderInventario()" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;">
 
+    <!-- Filtro estado (solo telefonos) -->
+    <div id="inv-estado-wrap" class="select-wrap" style="margin-bottom:8px;">
+      <select id="inv-estado-filter" onchange="renderInventario()">
+        <option value="">Todos</option>
+        <option value="DISPONIBLE">Solo Disponibles</option>
+        <option value="VENDIDO">Solo Vendidos</option>
+      </select>
+    </div>
     <!-- Filtro local -->
     <div class="select-wrap" style="margin-bottom:8px;">
       <select id="inv-local-filter" onchange="renderInventario()">
@@ -1037,10 +1045,16 @@ async function cargarTodo() {
       window.ACCESORIOS_EXCEL = [];
       for (let i = 1; i < acc.values.length; i++) {
         const row = acc.values[i];
-        const stock = parseInt(row[5]) || 0;
-        if (row[0] && row[1] && row[2] && stock > 0) {
-          window.ACCESORIOS_EXCEL.push({ local: row[0].toString(), cat: row[1].toString(), producto: row[2].toString(), stock, costo: parseFloat(row[4]) || 0, precioVenta: parseFloat(row[5]) || 0 });
-        }
+        if(!row[0] || !row[2]) continue;
+        const stockActual = parseInt(row[6]) || parseInt(row[3]) || 0; // G=STOCK ACTUAL, D=STOCK INICIAL como fallback
+        window.ACCESORIOS_EXCEL.push({ 
+          local: row[0].toString(), 
+          cat: row[1] ? row[1].toString() : '', 
+          producto: row[2].toString(), 
+          stock: stockActual,
+          costo: parseFloat(row[4]) || 0,      // E = COSTO UNITARIO
+          precioVenta: parseFloat(row[5]) || 0  // F = PRECIO VENTA
+        });
       }
     }
 
@@ -1424,8 +1438,10 @@ function tabInventario(tab) {
   btnAcc.style.background = tab === 'acc' ? '#0369a1' : 'white';
   btnAcc.style.color = tab === 'acc' ? 'white' : '#0369a1';
   
+  const estadoWrap = document.getElementById('inv-estado-wrap');
   if(tab === 'acc') {
     catWrap.style.display = 'block';
+    estadoWrap.style.display = 'none';
     const catSel = document.getElementById('inv-cat-filter');
     catSel.innerHTML = '<option value="">Todas las categorías</option>';
     if(window.CONFIG_DATA) {
@@ -1433,6 +1449,7 @@ function tabInventario(tab) {
     }
   } else {
     catWrap.style.display = 'none';
+    estadoWrap.style.display = 'block';
   }
   renderInventario();
 }
@@ -1448,7 +1465,9 @@ function renderInventario() {
       return;
     }
     let items = window.IMEIS_TODOS_CON_ESTADO;
+    const estadoFiltro = document.getElementById('inv-estado-filter')?.value || '';
     if(localFiltro) items = items.filter(i => i.ubicacion === localFiltro);
+    if(estadoFiltro) items = items.filter(i => i.estado === estadoFiltro);
     if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
     
     lista.innerHTML = items.length === 0 ? '<div style="text-align:center;color:#64748b;padding:20px;">Sin resultados</div>' :
