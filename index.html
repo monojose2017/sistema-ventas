@@ -151,7 +151,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Categoría</label><div class="select-wrap"><select id="a-cat" onchange="filtrarAccesorios()"><option value="">Seleccionar...</option><option>VIDRIOS</option><option>FORROS</option><option>CARGADORES</option><option>AUDIFONOS</option><option>CABLES</option><option>PARLANTES</option><option>SIM CARD</option><option>OTROS</option></select></div></div>
     <div class="field"><label>Producto <span class="tag verde">Filtrado automático</span></label>
       <input type="text" id="a-producto-search" placeholder="Buscar producto..." oninput="filtrarProductoAcc()" style="margin-bottom:6px;">
-      <div class="select-wrap"><select id="a-producto"><option value="">Primero elige local y categoría...</option></select></div>
+      <div class="select-wrap"><select id="a-producto" onchange="autoCompletarPrecioAccesorio()"><option value="">Primero elige local y categoría...</option></select></div>
     </div>
     <div class="row2"><div class="field"><label>Cantidad</label><input type="number" id="a-cant" placeholder="1" value="1" min="1" oninput="manejarPago('a')"></div><div class="field"><label>Precio Unitario</label><input type="text" id="a-precio" placeholder="$0" oninput="formatMoney(this);manejarPago('a')"></div></div>
     <div class="field"><label>Tipo de Pago</label><div class="select-wrap"><select id="a-pago" onchange="manejarPago('a')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
@@ -276,6 +276,45 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <button class="btn-menu" onclick="irA('ingreso-telefono')"><div class="btn-icon azul">📱</div><div class="btn-info"><div class="btn-titulo">Ingresar Teléfono</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingreso-accesorio')"><div class="btn-icon verde">🎧</div><div class="btn-info"><div class="btn-titulo">Ingresar Accesorio</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('cambiar-precios')"><div class="btn-icon naranja">💰</div><div class="btn-info"><div class="btn-titulo">Cambiar Precio de Venta</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- CAMBIAR PRECIOS -->
+<div class="screen" id="screen-cambiar-precios">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">💰 Cambiar Precio de Venta</div><div class="form-header-sub">Teléfonos · Accesorios</div></div></div>
+  <div class="form-body">
+    <div class="field">
+      <label>¿Qué quieres actualizar?</label>
+      <div style="display:flex;gap:10px;margin-top:4px;">
+        <button type="button" id="btn-precio-tel" onclick="modoCambiarPrecio('telefono')" style="flex:1;padding:12px;border-radius:10px;border:2px solid #d97706;background:white;font-weight:700;cursor:pointer;font-size:13px;">📱 Teléfono</button>
+        <button type="button" id="btn-precio-acc" onclick="modoCambiarPrecio('accesorio')" style="flex:1;padding:12px;border-radius:10px;border:2px solid #d97706;background:white;font-weight:700;cursor:pointer;font-size:13px;">🎧 Accesorio</button>
+      </div>
+    </div>
+
+    <!-- TELEFONO -->
+    <div id="precio-tel-fields" style="display:none;">
+      <div class="field"><label>Buscar IMEI o Referencia</label><input type="text" id="cp-tel-search" placeholder="Escribe para buscar..." oninput="filtrarIMEIPrecio()"></div>
+      <div class="field"><div class="select-wrap"><select id="cp-tel-imei" onchange="mostrarPrecioActualTel()"><option value="">Seleccionar teléfono...</option></select></div></div>
+      <div id="cp-tel-info" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
+        <div>💰 Precio actual: <b id="cp-tel-precio-actual">$0</b></div>
+      </div>
+      <div class="field"><label>Nuevo Precio de Venta</label><input type="text" id="cp-tel-precio-nuevo" placeholder="$0" oninput="formatMoney(this)"></div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706)" onclick="actualizarPrecioTelefono()">Actualizar Precio ✓</button>
+    </div>
+
+    <!-- ACCESORIO -->
+    <div id="precio-acc-fields" style="display:none;">
+      <div class="field"><label>Local</label><div class="select-wrap"><select id="cp-acc-local" onchange="cargarProductosPrecio()"><option value="">Seleccionar...</option></select></div></div>
+      <div class="field"><label>Categoría</label><div class="select-wrap"><select id="cp-acc-cat" onchange="cargarProductosPrecio()"><option value="">Todas</option></select></div></div>
+      <div class="field"><div class="select-wrap"><select id="cp-acc-producto" onchange="mostrarPrecioActualAcc()"><option value="">Seleccionar producto...</option></select></div></div>
+      <div id="cp-acc-info" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
+        <div>💰 Precio actual: <b id="cp-acc-precio-actual">$0</b></div>
+        <div>📦 Stock: <b id="cp-acc-stock">0</b></div>
+      </div>
+      <div class="field"><label>Nuevo Precio de Venta</label><input type="text" id="cp-acc-precio-nuevo" placeholder="$0" oninput="formatMoney(this)"></div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706)" onclick="actualizarPrecioAccesorio()">Actualizar Precio ✓</button>
+    </div>
   </div>
 </div>
 
@@ -294,8 +333,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div id="qr-reader" style="width:100%;border-radius:12px;overflow:hidden;"></div>
       <button type="button" onclick="stopScanner()" style="width:100%;margin-top:8px;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">❌ Cancelar escaneo</button>
     </div>
-    <div class="field"><label>Referencia</label><div class="select-wrap"><select id="it-ref-sel"><option value="">Seleccionar referencia...</option></select></div></div>
+    <div class="field"><label>Referencia</label>
+      <input type="text" id="it-ref-search" placeholder="Buscar referencia..." oninput="filtrarReferencia()" style="margin-bottom:6px;">
+      <div class="select-wrap"><select id="it-ref-sel"><option value="">Seleccionar referencia...</option></select></div>
+    </div>
     <div class="field"><label>Costo</label><input type="text" id="it-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Precio de Venta</label><input type="text" id="it-precio-venta" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Fecha Ingreso</label><input type="date" id="it-fecha"></div>
     <div class="field"><label>Proveedor</label><div class="select-wrap"><select id="it-proveedor-sel"><option value="">Seleccionar proveedor...</option></select></div></div>
     <div class="field"><label>¿Es repuesto?</label><div class="select-wrap"><select id="it-repuesto"><option value="">No</option><option value="REPUESTO">Sí - Es repuesto</option></select></div></div>
@@ -325,6 +368,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="field"><label>Producto</label><input type="text" id="ia-producto" placeholder="Ej: VIDRIO SAMSUNG A07"></div>
       <div class="field"><label>Cantidad</label><input type="number" id="ia-stock" placeholder="0" min="1"></div>
       <div class="field"><label>Costo Unitario</label><input type="text" id="ia-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+      <div class="field"><label>Precio de Venta</label><input type="text" id="ia-precio-venta" placeholder="$0" oninput="formatMoney(this)"></div>
       <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d)" onclick="enviarForm('ingreso-accesorio')">Agregar al Inventario ✓</button>
     </div>
 
@@ -337,11 +381,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div>💰 Precio actual: <b id="ia-precio-actual">$0</b></div>
       </div>
       <div class="field"><label>Cantidad a agregar</label><input type="number" id="ia-reponer-cant" placeholder="0" min="1" oninput="calcularPrecioPromedio()"></div>
-      <div class="field"><label>Nuevo precio unitario</label><input type="text" id="ia-reponer-precio" placeholder="$0" oninput="formatMoney(this);calcularPrecioPromedio()"></div>
+      <div class="field"><label>Nuevo costo unitario</label><input type="text" id="ia-reponer-precio" placeholder="$0" oninput="formatMoney(this);calcularPrecioPromedio()"></div>
       <div id="ia-promedio-wrap" style="display:none;background:#fef3c7;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
-        <div>📊 Precio promedio: <b id="ia-precio-promedio">$0</b></div>
+        <div>📊 Precio promedio costo: <b id="ia-precio-promedio">$0</b></div>
         <div>📦 Nuevo stock total: <b id="ia-stock-total">0</b></div>
       </div>
+      <div class="field"><label>Precio de Venta (opcional)</label><input type="text" id="ia-reponer-precio-venta" placeholder="Dejar vacío si no cambia" oninput="formatMoney(this)"></div>
       <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7)" onclick="reponerAccesorio()">Reponer Stock ✓</button>
     </div>
   </div>
@@ -507,6 +552,15 @@ function autoRef(){
 function autoRefContado(){
   const sel = document.getElementById('ct-imei').value;
   document.getElementById('ct-ref').value = sel ? sel.split('|')[1] : '';
+  // Autocompletar precio de venta
+  if(sel && window.IMEIS_TODOS) {
+    const imei = sel.split('|')[0];
+    const found = window.IMEIS_TODOS.find(i => i.imei === imei);
+    if(found && found.precioVenta > 0) {
+      document.getElementById('ct-precio').value = '$' + found.precioVenta.toLocaleString('es-CO');
+      manejarPago('ct');
+    }
+  }
 }
 
 let html5Scanner = null;
@@ -930,7 +984,7 @@ async function cargarTodo() {
         const ref = row[1];
         const estado = row[6] ? row[6].toString().toUpperCase() : '';
         if (imei && estado !== 'VENDIDO') {
-          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0 });
+          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[11]) || 0 });
         }
       }
       window.IMEIS_TODOS = imeis;
@@ -950,7 +1004,7 @@ async function cargarTodo() {
         const row = acc.values[i];
         const stock = parseInt(row[5]) || 0;
         if (row[0] && row[1] && row[2] && stock > 0) {
-          window.ACCESORIOS_EXCEL.push({ local: row[0].toString(), cat: row[1].toString(), producto: row[2].toString(), stock, costo: parseFloat(row[4]) || 0 });
+          window.ACCESORIOS_EXCEL.push({ local: row[0].toString(), cat: row[1].toString(), producto: row[2].toString(), stock, costo: parseFloat(row[4]) || 0, precioVenta: parseFloat(row[6]) || 0 });
         }
       }
     }
@@ -1132,8 +1186,8 @@ async function enviarForm(tipo) {
   } else if(tipo === 'ingreso-telefono') {
     hoja = 'INVENTARIO_TELEFONO';
     const repuesto = getVal('it-repuesto');
-    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION
-    fila = [getVal('it-imei'), getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local')];
+    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, ALERTA_REPOS, PRECIO_VENTA
+    fila = [getVal('it-imei'), getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), '', getNumero('it-precio-venta')];
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
@@ -1149,7 +1203,8 @@ async function enviarForm(tipo) {
         return;
       }
     }
-    fila = [localAcc, getVal('ia-cat'), productoAcc, parseInt(getVal('ia-stock'))||0, getNumero('ia-costo')];
+    // LOCAL, CATEGORIA, PRODUCTO, STOCK, COSTO UNITARIO, STOCK_ACTUAL(formula), PRECIO_VENTA
+    fila = [localAcc, getVal('ia-cat'), productoAcc, parseInt(getVal('ia-stock'))||0, getNumero('ia-costo'), '', getNumero('ia-precio-venta')];
 
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
@@ -1309,6 +1364,137 @@ async function eliminarConfigItem(lista, idx) {
   }
 }
 
+function modoCambiarPrecio(modo) {
+  const btnTel = document.getElementById('btn-precio-tel');
+  const btnAcc = document.getElementById('btn-precio-acc');
+  const telFields = document.getElementById('precio-tel-fields');
+  const accFields = document.getElementById('precio-acc-fields');
+  if(modo === 'telefono') {
+    btnTel.style.background = '#d97706'; btnTel.style.color = 'white';
+    btnAcc.style.background = 'white'; btnAcc.style.color = 'black';
+    telFields.style.display = 'block'; accFields.style.display = 'none';
+    filtrarIMEIPrecio();
+  } else {
+    btnAcc.style.background = '#d97706'; btnAcc.style.color = 'white';
+    btnTel.style.background = 'white'; btnTel.style.color = 'black';
+    accFields.style.display = 'block'; telFields.style.display = 'none';
+    const c = window.CONFIG_DATA;
+    if(c) {
+      const localSel = document.getElementById('cp-acc-local');
+      localSel.innerHTML = '<option value="">Seleccionar...</option>';
+      c.locales.forEach(l => localSel.innerHTML += `<option>${l}</option>`);
+      const catSel = document.getElementById('cp-acc-cat');
+      catSel.innerHTML = '<option value="">Todas</option>';
+      c.categoriasAcc.forEach(c2 => catSel.innerHTML += `<option>${c2}</option>`);
+    }
+  }
+}
+
+function filtrarIMEIPrecio() {
+  const busqueda = (document.getElementById('cp-tel-search')?.value || '').toLowerCase();
+  const sel = document.getElementById('cp-tel-imei');
+  sel.innerHTML = '<option value="">Seleccionar teléfono...</option>';
+  if(!window.IMEIS_TODOS) return;
+  const filtrados = busqueda ? window.IMEIS_TODOS.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda)) : window.IMEIS_TODOS;
+  filtrados.forEach(i => { sel.innerHTML += `<option value="${i.imei}|${i.precioVenta}">${i.imei} — ${i.ref}</option>`; });
+  document.getElementById('cp-tel-info').style.display = 'none';
+}
+
+function mostrarPrecioActualTel() {
+  const val = document.getElementById('cp-tel-imei').value;
+  if(!val) { document.getElementById('cp-tel-info').style.display = 'none'; return; }
+  const precio = val.split('|')[1] || 0;
+  document.getElementById('cp-tel-precio-actual').textContent = '$' + parseInt(precio).toLocaleString('es-CO');
+  document.getElementById('cp-tel-info').style.display = 'block';
+}
+
+function cargarProductosPrecio() {
+  const local = document.getElementById('cp-acc-local').value;
+  const cat = document.getElementById('cp-acc-cat').value;
+  const sel = document.getElementById('cp-acc-producto');
+  sel.innerHTML = '<option value="">Seleccionar producto...</option>';
+  if(!local || !window.ACCESORIOS_EXCEL) return;
+  const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
+  filtrados.forEach((a, i) => { sel.innerHTML += `<option value="${i}">${a.producto}</option>`; });
+  document.getElementById('cp-acc-info').style.display = 'none';
+}
+
+function mostrarPrecioActualAcc() {
+  const local = document.getElementById('cp-acc-local').value;
+  const cat = document.getElementById('cp-acc-cat').value;
+  const idx = document.getElementById('cp-acc-producto').value;
+  if(idx === '') { document.getElementById('cp-acc-info').style.display = 'none'; return; }
+  const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
+  const prod = filtrados[parseInt(idx)];
+  document.getElementById('cp-acc-precio-actual').textContent = '$' + (prod.precioVenta || 0).toLocaleString('es-CO');
+  document.getElementById('cp-acc-stock').textContent = prod.stock;
+  document.getElementById('cp-acc-info').style.display = 'block';
+}
+
+async function actualizarPrecioTelefono() {
+  const val = document.getElementById('cp-tel-imei').value;
+  const precioNuevo = parseInt((document.getElementById('cp-tel-precio-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(!val || precioNuevo <= 0) { alert('⚠️ Selecciona un teléfono e ingresa el precio'); return; }
+  const imei = val.split('|')[0];
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    if(!inv || !inv.values) { alert('❌ Error'); return; }
+    for(let i=1; i<inv.values.length; i++) {
+      if(inv.values[i][0] && inv.values[i][0].toString() === imei) {
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='L${i+1}')`, { values: [[precioNuevo]] });
+        await cargarTodo();
+        mostrarExito('cambiar-precios');
+        return;
+      }
+    }
+    alert('❌ IMEI no encontrado');
+  } catch(e) { alert('❌ Error al actualizar'); }
+}
+
+async function actualizarPrecioAccesorio() {
+  const local = document.getElementById('cp-acc-local').value;
+  const cat = document.getElementById('cp-acc-cat').value;
+  const idx = document.getElementById('cp-acc-producto').value;
+  const precioNuevo = parseInt((document.getElementById('cp-acc-precio-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(!local || idx === '' || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
+  const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
+  const prod = filtrados[parseInt(idx)];
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
+    if(!inv || !inv.values) { alert('❌ Error'); return; }
+    for(let i=1; i<inv.values.length; i++) {
+      const row = inv.values[i];
+      if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='G${i+1}')`, { values: [[precioNuevo]] });
+        await cargarTodo();
+        mostrarExito('cambiar-precios');
+        return;
+      }
+    }
+    alert('❌ Producto no encontrado');
+  } catch(e) { alert('❌ Error al actualizar'); }
+}
+
+function filtrarReferencia() {
+  const busqueda = (document.getElementById('it-ref-search')?.value || '').toLowerCase();
+  const sel = document.getElementById('it-ref-sel');
+  const refs = window.CONFIG_DATA?.referencias || [];
+  sel.innerHTML = '<option value="">Seleccionar referencia...</option>';
+  const filtradas = busqueda ? refs.filter(r => r.toLowerCase().includes(busqueda)) : refs;
+  filtradas.forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
+}
+
+function autoCompletarPrecioAccesorio() {
+  const producto = document.getElementById('a-producto').value;
+  const local = document.getElementById('a-local').value;
+  if(!producto || !window.ACCESORIOS_EXCEL) return;
+  const found = window.ACCESORIOS_EXCEL.find(a => a.producto === producto && a.local === local);
+  if(found && found.precioVenta > 0) {
+    document.getElementById('a-precio').value = '$' + found.precioVenta.toLocaleString('es-CO');
+    manejarPago('a');
+  }
+}
+
 function filtrarIMEI(prefijo) {
   const busqueda = document.getElementById(`${prefijo}-imei-search`).value.toLowerCase();
   const sel = document.getElementById(`${prefijo}-imei`);
@@ -1434,7 +1620,11 @@ async function reponerAccesorio() {
       const row = inv.values[i];
       if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
         const filaExcel = i+1;
+        const precioVentaNuevo = parseInt((document.getElementById('ia-reponer-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
         await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStock, promedio]] });
+        if(precioVentaNuevo > 0) {
+          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='G${filaExcel}')`, { values: [[precioVentaNuevo]] });
+        }
         await cargarTodo();
         mostrarExito('inventario');
         return;
@@ -1511,6 +1701,7 @@ function limpiarFormulario(tipo) {
     document.getElementById('it-imei').value = '';
     document.getElementById('it-ref-sel').value = '';
     document.getElementById('it-costo').value = '';
+    document.getElementById('it-precio-venta').value = '';
     document.getElementById('it-fecha').value = hoy;
     document.getElementById('it-proveedor-sel').value = '';
     document.getElementById('it-repuesto').value = '';
@@ -1521,6 +1712,7 @@ function limpiarFormulario(tipo) {
     document.getElementById('ia-producto').value = '';
     document.getElementById('ia-stock').value = '';
     document.getElementById('ia-costo').value = '';
+    document.getElementById('ia-precio-venta').value = '';
   } else if(tipo === 'ingresos-local') {
     document.getElementById('il-fecha').value = hoy;
     document.getElementById('il-local').value = '';
