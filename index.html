@@ -414,7 +414,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <!-- CAMPOS REPONER -->
     <div id="acc-reponer-fields" style="display:none;">
-      <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-reponer-cat" onchange="onLocalAccChange()"><option value="">Todas las categorías</option></select></div></div>
+      <div class="field"><label>Categoría</label><div class="select-wrap"><select id="ia-reponer-cat" onchange="filtrarProductosReponer()"><option value="">Todas las categorías</option></select></div></div>
       <div class="field"><label>Producto</label><div class="select-wrap"><select id="ia-reponer-producto" onchange="onProductoReponerChange()"><option value="">Seleccionar producto...</option></select></div></div>
       <div id="ia-info-actual" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
         <div>📦 Stock actual: <b id="ia-stock-actual">0</b></div>
@@ -1609,6 +1609,8 @@ async function actualizarPrecioTelefono() {
   const val = document.getElementById('cp-tel-imei').value;
   const precioNuevo = parseInt((document.getElementById('cp-tel-precio-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
   if(!val || precioNuevo <= 0) { alert('⚠️ Selecciona un teléfono e ingresa el precio'); return; }
+  const btn = document.querySelector('#precio-tel-fields .submit-btn');
+  if(btn) { btn.textContent = 'Actualizando...'; btn.disabled = true; }
   const imei = val.split('|')[0];
   try {
     const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
@@ -1622,7 +1624,11 @@ async function actualizarPrecioTelefono() {
       }
     }
     alert('❌ IMEI no encontrado');
-  } catch(e) { alert('❌ Error al actualizar'); }
+    if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
+  } catch(e) { 
+    alert('❌ Error al actualizar'); 
+    if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
+  }
 }
 
 async function actualizarPrecioAccesorio() {
@@ -1631,6 +1637,8 @@ async function actualizarPrecioAccesorio() {
   const producto = document.getElementById('cp-acc-producto').value;
   const precioNuevo = parseInt((document.getElementById('cp-acc-precio-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
   if(!local || !producto || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
+  const btn = document.querySelector('#precio-acc-fields .submit-btn');
+  if(btn) { btn.textContent = 'Actualizando...'; btn.disabled = true; }
   try {
     const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
     if(!inv || !inv.values) { alert('❌ Error'); return; }
@@ -1644,7 +1652,11 @@ async function actualizarPrecioAccesorio() {
       }
     }
     alert('❌ Producto no encontrado');
-  } catch(e) { alert('❌ Error al actualizar'); }
+    if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
+  } catch(e) { 
+    alert('❌ Error al actualizar');
+    if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
+  }
 }
 
 function filtrarReferencia() {
@@ -1735,9 +1747,17 @@ function onLocalAccChange() {
   catSel.innerHTML = '<option value="">Todas las categorías</option>';
   cats.forEach(c => catSel.innerHTML += `<option value="${c}">${c}</option>`);
 
-  // Llenar productos
-  const catFiltro = catSel.value;
-  const productos = window.ACCESORIOS_EXCEL.filter(a => 
+  // Llenar productos sin filtro de categoría
+  filtrarProductosReponer();
+}
+
+function filtrarProductosReponer() {
+  const local = document.getElementById('ia-local').value;
+  const catFiltro = document.getElementById('ia-reponer-cat').value;
+  const sel = document.getElementById('ia-reponer-producto');
+  if(!local || !window.ACCESORIOS_EXCEL) return;
+
+  const productos = window.ACCESORIOS_EXCEL.filter(a =>
     a.local === local && (!catFiltro || a.cat === catFiltro)
   );
   sel.innerHTML = '<option value="">Seleccionar producto...</option>';
@@ -1781,6 +1801,8 @@ async function reponerAccesorio() {
   const cantNueva = parseInt(document.getElementById('ia-reponer-cant').value) || 0;
   const precioNuevo = parseInt((document.getElementById('ia-reponer-precio').value||'').replace(/[^0-9]/g,'')) || 0;
   if(!local || idx === '' || cantNueva <= 0 || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
+  const btn = document.querySelector('#acc-reponer-fields .submit-btn');
+  if(btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
   const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
   const prod = productos[parseInt(idx)];
   const promedio = Math.round((prod.stock * prod.costo + cantNueva * precioNuevo) / (prod.stock + cantNueva));
