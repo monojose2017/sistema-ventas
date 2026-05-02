@@ -33,6 +33,9 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 .field{margin-bottom:16px;}
 .field label{display:block;font-size:12px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
 .field select,.field input{width:100%;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:13px 16px;font-size:15px;font-family:'Nunito',sans-serif;font-weight:600;color:var(--texto);appearance:none;-webkit-appearance:none;outline:none;transition:border-color .15s;}
+.field input[type="text"]{text-transform:uppercase;}
+.field input[type="text"]::placeholder{text-transform:none;}
+.field input[type="text"][id*="search"],.field input[type="text"][id*="imei"],.field input[type="text"][id*="busqueda"]{text-transform:none;}
 .field select:focus,.field input:focus{border-color:var(--azul2);}
 .field input[readonly]{background:#f8fafc;color:var(--sub);}
 .select-wrap{position:relative;}.select-wrap::after{content:'▾';position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--sub);pointer-events:none;}
