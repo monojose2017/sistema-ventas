@@ -1667,7 +1667,9 @@ async function ejecutarReponer() {
       if(row[0]?.toString()===prod.local && row[2]?.toString()===prod.producto) {
         await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${i+1}:E${i+1}')`, { values: [[nuevoStock, promedio]] });
         if(pventaNuevo > 0) await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${i+1}')`, { values: [[pventaNuevo]] });
-        await cargarTodo();
+        btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
+        mercProductoSeleccionado = null;
+        cargarTodo();
         mostrarExito('inventario');
         return;
       }
@@ -1690,16 +1692,28 @@ async function ejecutarNuevo() {
   const btn = document.getElementById('merc-btn-nuevo');
   btn.textContent = 'Enviando...'; btn.disabled = true;
 
-  // Verificar duplicado
   const dup = window.ACCESORIOS_EXCEL?.find(a => a.local === local && a.producto === producto);
-  if(dup) { alert(`⚠️ Ya existe "${producto}" en ${local}. Usa REPONER.`); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; return; }
+  if(dup) { 
+    alert(`⚠️ Ya existe "${producto}" en ${local}. Usa REPONER.`); 
+    btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; 
+    return; 
+  }
 
   try {
     const fila = [local, cat, producto, cant, costo, pventa];
     const ok = await agregarFilaExcel('INVENTARIO_ACCESORIOS', fila);
-    if(ok) { await cargarTodo(); mostrarExito('inventario'); }
-    else { alert('❌ Error al ingresar'); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; }
-  } catch(e) { alert('❌ Error'); btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; }
+    btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false;
+    if(ok) { 
+      mercProductoSeleccionado = null;
+      cargarTodo();
+      mostrarExito('inventario'); 
+    } else { 
+      alert('❌ Error al ingresar'); 
+    }
+  } catch(e) { 
+    alert('❌ Error'); 
+    btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; 
+  }
 }
 
 let imeiAEliminar = null;
