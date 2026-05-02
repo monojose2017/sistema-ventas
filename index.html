@@ -1821,13 +1821,18 @@ async function guardarEdicionTelefono() {
   const proveedor = document.getElementById('edit-tel-proveedor').value;
   const ubicacion = document.getElementById('edit-tel-ubicacion').value;
   try {
-    // B=ref, C=costo, E=proveedor, J=ubicacion, K=precioVenta
     await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='B${editTelRowIndex}:C${editTelRowIndex}')`, { values: [[ref, costo]] });
     await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='E${editTelRowIndex}')`, { values: [[proveedor]] });
     await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='J${editTelRowIndex}')`, { values: [[ubicacion]] });
     await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='K${editTelRowIndex}')`, { values: [[precioVenta]] });
-    await cargarTodo();
+    // Restaurar botón ANTES de redirigir
+    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
+    // Actualizar datos locales inmediatamente
+    const tel = window.IMEIS_TODOS_CON_ESTADO.find(i => i.rowIndex === editTelRowIndex);
+    if(tel) { tel.ref = ref; tel.costo = costo; tel.precioVenta = precioVenta; tel.proveedor = proveedor; tel.ubicacion = ubicacion; }
+    editTelRowIndex = null;
     mostrarExito('ver-inventario');
+    cargarTodo(); // Recarga en segundo plano
   } catch(e) {
     alert('❌ Error al guardar');
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
@@ -1851,17 +1856,30 @@ async function guardarEdicionAccesorio() {
       if(row[0]?.toString()===editAccLocal && row[2]?.toString()===editAccProducto) {
         const f = i+1;
         await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='A${f}:F${f}')`, { values: [[nuevoLocal, cat, producto, stock, costo, precioVenta]] });
-        await cargarTodo();
+        // Restaurar botón ANTES de redirigir
+        if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
+        // Actualizar datos locales inmediatamente sin esperar cargarTodo
+        const acc = window.ACCESORIOS_EXCEL.find(a => a.local === editAccLocal && a.producto === editAccProducto);
+        if(acc) {
+          acc.local = nuevoLocal;
+          acc.cat = cat;
+          acc.producto = producto;
+          acc.stock = stock;
+          acc.costo = costo;
+          acc.precioVenta = precioVenta;
+        }
+        editAccLocal = null;
+        editAccProducto = null;
         mostrarExito('ver-inventario');
+        cargarTodo(); // Recarga en segundo plano
         return;
       }
     }
     alert('❌ Producto no encontrado');
-    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
   } catch(e) {
     alert('❌ Error al guardar');
-    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
   }
+  if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
 }
 
 function verInventario() {
