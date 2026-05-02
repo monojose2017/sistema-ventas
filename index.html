@@ -428,6 +428,14 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </select>
     </div>
 
+    <!-- Filtro referencia (solo telefonos) -->
+    <div id="inv-ref-wrap" class="select-wrap" style="margin-bottom:8px;">
+      <select id="inv-ref-filter" onchange="renderInventario()">
+        <option value="">Todas las referencias</option>
+      </select>
+    </div>
+    <!-- Contador -->
+    <div id="inv-contador" style="display:none;background:#eff6ff;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:700;color:#1e40af;"></div>
     <!-- Lista -->
     <div id="inv-lista"></div>
   </div>
@@ -1934,10 +1942,12 @@ function tabInventario(tab) {
   
   const provWrap = document.getElementById('inv-prov-wrap');
   const estadoWrap = document.getElementById('inv-estado-wrap');
+  const refWrap = document.getElementById('inv-ref-wrap');
   if(tab === 'acc') {
     catWrap.style.display = 'block';
     estadoWrap.style.display = 'none';
     provWrap.style.display = 'none';
+    refWrap.style.display = 'none';
     const catSel = document.getElementById('inv-cat-filter');
     catSel.innerHTML = '<option value="">Todas las categorías</option>';
     if(window.CONFIG_DATA) {
@@ -1947,11 +1957,18 @@ function tabInventario(tab) {
     catWrap.style.display = 'none';
     estadoWrap.style.display = 'block';
     provWrap.style.display = 'block';
+    refWrap.style.display = 'block';
     // Llenar proveedores
     const provSel = document.getElementById('inv-prov-filter');
     provSel.innerHTML = '<option value="">Todos los proveedores</option>';
     if(window.CONFIG_DATA) {
       window.CONFIG_DATA.proveedores.forEach(p => provSel.innerHTML += `<option>${p}</option>`);
+    }
+    // Llenar referencias
+    const refSel = document.getElementById('inv-ref-filter');
+    refSel.innerHTML = '<option value="">Todas las referencias</option>';
+    if(window.CONFIG_DATA) {
+      window.CONFIG_DATA.referencias.forEach(r => refSel.innerHTML += `<option>${r}</option>`);
     }
   }
   renderInventario();
@@ -1970,10 +1987,19 @@ function renderInventario() {
     let items = window.IMEIS_TODOS_CON_ESTADO;
     const estadoFiltro = document.getElementById('inv-estado-filter')?.value || '';
     const provFiltro = document.getElementById('inv-prov-filter')?.value || '';
+    const refFiltro = document.getElementById('inv-ref-filter')?.value || '';
     if(localFiltro) items = items.filter(i => i.ubicacion === localFiltro);
     if(estadoFiltro) items = items.filter(i => i.estado === estadoFiltro);
     if(provFiltro) items = items.filter(i => i.proveedor === provFiltro);
+    if(refFiltro) items = items.filter(i => i.ref === refFiltro);
     if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
+
+    // Contador
+    const disponibles = items.filter(i => i.estado !== 'VENDIDO').length;
+    const vendidos = items.filter(i => i.estado === 'VENDIDO').length;
+    const contador = document.getElementById('inv-contador');
+    contador.style.display = 'block';
+    contador.innerHTML = `📱 Total: <b>${items.length}</b> &nbsp;|&nbsp; ✅ Disponibles: <b>${disponibles}</b> &nbsp;|&nbsp; 🔴 Vendidos: <b>${vendidos}</b>`;
     
     lista.innerHTML = items.length === 0 ? '<div style="text-align:center;color:#64748b;padding:20px;">Sin resultados</div>' :
     items.map(i => `
@@ -2008,6 +2034,12 @@ function renderInventario() {
     if(localFiltro) items = items.filter(a => a.local === localFiltro);
     if(catFiltro) items = items.filter(a => a.cat === catFiltro);
     if(busqueda) items = items.filter(a => a.producto.toLowerCase().includes(busqueda) || a.cat.toLowerCase().includes(busqueda));
+
+    // Contador accesorios
+    const totalStock = items.reduce((sum, a) => sum + (a.stock || 0), 0);
+    const contador = document.getElementById('inv-contador');
+    contador.style.display = 'block';
+    contador.innerHTML = `🎧 Productos: <b>${items.length}</b> &nbsp;|&nbsp; 📦 Stock total: <b>${totalStock}</b>`;
 
     if(items.length === 0) {
       lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay resultados</div>';
