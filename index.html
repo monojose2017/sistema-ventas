@@ -670,9 +670,12 @@ const ACCESORIOS = [
 
 function irA(s){
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
-  document.getElementById('screen-'+s).classList.add('active');
+  const screen = document.getElementById('screen-'+s);
+  if(!screen) { console.error('Screen not found: screen-'+s); return; }
+  screen.classList.add('active');
   window.scrollTo(0,0);
   if(s === 'ingresar-mercancia') iniciarMercancia();
+  if(s === 'ver-inventario') verInventario();
 }
 function volver(){irA('inicio');}
 
@@ -1794,8 +1797,12 @@ function verInventario() {
     window.CONFIG_DATA.ubicaciones.forEach(l => sel.innerHTML += `<option>${l}</option>`);
   }
   document.getElementById('inv-search').value = '';
+  // Resetear filtros
+  const estadoSel = document.getElementById('inv-estado-filter');
+  if(estadoSel) estadoSel.value = '';
+  const provSel = document.getElementById('inv-prov-filter');
+  if(provSel) provSel.value = '';
   tabInventario('tel');
-  irA('ver-inventario');
 }
 
 function tabInventario(tab) {
