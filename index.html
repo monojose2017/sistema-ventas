@@ -297,7 +297,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="field"><label>Buscar IMEI o Referencia</label><input type="text" id="cp-tel-search" placeholder="Escribe para buscar..." oninput="filtrarIMEIPrecio()"></div>
       <div class="field"><div class="select-wrap"><select id="cp-tel-imei" onchange="mostrarPrecioActualTel()"><option value="">Seleccionar teléfono...</option></select></div></div>
       <div id="cp-tel-info" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
-        <div>💰 Precio actual: <b id="cp-tel-precio-actual">$0</b></div>
+        <div id="cp-tel-precio-actual"></div>
       </div>
       <div class="field"><label>Nuevo Precio de Venta</label><input type="text" id="cp-tel-precio-nuevo" placeholder="$0" oninput="formatMoney(this)"></div>
       <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706)" onclick="actualizarPrecioTelefono()">Actualizar Precio ✓</button>
@@ -309,7 +309,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="field"><label>Categoría</label><div class="select-wrap"><select id="cp-acc-cat" onchange="cargarProductosPrecio()"><option value="">Todas</option></select></div></div>
       <div class="field"><div class="select-wrap"><select id="cp-acc-producto" onchange="mostrarPrecioActualAcc()"><option value="">Seleccionar producto...</option></select></div></div>
       <div id="cp-acc-info" style="display:none;background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;">
-        <div>💰 Precio actual: <b id="cp-acc-precio-actual">$0</b></div>
+        <div id="cp-acc-precio-actual"></div>
         <div>📦 Stock: <b id="cp-acc-stock">0</b></div>
       </div>
       <div class="field"><label>Nuevo Precio de Venta</label><input type="text" id="cp-acc-precio-nuevo" placeholder="$0" oninput="formatMoney(this)"></div>
@@ -1396,15 +1396,18 @@ function filtrarIMEIPrecio() {
   sel.innerHTML = '<option value="">Seleccionar teléfono...</option>';
   if(!window.IMEIS_TODOS) return;
   const filtrados = busqueda ? window.IMEIS_TODOS.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda)) : window.IMEIS_TODOS;
-  filtrados.forEach(i => { sel.innerHTML += `<option value="${i.imei}|${i.precioVenta}">${i.imei} — ${i.ref}</option>`; });
+  filtrados.forEach(i => { sel.innerHTML += `<option value="${i.imei}|${i.precioVenta}|${i.costo}">${i.imei} — ${i.ref}</option>`; });
   document.getElementById('cp-tel-info').style.display = 'none';
 }
 
 function mostrarPrecioActualTel() {
   const val = document.getElementById('cp-tel-imei').value;
   if(!val) { document.getElementById('cp-tel-info').style.display = 'none'; return; }
-  const precio = val.split('|')[1] || 0;
-  document.getElementById('cp-tel-precio-actual').textContent = '$' + parseInt(precio).toLocaleString('es-CO');
+  const parts = val.split('|');
+  const precioVenta = parseInt(parts[1]) || 0;
+  const costo = parseInt(parts[2]) || 0;
+  document.getElementById('cp-tel-precio-actual').innerHTML = 
+    `💰 Costo: <b>$${costo.toLocaleString('es-CO')}</b><br>🏷️ Precio venta: <b>$${precioVenta.toLocaleString('es-CO')}</b>`;
   document.getElementById('cp-tel-info').style.display = 'block';
 }
 
@@ -1415,18 +1418,21 @@ function cargarProductosPrecio() {
   sel.innerHTML = '<option value="">Seleccionar producto...</option>';
   if(!local || !window.ACCESORIOS_EXCEL) return;
   const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
-  filtrados.forEach((a, i) => { sel.innerHTML += `<option value="${i}">${a.producto}</option>`; });
+  filtrados.forEach(a => { 
+    sel.innerHTML += `<option value="${a.producto}">${a.producto}</option>`; 
+  });
   document.getElementById('cp-acc-info').style.display = 'none';
 }
 
 function mostrarPrecioActualAcc() {
   const local = document.getElementById('cp-acc-local').value;
   const cat = document.getElementById('cp-acc-cat').value;
-  const idx = document.getElementById('cp-acc-producto').value;
-  if(idx === '') { document.getElementById('cp-acc-info').style.display = 'none'; return; }
-  const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
-  const prod = filtrados[parseInt(idx)];
-  document.getElementById('cp-acc-precio-actual').textContent = '$' + (prod.precioVenta || 0).toLocaleString('es-CO');
+  const producto = document.getElementById('cp-acc-producto').value;
+  if(!producto) { document.getElementById('cp-acc-info').style.display = 'none'; return; }
+  const prod = window.ACCESORIOS_EXCEL.find(a => a.local === local && (!cat || a.cat === cat) && a.producto === producto);
+  if(!prod) return;
+  document.getElementById('cp-acc-precio-actual').innerHTML = 
+    `💰 Costo: <b>$${(prod.costo||0).toLocaleString('es-CO')}</b><br>🏷️ Precio venta: <b>$${(prod.precioVenta||0).toLocaleString('es-CO')}</b>`;
   document.getElementById('cp-acc-stock').textContent = prod.stock;
   document.getElementById('cp-acc-info').style.display = 'block';
 }
@@ -1454,17 +1460,15 @@ async function actualizarPrecioTelefono() {
 async function actualizarPrecioAccesorio() {
   const local = document.getElementById('cp-acc-local').value;
   const cat = document.getElementById('cp-acc-cat').value;
-  const idx = document.getElementById('cp-acc-producto').value;
+  const producto = document.getElementById('cp-acc-producto').value;
   const precioNuevo = parseInt((document.getElementById('cp-acc-precio-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
-  if(!local || idx === '' || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
-  const filtrados = window.ACCESORIOS_EXCEL.filter(a => a.local === local && (!cat || a.cat === cat));
-  const prod = filtrados[parseInt(idx)];
+  if(!local || !producto || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
   try {
     const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
     if(!inv || !inv.values) { alert('❌ Error'); return; }
     for(let i=1; i<inv.values.length; i++) {
       const row = inv.values[i];
-      if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
+      if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === producto) {
         await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='G${i+1}')`, { values: [[precioNuevo]] });
         await cargarTodo();
         mostrarExito('cambiar-precios');
