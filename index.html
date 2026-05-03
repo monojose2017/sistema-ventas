@@ -3013,20 +3013,30 @@ function renderLiquidaciones() {
       lista.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:700;">No hay liquidaciones completadas aún</div>';
       return;
     }
-    lista.innerHTML = liqCompletadas.map((v,i) => `
+    lista.innerHTML = liqCompletadas.map((v,i) => {
+      // Convertir fecha si viene como número de Excel
+      let fechaStr = v.fecha || '';
+      if(typeof v.fecha === 'number') {
+        const d = new Date(Math.round((v.fecha - 25569) * 86400 * 1000));
+        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+        fechaStr = d.toLocaleDateString('es-CO');
+      }
+      return `
       <div onclick="abrirLiquidacion(${i},'completada')" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid #16a34a;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</div>
             <div style="font-size:12px;color:#64748b;">${v.imei} · ${(v.tipo||'').replace('_',' ')}</div>
-            <div style="font-size:12px;color:#16a34a;font-weight:700;">✅ Pago financiera: $${(parseFloat(v.pagoFinanciera)||0).toLocaleString('es-CO')}</div>
-            ${v.costoClaro ? `<div style="font-size:12px;color:#64748b;">Costo Claro: $${parseFloat(v.costoClaro).toLocaleString('es-CO')}</div>` : ''}
-            ${v.valorSistema ? `<div style="font-size:12px;color:#64748b;">Valor Sistema: $${parseFloat(v.valorSistema).toLocaleString('es-CO')}</div>` : ''}
+            <div style="font-size:12px;color:#64748b;">📅 ${fechaStr}</div>
+            <div style="font-size:13px;color:#16a34a;font-weight:700;margin-top:4px;">✅ Pago financiera: $${(parseFloat(v.pagoFinanciera)||0).toLocaleString('es-CO')}</div>
+            ${parseFloat(v.costoClaro) > 0 ? `<div style="font-size:12px;color:#64748b;">💰 Costo Claro: $${parseFloat(v.costoClaro).toLocaleString('es-CO')}</div>` : ''}
+            ${parseFloat(v.valorSistema) > 0 ? `<div style="font-size:12px;color:#64748b;">📊 Valor Sistema: $${parseFloat(v.valorSistema).toLocaleString('es-CO')}</div>` : ''}
+            ${v.obs ? `<div style="font-size:12px;color:#94a3b8;font-style:italic;">${v.obs}</div>` : ''}
           </div>
           <div style="font-size:18px;color:#64748b;">✏️</div>
         </div>
       </div>
-    `).join('');
+    `}).join('');
   }
 }
 
