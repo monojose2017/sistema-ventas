@@ -190,6 +190,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="irA('inventario')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Inventario</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="cargarReportes();irA('reportes')"><div class="btn-icon verde">📊</div><div class="btn-info"><div class="btn-titulo">Reportes</div><div class="btn-sub">Utilidades · Flujo de caja · Por local · más</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
 
@@ -619,8 +621,173 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   </div>
 </div>
 
-<!-- SUCCESS -->
-<div class="screen" id="screen-success">
+<!-- LIQUIDACIONES -->
+<div class="screen" id="screen-liquidaciones">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💱 Liquidaciones</div><div class="form-header-sub">Completa el valor que paga la financiera</div></div></div>
+  <div class="form-body">
+    <!-- Tabs pendientes / completadas -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button id="liq-tab-pend" onclick="tabLiquidaciones('pendientes')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:#d97706;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pendientes</button>
+      <button id="liq-tab-comp" onclick="tabLiquidaciones('completadas')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:13px;">✅ Completadas</button>
+    </div>
+    <div id="liq-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;">⏳ Cargando ventas...</div>
+    <div id="liq-lista"></div>
+  </div>
+</div>
+
+<!-- LIQUIDACION DETALLE -->
+<div class="screen" id="screen-liquidacion-detalle">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('liquidaciones')">‹</button><div><div class="form-header-title" id="liq-det-titulo">💱 Liquidar Venta</div><div class="form-header-sub" id="liq-det-sub">Ingresa el valor de la financiera</div></div></div>
+  <div class="form-body">
+    <!-- Info de la venta -->
+    <div id="liq-det-info" style="background:#fef3c7;border-radius:14px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:800;color:#92400e;margin-bottom:8px;">📋 Datos de la venta</div>
+      <div style="font-size:13px;color:#78350f;line-height:1.8;">
+        <div>📱 <b id="liq-det-ref"></b></div>
+        <div>🔢 IMEI: <b id="liq-det-imei"></b></div>
+        <div>📅 Fecha: <b id="liq-det-fecha"></b></div>
+        <div>💳 Tipo: <b id="liq-det-tipo"></b></div>
+        <div>📊 Porcentaje: <b id="liq-det-porc"></b></div>
+        <div>💰 Costo: <b id="liq-det-costo"></b></div>
+        <div>💵 Cuota cliente: <b id="liq-det-cuota"></b></div>
+      </div>
+    </div>
+
+    <!-- CALCULADORA ET_CLARO -->
+    <div id="calc-etclaro" style="display:none;">
+      <div style="background:#dbeafe;border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:800;color:#1e40af;margin-bottom:10px;">🧮 Calculadora ET CLARO</div>
+        <div class="field"><label>Valor Sistema</label><input type="text" id="calc-vs" placeholder="$0" oninput="formatMoney(this);calcEtClaro()"></div>
+        <div class="field"><label>Costo Claro (ajustado)</label><input type="text" id="calc-costo-claro" placeholder="$0" oninput="formatMoney(this);calcEtClaro()"></div>
+        <div id="calc-etclaro-result" style="display:none;background:white;border-radius:10px;padding:12px;font-size:13px;line-height:1.9;">
+          <div>📊 Cuota inicial (<span id="calc-porc-label"></span>): <b id="calc-cuota-ini"></b></div>
+          <div>📈 Utilidad bruta: <b id="calc-util-bruta"></b></div>
+          <div>📉 40% utilidad: <b id="calc-40-util"></b></div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:15px;">✅ <b>Paga CLARO: <span id="calc-paga-claro" style="color:#16a34a;font-size:17px;"></span></b></div>
+        </div>
+        <button onclick="usarResultadoCalc('etclaro')" style="width:100%;margin-top:10px;padding:10px;background:#1e40af;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">Usar este valor ↓</button>
+      </div>
+    </div>
+
+    <!-- CALCULADORA PAYJOY -->
+    <div id="calc-payjoy" style="display:none;">
+      <div style="background:#ede9fe;border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:10px;">🧮 Calculadora PAYJOY</div>
+        <div class="field"><label>Valor Sistema</label><input type="text" id="calc-pj-vs" placeholder="$0" oninput="formatMoney(this);calcPayjoy()"></div>
+        <div id="calc-payjoy-result" style="display:none;background:white;border-radius:10px;padding:12px;font-size:13px;line-height:1.9;">
+          <div>💵 Cuota sugerida: <b id="calc-pj-cuota"></b></div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:15px;">✅ <b>Paga PAYJOY: <span id="calc-paga-payjoy" style="color:#16a34a;font-size:17px;"></span></b></div>
+        </div>
+        <button onclick="usarResultadoCalc('payjoy')" style="width:100%;margin-top:10px;padding:10px;background:#5b21b6;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">Usar este valor ↓</button>
+      </div>
+    </div>
+
+    <!-- CAMPO PAGO FINANCIERA -->
+    <div class="field">
+      <label>💰 Valor que paga la financiera</label>
+      <input type="text" id="liq-pago-financiera" placeholder="$0" oninput="formatMoney(this)">
+    </div>
+    <div class="field">
+      <label>Observación (opcional)</label>
+      <input type="text" id="liq-observacion" placeholder="Ej: Aprobado al 20%">
+    </div>
+    <div id="liq-utilidad-preview" style="display:none;background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:16px;font-size:14px;color:#15803d;font-weight:700;"></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706)" onclick="guardarLiquidacion()">Guardar Liquidación ✓</button>
+  </div>
+</div>
+
+<!-- REPORTES MENU -->
+<div class="screen" id="screen-reportes">
+  <div class="form-header" style="background:linear-gradient(135deg,#0f4c81,#1d6fa4)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Reportes</div><div class="form-header-sub">Análisis del negocio</div></div></div>
+  <div class="form-body">
+    <!-- Selector de período -->
+    <div style="background:#eff6ff;border-radius:14px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:800;color:#1e40af;text-transform:uppercase;margin-bottom:8px;">📅 Período</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button onclick="setPeriodo('hoy')" id="per-hoy" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:#1d6fa4;color:white;font-weight:700;cursor:pointer;font-size:12px;">Hoy</button>
+        <button onclick="setPeriodo('semana')" id="per-semana" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Esta semana</button>
+        <button onclick="setPeriodo('mes')" id="per-mes" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Este mes</button>
+        <button onclick="setPeriodo('custom')" id="per-custom" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Personalizado</button>
+      </div>
+      <div id="per-custom-fields" style="display:none;margin-top:10px;display:none;">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="date" id="per-desde" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
+          <span style="color:#64748b;font-weight:700;">al</span>
+          <input type="date" id="per-hasta" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
+        </div>
+        <button onclick="cargarReportes()" style="width:100%;margin-top:8px;padding:10px;background:#1d6fa4;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Aplicar</button>
+      </div>
+    </div>
+
+    <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando reportes...</div>
+
+    <!-- RESUMEN DEL DÍA -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">📋 Resumen General</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="rep-card verde"><div class="rep-card-label">Ingresos</div><div class="rep-card-valor" id="rep-ingresos-total">$0</div></div>
+        <div class="rep-card rojo"><div class="rep-card-label">Gastos</div><div class="rep-card-valor" id="rep-gastos-total">$0</div></div>
+        <div class="rep-card azul"><div class="rep-card-label">Utilidad Bruta</div><div class="rep-card-valor" id="rep-utilidad-bruta">$0</div></div>
+        <div class="rep-card naranja"><div class="rep-card-label">Ventas Totales</div><div class="rep-card-valor" id="rep-ventas-count">0</div></div>
+      </div>
+    </div>
+
+    <!-- VENTAS POR TIPO -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">📱 Ventas por Tipo</div>
+      <div id="rep-por-tipo"></div>
+    </div>
+
+    <!-- UTILIDADES POR TIPO -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">💰 Utilidades por Tipo de Venta</div>
+      <div id="rep-utilidades-tipo"></div>
+    </div>
+
+    <!-- POR LOCAL -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">🏪 Rendimiento por Local</div>
+      <div id="rep-por-local"></div>
+    </div>
+
+    <!-- FLUJO DE CAJA -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">💵 Flujo de Caja</div>
+      <div id="rep-flujo-caja"></div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">📦 Estado del Inventario</div>
+      <div id="rep-inventario"></div>
+    </div>
+
+    <!-- LIQUIDACIONES PENDIENTES -->
+    <div class="rep-seccion">
+      <div class="rep-titulo">⏳ Liquidaciones Pendientes</div>
+      <div id="rep-liq-pendientes"></div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.rep-seccion{background:white;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);}
+.rep-titulo{font-size:14px;font-weight:800;color:#1e293b;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #f1f5f9;}
+.rep-card{border-radius:12px;padding:14px;text-align:center;}
+.rep-card.verde{background:#dcfce7;}.rep-card.rojo{background:#fee2e2;}.rep-card.azul{background:#dbeafe;}.rep-card.naranja{background:#ffedd5;}.rep-card.morado{background:#ede9fe;}
+.rep-card-label{font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
+.rep-card-valor{font-size:18px;font-weight:900;color:#1e293b;margin-top:4px;}
+.rep-fila{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:13px;}
+.rep-fila:last-child{border-bottom:none;}
+.rep-fila-label{font-weight:700;color:#475569;}
+.rep-fila-val{font-weight:800;color:#1e293b;}
+.rep-fila-val.verde{color:#16a34a;}.rep-fila-val.rojo{color:#dc2626;}.rep-fila-val.naranja{color:#d97706;}
+.rep-bar-wrap{margin-top:6px;background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden;}
+.rep-bar{height:100%;border-radius:6px;background:linear-gradient(90deg,#2563eb,#0ea5e9);transition:width .5s;}
+</style>
+
+
   <div class="success-screen">
     <div class="success-icon">✅</div>
     <div class="success-titulo">¡Registrado!</div>
@@ -1276,7 +1443,8 @@ async function agregarFilaExcel(hoja, fila) {
     'DEUDAS': 'TBL_DEUDAS',
     'ABONOS_DEUDAS': 'TBL_ABONOS_DEUDAS',
     'INVENTARIO_TELEFONO': 'TBL_INVENTARIO_TELEFONO',
-    'INVENTARIO_ACCESORIOS': 'TBL_INVENTARIO_ACCESORIOS'
+    'INVENTARIO_ACCESORIOS': 'TBL_INVENTARIO_ACCESORIOS',
+    'LIQUIDACIONES': 'TBL_LIQUIDACIONES'
   };
   const tabla = tablaMap[hoja];
   console.log('Enviando a hoja:', hoja, 'tabla:', tabla, 'fila:', JSON.stringify(fila));
@@ -2741,6 +2909,572 @@ async function anularCredito() {
     msg.textContent='❌ Error al anular. Verifica tu conexión.';
   }
 }
+
+// =============================================
+// LIQUIDACIONES
+// =============================================
+let liqVentaActual = null;
+let liqTabActual = 'pendientes';
+let liqCompletadas = [];
+
+async function cargarLiquidaciones() {
+  document.getElementById('liq-loading').style.display = 'block';
+  document.getElementById('liq-lista').innerHTML = '';
+  try {
+    // Cargar ventas de crédito que requieren liquidación
+    const tipos = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
+    const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`);
+    const liqSheet = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
+
+    // IMEIs ya liquidados
+    const liquidados = {};
+    if(liqSheet && liqSheet.values && liqSheet.values.length > 1) {
+      for(let i=1; i<liqSheet.values.length; i++) {
+        const r = liqSheet.values[i];
+        if(r[0]) liquidados[r[0].toString().trim()] = {
+          imei: r[0], ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
+          fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8], rowIndex: i+1
+        };
+      }
+    }
+    liqCompletadas = Object.values(liquidados);
+
+    window.LIQ_PENDIENTES = [];
+    if(ventas && ventas.values && ventas.values.length > 1) {
+      for(let i=1; i<ventas.values.length; i++) {
+        const r = ventas.values[i];
+        const tipo = r[2] ? r[2].toString() : '';
+        const estado = r[13] ? r[13].toString() : '';
+        if(!tipos.includes(tipo)) continue;
+        if(estado === 'ANULADO') continue;
+        const imei = r[4] ? r[4].toString().trim() : '';
+        if(liquidados[imei]) continue; // ya liquidado
+        // Buscar costo en inventario
+        const costo = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei)?.costo || 0;
+        const cuotaFinal = parseFloat(r[8]) || 0;
+        const cuotaSug = parseFloat(r[6]) || 0;
+        window.LIQ_PENDIENTES.push({
+          fecha: r[0], local: r[1], tipo, ref: r[3], imei,
+          porc: parseFloat(r[5]) || 0, cuotaFinal, cuotaSug, costo, rowIndex: i+1
+        });
+      }
+    }
+    document.getElementById('liq-loading').style.display = 'none';
+    renderLiquidaciones();
+  } catch(e) {
+    document.getElementById('liq-loading').style.display = 'none';
+    document.getElementById('liq-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Verifica conexión.</div>';
+  }
+}
+
+function tabLiquidaciones(tab) {
+  liqTabActual = tab;
+  document.getElementById('liq-tab-pend').style.background = tab==='pendientes' ? '#d97706' : 'white';
+  document.getElementById('liq-tab-pend').style.color = tab==='pendientes' ? 'white' : '#d97706';
+  document.getElementById('liq-tab-comp').style.background = tab==='completadas' ? '#d97706' : 'white';
+  document.getElementById('liq-tab-comp').style.color = tab==='completadas' ? 'white' : '#d97706';
+  renderLiquidaciones();
+}
+
+function renderLiquidaciones() {
+  const lista = document.getElementById('liq-lista');
+  const colorTipo = {ET_CLARO:'#0369a1',PAYJOY:'#5b21b6',ADDI:'#16a34a',ALO_CREDIT:'#d97706'};
+
+  if(liqTabActual === 'pendientes') {
+    const items = window.LIQ_PENDIENTES || [];
+    if(!items.length) {
+      lista.innerHTML = '<div style="text-align:center;padding:30px;color:#16a34a;font-weight:700;">✅ No hay liquidaciones pendientes</div>';
+      return;
+    }
+    lista.innerHTML = items.map((v,i) => `
+      <div onclick="abrirLiquidacion(${i},'pendiente')" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid ${colorTipo[v.tipo]||'#d97706'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">${v.imei} · ${v.local}</div>
+            <div style="font-size:12px;color:#64748b;">${v.fecha} · Cuota: $${(v.cuotaFinal||0).toLocaleString('es-CO')}</div>
+          </div>
+          <div style="text-align:right;">
+            <span style="background:${colorTipo[v.tipo]||'#d97706'};color:white;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:800;">${v.tipo.replace('_',' ')}</span>
+            <div style="font-size:18px;margin-top:4px;">›</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    if(!liqCompletadas.length) {
+      lista.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:700;">No hay liquidaciones completadas aún</div>';
+      return;
+    }
+    lista.innerHTML = liqCompletadas.map((v,i) => `
+      <div onclick="abrirLiquidacion(${i},'completada')" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid #16a34a;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</div>
+            <div style="font-size:12px;color:#64748b;">${v.imei} · ${v.tipo}</div>
+            <div style="font-size:12px;color:#16a34a;font-weight:700;">✅ Pago: $${(parseFloat(v.pagoFinanciera)||0).toLocaleString('es-CO')}</div>
+          </div>
+          <div style="font-size:18px;color:#64748b;">✏️</div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function abrirLiquidacion(idx, tipo) {
+  let v;
+  if(tipo === 'pendiente') {
+    v = window.LIQ_PENDIENTES[idx];
+    liqVentaActual = { ...v, esEdicion: false };
+  } else {
+    v = liqCompletadas[idx];
+    liqVentaActual = { ...v, esEdicion: true };
+  }
+
+  document.getElementById('liq-det-titulo').textContent = tipo==='pendiente' ? '💱 Liquidar Venta' : '✏️ Editar Liquidación';
+  document.getElementById('liq-det-ref').textContent = v.ref || '';
+  document.getElementById('liq-det-imei').textContent = v.imei || '';
+  document.getElementById('liq-det-fecha').textContent = v.fecha || '';
+  document.getElementById('liq-det-tipo').textContent = (v.tipo||'').replace('_',' ');
+  document.getElementById('liq-det-porc').textContent = v.porc ? (parseFloat(v.porc)*100)+'%' : 'N/A';
+  document.getElementById('liq-det-costo').textContent = v.costo ? '$'+parseFloat(v.costo).toLocaleString('es-CO') : '$0';
+  document.getElementById('liq-det-cuota').textContent = v.cuotaFinal ? '$'+parseFloat(v.cuotaFinal).toLocaleString('es-CO') : (v.cuotaSug ? '$'+parseFloat(v.cuotaSug).toLocaleString('es-CO') : '$0');
+
+  // Mostrar calculadora según tipo
+  document.getElementById('calc-etclaro').style.display = 'none';
+  document.getElementById('calc-payjoy').style.display = 'none';
+  document.getElementById('calc-etclaro-result').style.display = 'none';
+  document.getElementById('calc-payjoy-result').style.display = 'none';
+  document.getElementById('calc-vs').value = '';
+  document.getElementById('calc-costo-claro').value = '';
+  document.getElementById('calc-pj-vs').value = '';
+
+  if(v.tipo === 'ET_CLARO') {
+    document.getElementById('calc-etclaro').style.display = 'block';
+    document.getElementById('calc-porc-label').textContent = v.porc ? (parseFloat(v.porc)*100)+'%' : '?%';
+  } else if(v.tipo === 'PAYJOY') {
+    document.getElementById('calc-payjoy').style.display = 'block';
+    document.getElementById('calc-pj-cuota').textContent = v.cuotaSug ? '$'+parseFloat(v.cuotaSug).toLocaleString('es-CO') : '$0';
+  }
+
+  // Si es edición, prellenar valor
+  document.getElementById('liq-pago-financiera').value = v.pagoFinanciera ? '$'+parseFloat(v.pagoFinanciera).toLocaleString('es-CO') : '';
+  document.getElementById('liq-observacion').value = v.obs || '';
+  document.getElementById('liq-utilidad-preview').style.display = 'none';
+
+  irA('liquidacion-detalle');
+}
+
+function calcEtClaro() {
+  const vs = parseInt((document.getElementById('calc-vs').value||'').replace(/[^0-9]/g,'')) || 0;
+  const costoClaro = parseInt((document.getElementById('calc-costo-claro').value||'').replace(/[^0-9]/g,'')) || 0;
+  const porc = liqVentaActual ? parseFloat(liqVentaActual.porc) : 0;
+  if(!vs || !costoClaro) { document.getElementById('calc-etclaro-result').style.display='none'; return; }
+  const cuotaIni = Math.round(vs * porc);
+  const utilBruta = vs - costoClaro;
+  const util40 = Math.round(utilBruta * 0.4);
+  const pagaClaro = vs - cuotaIni - util40;
+  document.getElementById('calc-cuota-ini').textContent = '$'+cuotaIni.toLocaleString('es-CO');
+  document.getElementById('calc-util-bruta').textContent = '$'+utilBruta.toLocaleString('es-CO');
+  document.getElementById('calc-40-util').textContent = '$'+util40.toLocaleString('es-CO');
+  document.getElementById('calc-paga-claro').textContent = '$'+pagaClaro.toLocaleString('es-CO');
+  document.getElementById('calc-etclaro-result').style.display = 'block';
+}
+
+function calcPayjoy() {
+  const vs = parseInt((document.getElementById('calc-pj-vs').value||'').replace(/[^0-9]/g,'')) || 0;
+  const cuotaSug = liqVentaActual ? parseFloat(liqVentaActual.cuotaSug) : 0;
+  if(!vs) { document.getElementById('calc-payjoy-result').style.display='none'; return; }
+  const pagaPayjoy = vs - cuotaSug;
+  document.getElementById('calc-paga-payjoy').textContent = '$'+pagaPayjoy.toLocaleString('es-CO');
+  document.getElementById('calc-payjoy-result').style.display = 'block';
+}
+
+function usarResultadoCalc(tipo) {
+  let val = 0;
+  if(tipo === 'etclaro') {
+    val = parseInt(document.getElementById('calc-paga-claro').textContent.replace(/[^0-9]/g,'')) || 0;
+  } else if(tipo === 'payjoy') {
+    val = parseInt(document.getElementById('calc-paga-payjoy').textContent.replace(/[^0-9]/g,'')) || 0;
+  }
+  if(val > 0) {
+    document.getElementById('liq-pago-financiera').value = '$'+val.toLocaleString('es-CO');
+    mostrarPreviewUtilidad(val);
+  }
+}
+
+function mostrarPreviewUtilidad(pagoFinanciera) {
+  if(!liqVentaActual) return;
+  const v = liqVentaActual;
+  const costo = parseFloat(v.costo) || 0;
+  const cuota = parseFloat(v.cuotaFinal) || parseFloat(v.cuotaSug) || 0;
+  let utilidad = 0;
+  let detalle = '';
+  const tipo = v.tipo;
+  if(tipo === 'ET_CLARO' || tipo === 'PAYJOY' || tipo === 'ADDI') {
+    utilidad = cuota + pagoFinanciera - costo;
+    detalle = `Cuota ($${cuota.toLocaleString('es-CO')}) + Pago ($${pagoFinanciera.toLocaleString('es-CO')}) - Costo ($${costo.toLocaleString('es-CO')})`;
+  } else if(tipo === 'ALO_CREDIT') {
+    utilidad = 110000 - (cuota - pagoFinanciera);
+    detalle = `$110.000 comisión - diferencia con MOVISIM`;
+  }
+  const el = document.getElementById('liq-utilidad-preview');
+  el.style.display = 'block';
+  el.innerHTML = `<div>🧮 ${detalle}</div><div style="font-size:18px;margin-top:4px;">💰 Utilidad estimada: <b>$${utilidad.toLocaleString('es-CO')}</b></div>`;
+  el.style.color = utilidad >= 0 ? '#15803d' : '#dc2626';
+  el.style.background = utilidad >= 0 ? '#f0fdf4' : '#fee2e2';
+}
+
+async function guardarLiquidacion() {
+  if(!liqVentaActual) return;
+  const pagoFinanciera = parseInt((document.getElementById('liq-pago-financiera').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(!pagoFinanciera) { alert('⚠️ Ingresa el valor que paga la financiera'); return; }
+  const obs = document.getElementById('liq-observacion').value.trim();
+  const v = liqVentaActual;
+  const fechaHoy = new Date().toISOString().split('T')[0];
+  const btn = document.querySelector('#screen-liquidacion-detalle .submit-btn');
+  if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+  try {
+    if(v.esEdicion && v.rowIndex) {
+      // Editar fila existente en LIQUIDACIONES
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/range(address='F${v.rowIndex}:I${v.rowIndex}')`,
+        { values: [[v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy]] });
+    } else {
+      // Nueva fila en LIQUIDACIONES
+      // IMEI, REFERENCIA, TIPO_VENTA, PORCENTAJE, COSTO, FECHA, PAGO_FINANCIERA, OBSERVACION, FECHA_ACTUALIZACION
+      const fila = [v.imei, v.ref, v.tipo, v.porc, v.costo, v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy];
+      await agregarFilaExcel('LIQUIDACIONES', fila);
+    }
+    if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
+    mostrarToastVerde('✅ Liquidación guardada correctamente');
+    await cargarLiquidaciones();
+    irA('liquidaciones');
+  } catch(e) {
+    if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
+    alert('❌ Error al guardar. Verifica conexión.');
+  }
+}
+
+// =============================================
+// REPORTES
+// =============================================
+let repPeriodo = 'hoy';
+let repDesde = null;
+let repHasta = null;
+
+function setPeriodo(p) {
+  repPeriodo = p;
+  ['hoy','semana','mes','custom'].forEach(x => {
+    const btn = document.getElementById('per-'+x);
+    if(btn) { btn.style.background = x===p?'#1d6fa4':'white'; btn.style.color = x===p?'white':'#1d6fa4'; }
+  });
+  const customFields = document.getElementById('per-custom-fields');
+  customFields.style.display = p==='custom' ? 'block' : 'none';
+  if(p !== 'custom') cargarReportes();
+}
+
+function getFechasPeriodo() {
+  const hoy = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if(repPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
+  if(repPeriodo === 'semana') {
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
+    return { desde: fmt(lunes), hasta: fmt(hoy) };
+  }
+  if(repPeriodo === 'mes') {
+    const ini = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return { desde: fmt(ini), hasta: fmt(hoy) };
+  }
+  if(repPeriodo === 'custom') {
+    return { desde: document.getElementById('per-desde').value, hasta: document.getElementById('per-hasta').value };
+  }
+  return { desde: fmt(hoy), hasta: fmt(hoy) };
+}
+
+function enPeriodo(fechaStr, desde, hasta) {
+  if(!fechaStr) return false;
+  let f = fechaStr;
+  if(typeof fechaStr === 'number') {
+    const d = new Date(Math.round((fechaStr - 25569) * 86400 * 1000));
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+    f = d.toISOString().split('T')[0];
+  }
+  return f >= desde && f <= hasta;
+}
+
+async function cargarReportes() {
+  document.getElementById('rep-loading').style.display = 'block';
+  const { desde, hasta } = getFechasPeriodo();
+  if(!desde || !hasta) { document.getElementById('rep-loading').style.display='none'; return; }
+
+  try {
+    // Cargar todas las hojas necesarias
+    const [creditos, contado, accesorios, gastos, egresosGer, ingresosLoc, ingresosGer, invTel, invAcc, liqSheet] = await Promise.all([
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CONTADO/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/GASTOS_DIARIOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/EGRESOS_GERENCIA/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INGRESOS_LOCAL/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INGRESOS_GERENCIA/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`)
+    ]);
+
+    // Mapa de liquidaciones por IMEI
+    const liqMap = {};
+    if(liqSheet && liqSheet.values && liqSheet.values.length > 1) {
+      for(let i=1;i<liqSheet.values.length;i++) {
+        const r = liqSheet.values[i];
+        if(r[0]) liqMap[r[0].toString().trim()] = parseFloat(r[6]) || 0;
+      }
+    }
+
+    // ---- VENTAS CRÉDITO ----
+    const tiposCredito = {};
+    const localesData = {};
+    let totalIngresosCredito = 0;
+    let countCredito = 0;
+    let liqPendientesRep = [];
+
+    const tiposLiquidables = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
+
+    if(creditos && creditos.values && creditos.values.length > 1) {
+      for(let i=1;i<creditos.values.length;i++) {
+        const r = creditos.values[i];
+        if(!enPeriodo(r[0], desde, hasta)) continue;
+        if(r[13]==='ANULADO') continue;
+        const tipo = r[2]||'';
+        const local = r[1]||'';
+        const cuotaFinal = parseFloat(r[8]) || 0;
+        totalIngresosCredito += cuotaFinal;
+        countCredito++;
+        if(!tiposCredito[tipo]) tiposCredito[tipo] = { count:0, ingresos:0, utilidad:0 };
+        tiposCredito[tipo].count++;
+        tiposCredito[tipo].ingresos += cuotaFinal;
+        if(!localesData[local]) localesData[local] = { ventas:0, ingresos:0, gastos:0 };
+        localesData[local].ventas++;
+        localesData[local].ingresos += cuotaFinal;
+
+        // Utilidad según tipo
+        const imei = r[4]?r[4].toString().trim():'';
+        const porc = parseFloat(r[5]) || 0;
+        const descuento = parseFloat(r[7]) || 0;
+        const costo = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei)?.costo || 0;
+
+        if(tipo==='OFICINA'||tipo==='RECOMPRA'||tipo==='ALO_CREDIT'||tipo==='RUTA') {
+          // Comisión $80.000 base, OFICINA suma $30k adicional
+          const comision = tipo==='OFICINA' ? 110000 : 80000;
+          const utilidad = comision - descuento;
+          tiposCredito[tipo].utilidad += utilidad;
+        } else if(tipo==='ET_OFICINA') {
+          const pagoMov = (() => {
+            const tabla = PRECIOS_DINAMICOS['ET_OFICINA'] || PRECIOS['ET_OFICINA'];
+            const ref = r[3]?r[3].toString():'';
+            const key = porc.toFixed(2);
+            return tabla && tabla[ref] && tabla[ref][key] ? tabla[ref][key] : 0;
+          })();
+          tiposCredito[tipo].utilidad += cuotaFinal + pagoMov + 30000 - costo;
+        } else if(tiposLiquidables.includes(tipo)) {
+          const pagoLiq = liqMap[imei] || 0;
+          if(!pagoLiq) {
+            liqPendientesRep.push({ ref: r[3], imei, tipo, fecha: r[0] });
+          } else {
+            const util = tipo==='ALO_CREDIT' ? (110000-(cuotaFinal-pagoLiq)) : (cuotaFinal + pagoLiq - costo);
+            tiposCredito[tipo].utilidad += util;
+          }
+        }
+      }
+    }
+
+    // ---- VENTAS CONTADO ----
+    let totalContado = 0; let utilContado = 0; let countContado = 0;
+    if(contado && contado.values && contado.values.length > 1) {
+      for(let i=1;i<contado.values.length;i++) {
+        const r = contado.values[i];
+        if(!enPeriodo(r[0],desde,hasta)) continue;
+        const precio = parseFloat(r[4])||0;
+        const costo = parseFloat(r[5])||0;
+        const util = parseFloat(r[6])||0;
+        totalContado += precio; utilContado += util; countContado++;
+        const local = r[1]||'';
+        if(!localesData[local]) localesData[local]={ventas:0,ingresos:0,gastos:0};
+        localesData[local].ventas++; localesData[local].ingresos+=precio;
+      }
+    }
+
+    // ---- ACCESORIOS ----
+    let totalAcc = 0; let utilAcc = 0; let countAcc = 0;
+    if(accesorios && accesorios.values && accesorios.values.length > 1) {
+      for(let i=1;i<accesorios.values.length;i++) {
+        const r = accesorios.values[i];
+        if(!enPeriodo(r[0],desde,hasta)) continue;
+        const total = parseFloat(r[6])||0;
+        const util = parseFloat(r[12])||0;
+        totalAcc += total; utilAcc += util; countAcc++;
+        const local = r[1]||'';
+        if(!localesData[local]) localesData[local]={ventas:0,ingresos:0,gastos:0};
+        localesData[local].ventas++; localesData[local].ingresos+=total;
+      }
+    }
+
+    // ---- GASTOS DIARIOS ----
+    let totalGastos = 0;
+    if(gastos && gastos.values && gastos.values.length > 1) {
+      for(let i=1;i<gastos.values.length;i++) {
+        const r = gastos.values[i];
+        if(!enPeriodo(r[0],desde,hasta)) continue;
+        const val = parseFloat(r[4])||0;
+        totalGastos += val;
+        const local = r[1]||'';
+        if(!localesData[local]) localesData[local]={ventas:0,ingresos:0,gastos:0};
+        localesData[local].gastos += val;
+      }
+    }
+
+    // ---- EGRESOS GERENCIA ----
+    let totalEgresosGer = 0;
+    if(egresosGer && egresosGer.values && egresosGer.values.length > 1) {
+      for(let i=1;i<egresosGer.values.length;i++) {
+        const r = egresosGer.values[i];
+        if(!enPeriodo(r[0],desde,hasta)) continue;
+        totalEgresosGer += parseFloat(r[5])||0;
+      }
+    }
+
+    // ---- INGRESOS LOCAL ----
+    let totalIngLocal = 0;
+    if(ingresosLoc && ingresosLoc.values && ingresosLoc.values.length > 1) {
+      for(let i=1;i<ingresosLoc.values.length;i++) {
+        const r = ingresosLoc.values[i];
+        if(!enPeriodo(r[0],desde,hasta)) continue;
+        totalIngLocal += parseFloat(r[4])||0;
+      }
+    }
+
+    // ---- INVENTARIO ----
+    let telDisponibles=0; let telVendidos=0; let valorInvTel=0;
+    if(invTel && invTel.values && invTel.values.length > 1) {
+      for(let i=1;i<invTel.values.length;i++) {
+        const r = invTel.values[i];
+        const estado = r[6]?r[6].toString().toUpperCase():'';
+        const costo = parseFloat(r[2])||0;
+        if(estado==='DISPONIBLE') { telDisponibles++; valorInvTel+=costo; }
+        else if(estado==='VENDIDO') telVendidos++;
+      }
+    }
+    let accItems=0; let valorInvAcc=0;
+    if(invAcc && invAcc.values && invAcc.values.length > 1) {
+      for(let i=1;i<invAcc.values.length;i++) {
+        const r = invAcc.values[i];
+        const stock = parseInt(r[6])||parseInt(r[3])||0;
+        const costo = parseFloat(r[4])||0;
+        if(stock>0) { accItems++; valorInvAcc += stock*costo; }
+      }
+    }
+
+    // ---- TOTALES ----
+    const totalIngresos = totalIngresosCredito + totalContado + totalAcc + totalIngLocal;
+    const totalGastosAll = totalGastos + totalEgresosGer;
+    const utilidadCredito = Object.values(tiposCredito).reduce((s,t)=>s+t.utilidad,0);
+    const utilidadBruta = utilidadCredito + utilContado + utilAcc;
+    const countTotal = countCredito + countContado + countAcc;
+
+    // ---- RENDER ----
+    const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+    const fmtColor = n => `<span class="rep-fila-val ${n>=0?'verde':'rojo'}">${fmt(n)}</span>`;
+
+    document.getElementById('rep-ingresos-total').textContent = fmt(totalIngresos);
+    document.getElementById('rep-gastos-total').textContent = fmt(totalGastosAll);
+    document.getElementById('rep-utilidad-bruta').textContent = fmt(utilidadBruta);
+    document.getElementById('rep-ventas-count').textContent = countTotal;
+
+    // Por tipo de crédito
+    const tiposOrden = ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','ALO_CREDIT','ADDI','PAYJOY','RUTA'];
+    document.getElementById('rep-por-tipo').innerHTML = `
+      <div class="rep-fila"><span class="rep-fila-label">Contado</span><span class="rep-fila-val">${countContado} ventas · ${fmt(totalContado)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">Accesorios</span><span class="rep-fila-val">${countAcc} ventas · ${fmt(totalAcc)}</span></div>
+      ${tiposOrden.filter(t=>tiposCredito[t]).map(t=>`
+        <div class="rep-fila"><span class="rep-fila-label">${t.replace('_',' ')}</span><span class="rep-fila-val">${tiposCredito[t].count} ventas · ${fmt(tiposCredito[t].ingresos)}</span></div>
+      `).join('')}
+    `;
+
+    // Utilidades por tipo
+    const maxUtil = Math.max(...tiposOrden.filter(t=>tiposCredito[t]).map(t=>tiposCredito[t].utilidad), utilContado, utilAcc, 1);
+    document.getElementById('rep-utilidades-tipo').innerHTML = `
+      <div class="rep-fila"><span class="rep-fila-label">Contado</span>${fmtColor(utilContado)}</div>
+      <div class="rep-fila"><span class="rep-fila-label">Accesorios</span>${fmtColor(utilAcc)}</div>
+      ${tiposOrden.filter(t=>tiposCredito[t]).map(t=>`
+        <div class="rep-fila">
+          <span class="rep-fila-label">${t.replace('_',' ')}</span>
+          ${fmtColor(tiposCredito[t].utilidad)}
+        </div>
+        <div class="rep-bar-wrap"><div class="rep-bar" style="width:${Math.max(0,tiposCredito[t].utilidad/maxUtil*100)}%"></div></div>
+      `).join('')}
+      <div class="rep-fila" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:10px;">
+        <span class="rep-fila-label" style="font-size:14px;">TOTAL UTILIDAD</span>
+        ${fmtColor(utilidadBruta)}
+      </div>
+    `;
+
+    // Por local
+    document.getElementById('rep-por-local').innerHTML = Object.entries(localesData).map(([local, d]) => `
+      <div class="rep-fila">
+        <div><div class="rep-fila-label">🏪 ${local}</div><div style="font-size:11px;color:#94a3b8;">${d.ventas} ventas · Gastos: ${fmt(d.gastos)}</div></div>
+        <span class="rep-fila-val verde">${fmt(d.ingresos)}</span>
+      </div>
+    `).join('') || '<div style="color:#64748b;text-align:center;padding:12px;">Sin datos</div>';
+
+    // Flujo de caja
+    const flujoNeto = totalIngresos - totalGastosAll;
+    document.getElementById('rep-flujo-caja').innerHTML = `
+      <div class="rep-fila"><span class="rep-fila-label">📥 Ventas crédito</span><span class="rep-fila-val verde">${fmt(totalIngresosCredito)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">📥 Ventas contado</span><span class="rep-fila-val verde">${fmt(totalContado)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">📥 Ventas accesorios</span><span class="rep-fila-val verde">${fmt(totalAcc)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">📥 Otros ingresos</span><span class="rep-fila-val verde">${fmt(totalIngLocal)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">📤 Gastos diarios</span><span class="rep-fila-val rojo">-${fmt(totalGastos)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">📤 Egresos gerencia</span><span class="rep-fila-val rojo">-${fmt(totalEgresosGer)}</span></div>
+      <div class="rep-fila" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:10px;">
+        <span class="rep-fila-label" style="font-size:14px;">FLUJO NETO</span>
+        ${fmtColor(flujoNeto)}
+      </div>
+    `;
+
+    // Inventario
+    document.getElementById('rep-inventario').innerHTML = `
+      <div class="rep-fila"><span class="rep-fila-label">📱 Teléfonos disponibles</span><span class="rep-fila-val">${telDisponibles} und</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">📱 Teléfonos vendidos</span><span class="rep-fila-val">${telVendidos} und</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">💰 Valor inventario teléfonos</span><span class="rep-fila-val naranja">${fmt(valorInvTel)}</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">🎧 Accesorios con stock</span><span class="rep-fila-val">${accItems} productos</span></div>
+      <div class="rep-fila"><span class="rep-fila-label">💰 Valor inventario accesorios</span><span class="rep-fila-val naranja">${fmt(valorInvAcc)}</span></div>
+      <div class="rep-fila" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:10px;">
+        <span class="rep-fila-label" style="font-size:14px;">TOTAL INVENTARIO</span>
+        <span class="rep-fila-val naranja">${fmt(valorInvTel+valorInvAcc)}</span>
+      </div>
+    `;
+
+    // Liquidaciones pendientes en reporte
+    document.getElementById('rep-liq-pendientes').innerHTML = liqPendientesRep.length === 0
+      ? '<div style="color:#16a34a;text-align:center;padding:12px;font-weight:700;">✅ Todas las ventas están liquidadas</div>'
+      : liqPendientesRep.map(v=>`
+          <div style="background:#fff7ed;border-radius:10px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #d97706;font-size:13px;">
+            <b>${v.ref||v.imei}</b> · <span style="color:#d97706;font-weight:700;">${v.tipo.replace('_',' ')}</span>
+            <div style="color:#78350f;font-size:12px;">${v.fecha}</div>
+          </div>
+        `).join('');
+
+    document.getElementById('rep-loading').style.display = 'none';
+  } catch(e) {
+    document.getElementById('rep-loading').style.display = 'none';
+    console.error('Error reportes:', e);
+    alert('❌ Error al cargar reportes. Verifica conexión.');
+  }
+}
+
+// Parchear agregarFilaExcel para incluir LIQUIDACIONES
+const _agregarFilaOriginal = agregarFilaExcel;
+window._tablaMapExtra = { 'LIQUIDACIONES': 'TBL_LIQUIDACIONES' };
 
 </script>
 </body>
