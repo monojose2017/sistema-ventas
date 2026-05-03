@@ -2993,13 +2993,20 @@ function renderLiquidaciones() {
       lista.innerHTML = '<div style="text-align:center;padding:30px;color:#16a34a;font-weight:700;">✅ No hay liquidaciones pendientes</div>';
       return;
     }
-    lista.innerHTML = items.map((v,i) => `
+    lista.innerHTML = items.map((v,i) => {
+      let fechaStr = v.fecha || '';
+      if(typeof v.fecha === 'number') {
+        const d = new Date(Math.round((v.fecha - 25569) * 86400 * 1000));
+        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+        fechaStr = d.toLocaleDateString('es-CO');
+      }
+      return `
       <div onclick="abrirLiquidacion(${i},'pendiente')" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid ${colorTipo[v.tipo]||'#d97706'};">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</div>
             <div style="font-size:12px;color:#64748b;margin-top:2px;">${v.imei} · ${v.local}</div>
-            <div style="font-size:12px;color:#64748b;">${v.fecha} · Cuota: $${(v.cuotaFinal||0).toLocaleString('es-CO')}</div>
+            <div style="font-size:12px;color:#64748b;">📅 ${fechaStr} · Cuota: $${(v.cuotaFinal||0).toLocaleString('es-CO')}</div>
           </div>
           <div style="text-align:right;">
             <span style="background:${colorTipo[v.tipo]||'#d97706'};color:white;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:800;">${v.tipo.replace('_',' ')}</span>
@@ -3007,7 +3014,7 @@ function renderLiquidaciones() {
           </div>
         </div>
       </div>
-    `).join('');
+    `}).join('');
   } else {
     if(!liqCompletadas.length) {
       lista.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:700;">No hay liquidaciones completadas aún</div>';
@@ -3053,7 +3060,14 @@ function abrirLiquidacion(idx, tipo) {
   document.getElementById('liq-det-titulo').textContent = tipo==='pendiente' ? '💱 Liquidar Venta' : '✏️ Editar Liquidación';
   document.getElementById('liq-det-ref').textContent = v.ref || '';
   document.getElementById('liq-det-imei').textContent = v.imei || '';
-  document.getElementById('liq-det-fecha').textContent = v.fecha || '';
+  // Convertir fecha si viene como número de Excel
+  let fechaDet = v.fecha || '';
+  if(typeof v.fecha === 'number') {
+    const d = new Date(Math.round((v.fecha - 25569) * 86400 * 1000));
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+    fechaDet = d.toLocaleDateString('es-CO');
+  }
+  document.getElementById('liq-det-fecha').textContent = fechaDet;
   document.getElementById('liq-det-tipo').textContent = (v.tipo||'').replace('_',' ');
   document.getElementById('liq-det-porc').textContent = v.porc ? (parseFloat(v.porc)*100)+'%' : 'N/A';
   document.getElementById('liq-det-costo').textContent = v.costo ? '$'+parseFloat(v.costo).toLocaleString('es-CO') : '$0';
