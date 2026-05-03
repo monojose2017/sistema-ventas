@@ -192,6 +192,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('registros-gerencia')"><div class="btn-icon azul">📋</div><div class="btn-info"><div class="btn-titulo">Registros</div><div class="btn-sub">Ingresos · Egresos de Gerencia</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarReportes();irA('reportes')"><div class="btn-icon verde">📊</div><div class="btn-info"><div class="btn-titulo">Reportes</div><div class="btn-sub">Utilidades · Flujo de caja · Por local · más</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
@@ -787,6 +788,87 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 .rep-bar-wrap{margin-top:6px;background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden;}
 .rep-bar{height:100%;border-radius:6px;background:linear-gradient(90deg,#2563eb,#0ea5e9);transition:width .5s;}
 </style>
+
+
+<!-- REGISTROS GERENCIA MENU -->
+<div class="screen" id="screen-registros-gerencia">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📋 Registros</div><div class="form-header-sub">Consulta movimientos de gerencia</div></div></div>
+  <div class="form-body">
+    <button class="btn-menu" onclick="abrirRegistros('ingresos')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="abrirRegistros('egresos')"><div class="btn-icon rojo">📤</div><div class="btn-info"><div class="btn-titulo">Egresos de Gerencia</div><div class="btn-sub">Operativo · Inversión</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- REGISTROS DETALLE -->
+<div class="screen" id="screen-registros-detalle">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)" id="reg-header">
+    <button class="back-btn" onclick="irA('registros-gerencia')">‹</button>
+    <div><div class="form-header-title" id="reg-titulo">📥 Ingresos de Gerencia</div><div class="form-header-sub" id="reg-sub">Historial de movimientos</div></div>
+  </div>
+  <div class="form-body">
+    <!-- Filtros período -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+      <button onclick="setRegPeriodo('hoy')" id="reg-per-hoy" style="padding:8px 12px;border-radius:8px;border:2px solid #0284c7;background:#0284c7;color:white;font-weight:700;cursor:pointer;font-size:12px;">Hoy</button>
+      <button onclick="setRegPeriodo('ayer')" id="reg-per-ayer" style="padding:8px 12px;border-radius:8px;border:2px solid #0284c7;background:white;color:#0284c7;font-weight:700;cursor:pointer;font-size:12px;">Ayer</button>
+      <button onclick="setRegPeriodo('semana')" id="reg-per-semana" style="padding:8px 12px;border-radius:8px;border:2px solid #0284c7;background:white;color:#0284c7;font-weight:700;cursor:pointer;font-size:12px;">Semana</button>
+      <button onclick="setRegPeriodo('mes')" id="reg-per-mes" style="padding:8px 12px;border-radius:8px;border:2px solid #0284c7;background:white;color:#0284c7;font-weight:700;cursor:pointer;font-size:12px;">Mes</button>
+      <button onclick="setRegPeriodo('custom')" id="reg-per-custom" style="padding:8px 12px;border-radius:8px;border:2px solid #0284c7;background:white;color:#0284c7;font-weight:700;cursor:pointer;font-size:12px;">📅</button>
+      <button onclick="abrirFiltrosPanel()" id="reg-btn-filtros" style="padding:8px 12px;border-radius:8px;border:2px solid #64748b;background:white;color:#64748b;font-weight:700;cursor:pointer;font-size:12px;margin-left:auto;">⚙️ Filtros</button>
+    </div>
+    <!-- Rango personalizado -->
+    <div id="reg-custom-fields" style="display:none;margin-bottom:12px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="reg-desde" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
+        <span style="color:#64748b;font-weight:700;">al</span>
+        <input type="date" id="reg-hasta" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
+      </div>
+      <button onclick="cargarRegistros()" style="width:100%;margin-top:8px;padding:10px;background:#0284c7;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Aplicar</button>
+    </div>
+
+    <!-- Chips de filtros activos -->
+    <div id="reg-filtros-activos" style="display:none;margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+    <!-- Loading -->
+    <div id="reg-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Cargando...</div>
+
+    <!-- Totales -->
+    <div id="reg-totales" style="display:none;background:white;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+      <div style="font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:10px;">Totales del período</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+        <div style="background:#dcfce7;border-radius:10px;padding:10px;">
+          <div style="font-size:10px;font-weight:800;color:#64748b;">EFECTIVO</div>
+          <div style="font-size:14px;font-weight:900;color:#16a34a;" id="reg-tot-efectivo">$0</div>
+        </div>
+        <div style="background:#dbeafe;border-radius:10px;padding:10px;">
+          <div style="font-size:10px;font-weight:800;color:#64748b;">TRANSFER.</div>
+          <div style="font-size:14px;font-weight:900;color:#1d4ed8;" id="reg-tot-transfer">$0</div>
+        </div>
+        <div style="background:#f1f5f9;border-radius:10px;padding:10px;">
+          <div style="font-size:10px;font-weight:800;color:#64748b;">TOTAL</div>
+          <div style="font-size:14px;font-weight:900;color:#1e293b;" id="reg-tot-total">$0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista -->
+    <div id="reg-lista"></div>
+  </div>
+</div>
+
+<!-- PANEL FILTROS -->
+<div id="filtros-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;">
+  <div style="background:white;border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;animation:slideUp .3s ease;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:18px;font-weight:900;color:#1e293b;">⚙️ Filtros</div>
+      <button onclick="cerrarFiltrosPanel()" style="background:#f1f5f9;border:none;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;">✕</button>
+    </div>
+    <div id="filtros-contenido"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button onclick="limpiarFiltros()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;">🗑️ Limpiar</button>
+      <button onclick="aplicarFiltros()" style="flex:2;padding:12px;background:#0284c7;color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px;">Aplicar filtros</button>
+    </div>
+  </div>
+</div>
 
 
 <!-- SUCCESS -->
@@ -2917,8 +2999,481 @@ async function anularCredito() {
 }
 
 // =============================================
-// LIQUIDACIONES
+// REGISTROS DE GERENCIA
 // =============================================
+let regTipo = 'ingresos';
+let regPeriodo = 'hoy';
+let regDatosCompletos = []; // todos los items cargados sin filtrar
+let regFiltrosActivos = {}; // { tipo: ['PAGO DE PROVEEDOR'], metodo: ['EFECTIVO'], ... }
+
+function abrirRegistros(tipo) {
+  regTipo = tipo;
+  regPeriodo = 'hoy';
+  regFiltrosActivos = {};
+  const esIngreso = tipo === 'ingresos';
+  document.getElementById('reg-titulo').textContent = esIngreso ? '📥 Ingresos de Gerencia' : '📤 Egresos de Gerencia';
+  document.getElementById('reg-sub').textContent = esIngreso ? 'Historial de ingresos' : 'Historial de egresos';
+  document.getElementById('reg-header').style.background = esIngreso
+    ? 'linear-gradient(135deg,#16a34a,#15803d)'
+    : 'linear-gradient(135deg,#dc2626,#b91c1c)';
+  actualizarColorFiltros();
+  document.getElementById('reg-custom-fields').style.display = 'none';
+  document.getElementById('reg-filtros-activos').style.display = 'none';
+  irA('registros-detalle');
+  cargarRegistros();
+}
+
+function actualizarColorFiltros() {
+  const esIngreso = regTipo === 'ingresos';
+  const color = esIngreso ? '#15803d' : '#b91c1c';
+  ['hoy','ayer','semana','mes','custom'].forEach(p => {
+    const btn = document.getElementById('reg-per-'+p);
+    if(btn) {
+      btn.style.borderColor = color;
+      btn.style.background = p===regPeriodo ? color : 'white';
+      btn.style.color = p===regPeriodo ? 'white' : color;
+    }
+  });
+}
+
+function setRegPeriodo(p) {
+  regPeriodo = p;
+  actualizarColorFiltros();
+  document.getElementById('reg-custom-fields').style.display = p==='custom' ? 'block' : 'none';
+  if(p !== 'custom') cargarRegistros();
+}
+
+function getRegFechas() {
+  const hoy = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if(regPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
+  if(regPeriodo === 'ayer') {
+    const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+    return { desde: fmt(ayer), hasta: fmt(ayer) };
+  }
+  if(regPeriodo === 'semana') {
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
+    return { desde: fmt(lunes), hasta: fmt(hoy) };
+  }
+  if(regPeriodo === 'mes') {
+    const ini = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return { desde: fmt(ini), hasta: fmt(hoy) };
+  }
+  if(regPeriodo === 'custom') {
+    return { desde: document.getElementById('reg-desde').value, hasta: document.getElementById('reg-hasta').value };
+  }
+  return { desde: fmt(hoy), hasta: fmt(hoy) };
+}
+
+function fmtFechaExcel(f) {
+  if(!f) return '';
+  if(typeof f === 'number') {
+    const d = new Date(Math.round((f - 25569) * 86400 * 1000));
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+    return d.toLocaleDateString('es-CO');
+  }
+  return f.toString();
+}
+
+async function cargarRegistros() {
+  const { desde, hasta } = getRegFechas();
+  if(!desde || !hasta) return;
+  document.getElementById('reg-loading').style.display = 'block';
+  document.getElementById('reg-lista').innerHTML = '';
+  document.getElementById('reg-totales').style.display = 'none';
+
+  try {
+    const hoja = regTipo === 'ingresos' ? 'INGRESOS_GERENCIA' : 'EGRESOS_GERENCIA';
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+    document.getElementById('reg-loading').style.display = 'none';
+
+    if(!data || !data.values || data.values.length <= 1) {
+      document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">No hay registros en este período</div>';
+      return;
+    }
+
+    const esIngreso = regTipo === 'ingresos';
+    regDatosCompletos = [];
+
+    for(let i = 1; i < data.values.length; i++) {
+      const r = data.values[i];
+      if(!r[0]) continue;
+      let fechaStr = '', fechaComp = '';
+      if(typeof r[0] === 'number') {
+        const d = new Date(Math.round((r[0] - 25569) * 86400 * 1000));
+        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+        fechaStr = d.toLocaleDateString('es-CO');
+        fechaComp = d.toISOString().split('T')[0];
+      } else {
+        fechaStr = r[0].toString();
+        fechaComp = r[0].toString();
+      }
+      if(fechaComp < desde || fechaComp > hasta) continue;
+
+      if(esIngreso) {
+        // FECHA, TIPO, PROVEEDOR, DESCRIPCION, LOCAL, VALOR, METODO_PAGO, EFECTIVO, TRANSFERENCIA
+        regDatosCompletos.push({
+          fecha: fechaStr, fechaComp,
+          tipo: r[1]||'', proveedor: r[2]||'', desc: r[3]||'',
+          local: r[4]||'', valor: parseFloat(r[5])||0,
+          metodo: r[6]||'', efectivo: parseFloat(r[7])||0, transfer: parseFloat(r[8])||0
+        });
+      } else {
+        // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO_PAGO, EFECTIVO, TRANSFERENCIA, CONTROL, RESPONSABLE
+        regDatosCompletos.push({
+          fecha: fechaStr, fechaComp,
+          tipo: r[1]||'', cat: r[2]||'', desc: r[3]||'',
+          local: r[4]||'', valor: parseFloat(r[5])||0,
+          metodo: r[6]||'', efectivo: parseFloat(r[7])||0, transfer: parseFloat(r[8])||0,
+          resp: r[10]||''
+        });
+      }
+    }
+    renderRegistros();
+  } catch(e) {
+    document.getElementById('reg-loading').style.display = 'none';
+    document.getElementById('reg-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Verifica conexión.</div>';
+  }
+}
+
+function renderRegistros() {
+  const esIngreso = regTipo === 'ingresos';
+  let items = [...regDatosCompletos];
+
+  // Aplicar filtros activos
+  Object.entries(regFiltrosActivos).forEach(([campo, valores]) => {
+    if(valores && valores.length > 0) {
+      items = items.filter(item => valores.includes(item[campo]));
+    }
+  });
+
+  // Totales
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const totEf = items.reduce((s,i)=>s+i.efectivo,0);
+  const totTr = items.reduce((s,i)=>s+i.transfer,0);
+  const totGen = items.reduce((s,i)=>s+i.valor,0);
+  document.getElementById('reg-tot-efectivo').textContent = fmt(totEf);
+  document.getElementById('reg-tot-transfer').textContent = fmt(totTr);
+  document.getElementById('reg-tot-total').textContent = fmt(totGen);
+  document.getElementById('reg-totales').style.display = items.length > 0 ? 'block' : 'none';
+
+  // Chips filtros activos
+  const chipsEl = document.getElementById('reg-filtros-activos');
+  const totalFiltros = Object.values(regFiltrosActivos).reduce((s,v)=>s+(v?v.length:0),0);
+  if(totalFiltros > 0) {
+    chipsEl.style.display = 'flex';
+    chipsEl.innerHTML = Object.entries(regFiltrosActivos).flatMap(([campo, valores]) =>
+      (valores||[]).map(v => `
+        <span style="background:#dbeafe;color:#1d4ed8;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;">
+          ${v} <span onclick="quitarFiltro('${campo}','${v}')" style="cursor:pointer;font-size:14px;">✕</span>
+        </span>
+      `)
+    ).join('');
+    // Actualizar botón filtros
+    document.getElementById('reg-btn-filtros').textContent = `⚙️ Filtros (${totalFiltros})`;
+    document.getElementById('reg-btn-filtros').style.background = '#dbeafe';
+    document.getElementById('reg-btn-filtros').style.borderColor = '#1d4ed8';
+    document.getElementById('reg-btn-filtros').style.color = '#1d4ed8';
+  } else {
+    chipsEl.style.display = 'none';
+    document.getElementById('reg-btn-filtros').textContent = '⚙️ Filtros';
+    document.getElementById('reg-btn-filtros').style.background = 'white';
+    document.getElementById('reg-btn-filtros').style.borderColor = '#64748b';
+    document.getElementById('reg-btn-filtros').style.color = '#64748b';
+  }
+
+  if(!items.length) {
+    document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">Sin resultados con estos filtros</div>';
+    return;
+  }
+
+  const colorBorde = esIngreso ? '#16a34a' : '#dc2626';
+  const colorTipo = esIngreso ? '#15803d' : '#b91c1c';
+
+  document.getElementById('reg-lista').innerHTML = [...items].reverse().map(item => `
+    <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-left:4px solid ${colorBorde};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+            <span style="background:${colorTipo};color:white;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800;">${item.tipo}</span>
+            ${esIngreso && item.proveedor ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.proveedor}</span>` : ''}
+            ${!esIngreso && item.cat ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.cat}</span>` : ''}
+            <span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.metodo}</span>
+          </div>
+          <div style="font-weight:700;font-size:14px;color:#1e293b;">${item.desc||'Sin descripción'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">
+            📅 ${item.fecha} · 🏪 ${item.local||'General'}
+            ${!esIngreso && item.resp ? ` · 👤 ${item.resp}` : ''}
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">
+            ${item.efectivo > 0 ? `💵 Efectivo: $${item.efectivo.toLocaleString('es-CO')}` : ''}
+            ${item.transfer > 0 ? ` 🏦 Transfer: $${item.transfer.toLocaleString('es-CO')}` : ''}
+          </div>
+        </div>
+        <div style="font-size:16px;font-weight:900;color:${colorBorde};margin-left:8px;white-space:nowrap;">
+          ${esIngreso ? '+' : '-'}$${item.valor.toLocaleString('es-CO')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function abrirFiltrosPanel() {
+  const esIngreso = regTipo === 'ingresos';
+  // Sacar opciones únicas de los datos
+  const tipos = [...new Set(regDatosCompletos.map(i=>i.tipo).filter(Boolean))];
+  const locales = [...new Set(regDatosCompletos.map(i=>i.local).filter(Boolean))];
+  const metodos = [...new Set(regDatosCompletos.map(i=>i.metodo).filter(Boolean))];
+  const proveedores = esIngreso ? [...new Set(regDatosCompletos.map(i=>i.proveedor).filter(Boolean))] : [];
+  const categorias = !esIngreso ? [...new Set(regDatosCompletos.map(i=>i.cat).filter(Boolean))] : [];
+  const responsables = !esIngreso ? [...new Set(regDatosCompletos.map(i=>i.resp).filter(Boolean))] : [];
+
+  const renderGrupo = (label, campo, opciones) => {
+    if(!opciones.length) return '';
+    const activos = regFiltrosActivos[campo] || [];
+    return `
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:8px;">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${opciones.map(op => `
+            <label style="display:flex;align-items:center;gap:6px;background:${activos.includes(op)?'#dbeafe':'#f8fafc'};border:2px solid ${activos.includes(op)?'#1d4ed8':'#e2e8f0'};border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px;font-weight:600;">
+              <input type="checkbox" data-campo="${campo}" data-valor="${op}" ${activos.includes(op)?'checked':''} style="width:16px;height:16px;accent-color:#0284c7;">
+              ${op}
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  document.getElementById('filtros-contenido').innerHTML = `
+    ${renderGrupo('Tipo', 'tipo', tipos)}
+    ${esIngreso ? renderGrupo('Proveedor', 'proveedor', proveedores) : ''}
+    ${!esIngreso ? renderGrupo('Categoría', 'cat', categorias) : ''}
+    ${renderGrupo('Local', 'local', locales)}
+    ${renderGrupo('Método de Pago', 'metodo', metodos)}
+    ${!esIngreso ? renderGrupo('Responsable', 'resp', responsables) : ''}
+  `;
+
+  document.getElementById('filtros-overlay').style.display = 'flex';
+}
+
+function cerrarFiltrosPanel() {
+  document.getElementById('filtros-overlay').style.display = 'none';
+}
+
+function aplicarFiltros() {
+  regFiltrosActivos = {};
+  document.querySelectorAll('#filtros-contenido input[type=checkbox]:checked').forEach(cb => {
+    const campo = cb.dataset.campo;
+    const valor = cb.dataset.valor;
+    if(!regFiltrosActivos[campo]) regFiltrosActivos[campo] = [];
+    regFiltrosActivos[campo].push(valor);
+  });
+  cerrarFiltrosPanel();
+  renderRegistros();
+}
+
+function limpiarFiltros() {
+  regFiltrosActivos = {};
+  document.querySelectorAll('#filtros-contenido input[type=checkbox]').forEach(cb => cb.checked = false);
+  cerrarFiltrosPanel();
+  renderRegistros();
+}
+
+function quitarFiltro(campo, valor) {
+  if(regFiltrosActivos[campo]) {
+    regFiltrosActivos[campo] = regFiltrosActivos[campo].filter(v => v !== valor);
+    if(regFiltrosActivos[campo].length === 0) delete regFiltrosActivos[campo];
+  }
+  renderRegistros();
+}
+
+
+
+function abrirRegistros(tipo) {
+  regTipo = tipo;
+  regPeriodo = 'hoy';
+  const esIngreso = tipo === 'ingresos';
+  document.getElementById('reg-titulo').textContent = esIngreso ? '📥 Ingresos de Gerencia' : '📤 Egresos de Gerencia';
+  document.getElementById('reg-sub').textContent = esIngreso ? 'Historial de ingresos' : 'Historial de egresos';
+  document.getElementById('reg-header').style.background = esIngreso
+    ? 'linear-gradient(135deg,#16a34a,#15803d)'
+    : 'linear-gradient(135deg,#dc2626,#b91c1c)';
+  // Reset filtros
+  ['hoy','ayer','semana','mes','custom'].forEach(p => {
+    const btn = document.getElementById('reg-per-'+p);
+    if(btn) {
+      const color = esIngreso ? '#15803d' : '#b91c1c';
+      btn.style.borderColor = color;
+      btn.style.background = p==='hoy' ? color : 'white';
+      btn.style.color = p==='hoy' ? 'white' : color;
+    }
+  });
+  document.getElementById('reg-custom-fields').style.display = 'none';
+  irA('registros-detalle');
+  cargarRegistros();
+}
+
+function setRegPeriodo(p) {
+  regPeriodo = p;
+  const esIngreso = regTipo === 'ingresos';
+  const color = esIngreso ? '#15803d' : '#b91c1c';
+  ['hoy','ayer','semana','mes','custom'].forEach(x => {
+    const btn = document.getElementById('reg-per-'+x);
+    if(btn) {
+      btn.style.background = x===p ? color : 'white';
+      btn.style.color = x===p ? 'white' : color;
+      btn.style.borderColor = color;
+    }
+  });
+  document.getElementById('reg-custom-fields').style.display = p==='custom' ? 'block' : 'none';
+  if(p !== 'custom') cargarRegistros();
+}
+
+function getRegFechas() {
+  const hoy = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if(regPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
+  if(regPeriodo === 'ayer') {
+    const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+    return { desde: fmt(ayer), hasta: fmt(ayer) };
+  }
+  if(regPeriodo === 'semana') {
+    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
+    return { desde: fmt(lunes), hasta: fmt(hoy) };
+  }
+  if(regPeriodo === 'mes') {
+    const ini = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return { desde: fmt(ini), hasta: fmt(hoy) };
+  }
+  if(regPeriodo === 'custom') {
+    return { desde: document.getElementById('reg-desde').value, hasta: document.getElementById('reg-hasta').value };
+  }
+  return { desde: fmt(hoy), hasta: fmt(hoy) };
+}
+
+function fmtFechaExcel(f) {
+  if(!f) return '';
+  if(typeof f === 'number') {
+    const d = new Date(Math.round((f - 25569) * 86400 * 1000));
+    d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+    return d.toLocaleDateString('es-CO');
+  }
+  return f.toString();
+}
+
+async function cargarRegistros() {
+  const { desde, hasta } = getRegFechas();
+  if(!desde || !hasta) return;
+  document.getElementById('reg-loading').style.display = 'block';
+  document.getElementById('reg-lista').innerHTML = '';
+  document.getElementById('reg-totales').style.display = 'none';
+
+  try {
+    const hoja = regTipo === 'ingresos' ? 'INGRESOS_GERENCIA' : 'EGRESOS_GERENCIA';
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+    document.getElementById('reg-loading').style.display = 'none';
+
+    if(!data || !data.values || data.values.length <= 1) {
+      document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">No hay registros en este período</div>';
+      return;
+    }
+
+    let totalEfectivo = 0, totalTransfer = 0, totalGeneral = 0;
+    const esIngreso = regTipo === 'ingresos';
+    const items = [];
+
+    for(let i = 1; i < data.values.length; i++) {
+      const r = data.values[i];
+      if(!r[0]) continue;
+
+      // Convertir fecha
+      let fechaStr = '';
+      let fechaComp = '';
+      if(typeof r[0] === 'number') {
+        const d = new Date(Math.round((r[0] - 25569) * 86400 * 1000));
+        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+        fechaStr = d.toLocaleDateString('es-CO');
+        fechaComp = d.toISOString().split('T')[0];
+      } else {
+        fechaStr = r[0].toString();
+        fechaComp = r[0].toString();
+      }
+
+      if(fechaComp < desde || fechaComp > hasta) continue;
+
+      if(esIngreso) {
+        // INGRESOS_GERENCIA: FECHA, TIPO, PROVEEDOR, DESCRIPCION, LOCAL, VALOR, METODO_PAGO, EFECTIVO, TRANSFERENCIA
+        const valor = parseFloat(r[5]) || 0;
+        const efectivo = parseFloat(r[7]) || 0;
+        const transfer = parseFloat(r[8]) || 0;
+        totalGeneral += valor;
+        totalEfectivo += efectivo;
+        totalTransfer += transfer;
+        items.push({ fecha: fechaStr, tipo: r[1]||'', proveedor: r[2]||'', desc: r[3]||'', local: r[4]||'', valor, metodo: r[6]||'', efectivo, transfer });
+      } else {
+        // EGRESOS_GERENCIA: FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO_PAGO, EFECTIVO, TRANSFERENCIA, CONTROL, RESPONSABLE
+        const valor = parseFloat(r[5]) || 0;
+        const efectivo = parseFloat(r[7]) || 0;
+        const transfer = parseFloat(r[8]) || 0;
+        totalGeneral += valor;
+        totalEfectivo += efectivo;
+        totalTransfer += transfer;
+        items.push({ fecha: fechaStr, tipo: r[1]||'', cat: r[2]||'', desc: r[3]||'', local: r[4]||'', valor, metodo: r[6]||'', efectivo, transfer, resp: r[10]||'' });
+      }
+    }
+
+    // Mostrar totales
+    const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+    document.getElementById('reg-tot-efectivo').textContent = fmt(totalEfectivo);
+    document.getElementById('reg-tot-transfer').textContent = fmt(totalTransfer);
+    document.getElementById('reg-tot-total').textContent = fmt(totalGeneral);
+    document.getElementById('reg-totales').style.display = items.length > 0 ? 'block' : 'none';
+
+    if(!items.length) {
+      document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">No hay registros en este período</div>';
+      return;
+    }
+
+    const colorBorde = esIngreso ? '#16a34a' : '#dc2626';
+    const colorTipo = esIngreso ? '#15803d' : '#b91c1c';
+
+    document.getElementById('reg-lista').innerHTML = items.reverse().map(item => `
+      <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-left:4px solid ${colorBorde};">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <span style="background:${colorTipo};color:white;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800;">${item.tipo}</span>
+              ${esIngreso && item.proveedor ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.proveedor}</span>` : ''}
+              ${!esIngreso && item.cat ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.cat}</span>` : ''}
+            </div>
+            <div style="font-weight:700;font-size:14px;color:#1e293b;">${item.desc||'Sin descripción'}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">
+              📅 ${item.fecha} · 🏪 ${item.local||'General'}
+              ${!esIngreso && item.resp ? ` · 👤 ${item.resp}` : ''}
+            </div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">
+              💳 ${item.metodo}
+              ${item.efectivo > 0 ? ` · Efectivo: $${item.efectivo.toLocaleString('es-CO')}` : ''}
+              ${item.transfer > 0 ? ` · Transfer: $${item.transfer.toLocaleString('es-CO')}` : ''}
+            </div>
+          </div>
+          <div style="font-size:16px;font-weight:900;color:${colorBorde};margin-left:8px;white-space:nowrap;">
+            ${esIngreso ? '+' : '-'}$${item.valor.toLocaleString('es-CO')}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+  } catch(e) {
+    document.getElementById('reg-loading').style.display = 'none';
+    document.getElementById('reg-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Verifica conexión.</div>';
+    console.error(e);
+  }
+}
+
+
 let liqVentaActual = null;
 let liqTabActual = 'pendientes';
 let liqCompletadas = [];
