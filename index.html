@@ -184,16 +184,30 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-gerencia">
   <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🔐 Gerencia</div><div class="form-header-sub">Acceso restringido</div></div></div>
   <div class="form-body">
-    <p class="sec-titulo">Opciones</p>
+
+    <p class="sec-titulo">Registros</p>
     <button class="btn-menu" onclick="irA('gastos-gerencia')"><div class="btn-icon morado">💸</div><div class="btn-info"><div class="btn-titulo">Egresos de Gerencia</div><div class="btn-sub">Operativo · Inversión</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingresos-gerencia')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos de Gerencia</div><div class="btn-sub">Proveedores · Préstamos · Abonos · más</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('registros-gerencia')"><div class="btn-icon azul">📋</div><div class="btn-info"><div class="btn-titulo">Ver Historial</div><div class="btn-sub">Consulta ingresos y egresos</div></div><span class="btn-arrow">›</span></button>
+
+    <div class="divider"></div>
+    <p class="sec-titulo">Inventario</p>
     <button class="btn-menu" onclick="irA('inventario')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Inventario</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
+
+    <div class="divider"></div>
+    <p class="sec-titulo">Control</p>
+    <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="irA('registros-gerencia')"><div class="btn-icon azul">📋</div><div class="btn-info"><div class="btn-titulo">Registros</div><div class="btn-sub">Ingresos · Egresos de Gerencia</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
+
+    <div class="divider"></div>
+    <p class="sec-titulo">Reportes</p>
     <button class="btn-menu" onclick="cargarReportes();irA('reportes')"><div class="btn-icon verde">📊</div><div class="btn-info"><div class="btn-titulo">Reportes</div><div class="btn-sub">Utilidades · Flujo de caja · Por local · más</div></div><span class="btn-arrow">›</span></button>
+
+    <div class="divider"></div>
+    <p class="sec-titulo">Configuración</p>
+    <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
+
   </div>
 </div>
 
@@ -3219,6 +3233,10 @@ function renderRegistros() {
 }
 
 function abrirFiltrosPanel() {
+  if(!regDatosCompletos || regDatosCompletos.length === 0) {
+    alert('⚠️ No hay datos cargados para filtrar. Verifica que el período tenga registros.');
+    return;
+  }
   const esIngreso = regTipo === 'ingresos';
   // Sacar opciones únicas de los datos
   const tipos = [...new Set(regDatosCompletos.map(i=>i.tipo).filter(Boolean))];
@@ -3264,11 +3282,14 @@ function cerrarFiltrosPanel() {
 
 function aplicarFiltros() {
   regFiltrosActivos = {};
-  document.querySelectorAll('#filtros-contenido input[type=checkbox]:checked').forEach(cb => {
-    const campo = cb.dataset.campo;
-    const valor = cb.dataset.valor;
-    if(!regFiltrosActivos[campo]) regFiltrosActivos[campo] = [];
-    regFiltrosActivos[campo].push(valor);
+  const checks = document.getElementById('filtros-contenido').querySelectorAll('input[type=checkbox]');
+  checks.forEach(cb => {
+    if(cb.checked) {
+      const campo = cb.getAttribute('data-campo');
+      const valor = cb.getAttribute('data-valor');
+      if(!regFiltrosActivos[campo]) regFiltrosActivos[campo] = [];
+      regFiltrosActivos[campo].push(valor);
+    }
   });
   cerrarFiltrosPanel();
   renderRegistros();
@@ -3276,7 +3297,8 @@ function aplicarFiltros() {
 
 function limpiarFiltros() {
   regFiltrosActivos = {};
-  document.querySelectorAll('#filtros-contenido input[type=checkbox]').forEach(cb => cb.checked = false);
+  const checks = document.getElementById('filtros-contenido').querySelectorAll('input[type=checkbox]');
+  checks.forEach(cb => cb.checked = false);
   cerrarFiltrosPanel();
   renderRegistros();
 }
