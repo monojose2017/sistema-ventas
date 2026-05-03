@@ -10,13 +10,14 @@
 :root{--azul:#1a3c6e;--azul2:#2563eb;--verde:#16a34a;--naranja:#ea580c;--morado:#7c3aed;--rojo:#dc2626;--texto:#1e293b;--sub:#64748b;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display:flex;justify-content:center;}
-.phone{width:100%;max-width:420px;min-height:100vh;background:#f8fafc;display:flex;flex-direction:column;}
+.phone{width:100%;max-width:420px;min-height:100vh;background:#f8fafc;display:flex;flex-direction:column;overflow:hidden;}
 .header{background:linear-gradient(135deg,#1a3c6e,#2563eb);padding:28px 20px 22px;color:white;position:relative;overflow:hidden;}
 .header::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.07);}
 .header h1{font-size:22px;font-weight:900;}
 .header p{font-size:13px;opacity:.75;margin-top:3px;}
-.screen{display:none;flex-direction:column;flex:1;}
-.screen.active{display:flex;}
+
+.screen{display:none!important;flex-direction:column;flex:1;}
+.screen.active{display:flex!important;}
 .inicio-body{padding:20px 16px;flex:1;}
 .saludo{font-size:15px;color:var(--sub);font-weight:600;margin-bottom:4px;}
 .titulo-sec{font-size:18px;font-weight:800;color:var(--texto);margin-bottom:20px;}
@@ -788,6 +789,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 </style>
 
 
+<!-- SUCCESS -->
+<div class="screen" id="screen-success">
   <div class="success-screen">
     <div class="success-icon">✅</div>
     <div class="success-titulo">¡Registrado!</div>
@@ -1313,6 +1316,9 @@ async function graphDelete(endpoint) {
 }
 
 window.onload = async function() {
+  // Asegurar que siempre inicie en el menú principal
+  document.querySelectorAll('.screen').forEach(x => x.classList.remove('active'));
+  document.getElementById('screen-inicio').classList.add('active');
   const hoy = new Date().toISOString().split('T')[0];
   ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
     const el = document.getElementById(id);
@@ -2933,7 +2939,8 @@ async function cargarLiquidaciones() {
         const r = liqSheet.values[i];
         if(r[0]) liquidados[r[0].toString().trim()] = {
           imei: r[0], ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
-          fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8], rowIndex: i+1
+          fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
+          costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
         };
       }
     }
@@ -3011,8 +3018,10 @@ function renderLiquidaciones() {
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</div>
-            <div style="font-size:12px;color:#64748b;">${v.imei} · ${v.tipo}</div>
-            <div style="font-size:12px;color:#16a34a;font-weight:700;">✅ Pago: $${(parseFloat(v.pagoFinanciera)||0).toLocaleString('es-CO')}</div>
+            <div style="font-size:12px;color:#64748b;">${v.imei} · ${(v.tipo||'').replace('_',' ')}</div>
+            <div style="font-size:12px;color:#16a34a;font-weight:700;">✅ Pago financiera: $${(parseFloat(v.pagoFinanciera)||0).toLocaleString('es-CO')}</div>
+            ${v.costoClaro ? `<div style="font-size:12px;color:#64748b;">Costo Claro: $${parseFloat(v.costoClaro).toLocaleString('es-CO')}</div>` : ''}
+            ${v.valorSistema ? `<div style="font-size:12px;color:#64748b;">Valor Sistema: $${parseFloat(v.valorSistema).toLocaleString('es-CO')}</div>` : ''}
           </div>
           <div style="font-size:18px;color:#64748b;">✏️</div>
         </div>
@@ -3134,16 +3143,32 @@ async function guardarLiquidacion() {
   const fechaHoy = new Date().toISOString().split('T')[0];
   const btn = document.querySelector('#screen-liquidacion-detalle .submit-btn');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+
+  // Leer COSTO_CLARO y VALOR_SISTEMA de las calculadoras si aplica
+  const costoClaro = parseInt((document.getElementById('calc-costo-claro')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  const valorSistema = parseInt((document.getElementById('calc-vs')?.value||'').replace(/[^0-9]/g,'')) || 
+                       parseInt((document.getElementById('calc-pj-vs')?.value||'').replace(/[^0-9]/g,'')) || 0;
+
   try {
     if(v.esEdicion && v.rowIndex) {
-      // Editar fila existente en LIQUIDACIONES
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/range(address='F${v.rowIndex}:I${v.rowIndex}')`,
-        { values: [[v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy]] });
+      // Editar fila existente en LIQUIDACIONES — columnas F a K
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/range(address='F${v.rowIndex}:K${v.rowIndex}')`,
+        { values: [[v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy, costoClaro, valorSistema]] });
     } else {
       // Nueva fila en LIQUIDACIONES
-      // IMEI, REFERENCIA, TIPO_VENTA, PORCENTAJE, COSTO, FECHA, PAGO_FINANCIERA, OBSERVACION, FECHA_ACTUALIZACION
-      const fila = [v.imei, v.ref, v.tipo, v.porc, v.costo, v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy];
-      await agregarFilaExcel('LIQUIDACIONES', fila);
+      // IMEI como texto con apóstrofe para evitar conversión a número
+      // IMEI, REFERENCIA, TIPO_VENTA, PORCENTAJE, COSTO, FECHA, PAGO_FINANCIERA, OBSERVACION, FECHA_ACTUALIZACION, COSTO_CLARO, VALOR_SISTEMA
+      const fila = [v.imei.toString(), v.ref, v.tipo, v.porc, v.costo, v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy, costoClaro, valorSistema];
+      const result = await agregarFilaExcel('LIQUIDACIONES', fila);
+      // Forzar formato texto en la celda del IMEI para evitar notación científica
+      if(result) {
+        const liqData = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
+        if(liqData && liqData.values) {
+          const filaNum = liqData.values.length + 1;
+          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/range(address='A${filaNum}')`,
+            { numberFormat: [['@']], values: [[v.imei.toString()]] });
+        }
+      }
     }
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     mostrarToastVerde('✅ Liquidación guardada correctamente');
