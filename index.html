@@ -686,6 +686,7 @@ function irA(s){
   screen.classList.add('active');
   window.scrollTo(0,0);
   if(s === 'ingresar-mercancia') iniciarMercancia();
+  if(s === 'credito') cargarPrecios(); // Cargar precios solo cuando se necesita
 }
 function volver(){irA('inicio');}
 
@@ -1042,6 +1043,7 @@ async function initMSAL() {
       msAccount = resp.account;
       msalApp.setActiveAccount(msAccount);
       actualizarBotonConexion(true);
+      preciosCargados = false;
       await cargarTodo();
     } else {
       const accounts = msalApp.getAllAccounts();
@@ -1049,6 +1051,7 @@ async function initMSAL() {
         msAccount = accounts[0];
         msalApp.setActiveAccount(msAccount);
         actualizarBotonConexion(true);
+        preciosCargados = false;
         await cargarTodo();
       }
     }
@@ -1167,59 +1170,38 @@ async function cargarTodo() {
         const ubicacion = row[9] ? row[9].toString() : '';
         const proveedor = row[4] ? row[4].toString() : '';
         if (imei) {
-          imeis.push({ imei: imei.toString(), ref: ref.toString(), costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, estado, ubicacion, proveedor, rowIndex: i+1 });
+          imeis.push({ imei: imei.toString(), ref: ref ? ref.toString() : '', costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, estado, ubicacion, proveedor, rowIndex: i+1 });
         }
       }
-      // Guardar todos incluyendo vendidos para ver inventario
       window.IMEIS_TODOS_CON_ESTADO = imeis;
       window.IMEIS_TODOS = imeis.filter(i => i.estado !== 'VENDIDO');
       ['c-imei','ct-imei'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
         sel.innerHTML = '<option value="">Seleccionar IMEI disponible...</option>';
-        imeis.forEach(i => {
+        window.IMEIS_TODOS.forEach(i => {
           sel.innerHTML += `<option value="${i.imei}|${i.ref}|${i.costo}">${i.imei} — ${i.ref}</option>`;
         });
       });
     }
+
     const acc = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
     if (acc && acc.values) {
       window.ACCESORIOS_EXCEL = [];
       for (let i = 1; i < acc.values.length; i++) {
         const row = acc.values[i];
         if(!row[0] || !row[2]) continue;
-        const stockActual = parseInt(row[6]) || parseInt(row[3]) || 0; // G=STOCK ACTUAL, D=STOCK INICIAL como fallback
+        const stockActual = parseInt(row[6]) || parseInt(row[3]) || 0;
         window.ACCESORIOS_EXCEL.push({ 
           local: row[0].toString(), 
           cat: row[1] ? row[1].toString() : '', 
           producto: row[2].toString(), 
           stock: stockActual,
-          costo: parseFloat(row[4]) || 0,      // E = COSTO UNITARIO
-          precioVenta: parseFloat(row[5]) || 0  // F = PRECIO VENTA
+          costo: parseFloat(row[4]) || 0,
+          precioVenta: parseFloat(row[5]) || 0
         });
       }
     }
-
-    // Cargar precios de las 4 tablas
-    const tablas = ['OFICINA', 'ET_OFICINA', 'ET_CLARO', 'RECOMPRA'];
-    for (const tabla of tablas) {
-      const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${tabla}/usedRange`);
-      if (data && data.values && data.values.length > 1) {
-        PRECIOS_DINAMICOS[tabla] = {};
-        const headers = data.values[0].slice(1);
-        for (let i = 1; i < data.values.length; i++) {
-          const row = data.values[i];
-          const ref = row[0] ? row[0].toString().trim() : '';
-          if (!ref) continue;
-          PRECIOS_DINAMICOS[tabla][ref] = {};
-          headers.forEach((porc, j) => {
-            const key = parseFloat(porc).toFixed(2);
-            PRECIOS_DINAMICOS[tabla][ref][key] = row[j + 1] || 0;
-          });
-        }
-      }
-    }
-    console.log('Todo cargado desde OneDrive ✅');
 
     // Cargar CONFIG
     const cfg = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/usedRange`);
@@ -1241,8 +1223,39 @@ async function cargarTodo() {
       }
       llenarSelectsDesdeConfig();
     }
+    console.log('Todo cargado desde OneDrive ✅');
   } catch(e) {
     console.error('Error cargando datos:', e);
+  }
+}
+
+let preciosCargados = false;
+
+async function cargarPrecios() {
+  if(preciosCargados) return;
+  try {
+    const tablas = ['OFICINA', 'ET_OFICINA', 'ET_CLARO', 'RECOMPRA'];
+    for (const tabla of tablas) {
+      const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${tabla}/usedRange`);
+      if (data && data.values && data.values.length > 1) {
+        PRECIOS_DINAMICOS[tabla] = {};
+        const headers = data.values[0].slice(1);
+        for (let i = 1; i < data.values.length; i++) {
+          const row = data.values[i];
+          const ref = row[0] ? row[0].toString().trim() : '';
+          if (!ref) continue;
+          PRECIOS_DINAMICOS[tabla][ref] = {};
+          headers.forEach((porc, j) => {
+            const key = parseFloat(porc).toFixed(2);
+            PRECIOS_DINAMICOS[tabla][ref][key] = row[j + 1] || 0;
+          });
+        }
+      }
+    }
+    preciosCargados = true;
+    console.log('Precios cargados ✅');
+  } catch(e) {
+    console.error('Error cargando precios:', e);
   }
 }
 
