@@ -3835,7 +3835,8 @@ async function cargarMisRegistros() {
       for(let i=1;i<contado.values.length;i++) {
         const r = contado.values[i];
         if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          listaCont.push({ ref:r[3]||'', imei:r[2]||'', precio:parseFloat(r[4])||0, pago:r[5]||'', efectivo:parseFloat(r[6])||0 });
+          // CONTADO: FECHA(0), LOCAL(1), IMEI(2), REFERENCIA(3), PRECIO_VENTA(4), COSTO(5), UTILIDAD(6), TIPO_PAGO(7), EFECTIVO(8), TRANSFERENCIA(9)
+          listaCont.push({ ref:r[3]||'', imei:r[2]||'', precio:parseFloat(r[4])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
         }
       }
     }
@@ -3846,6 +3847,7 @@ async function cargarMisRegistros() {
       for(let i=1;i<accesorios.values.length;i++) {
         const r = accesorios.values[i];
         if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          // ACCESORIOS: FECHA(0), LOCAL(1), CAT(2), PROD(3), CANT(4), PRECIO_UNIT(5), TOTAL(6), TIPO_PAGO(7), EFECTIVO(8), TRANSFER(9)
           listaAcc.push({ cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
         }
       }
@@ -3942,7 +3944,7 @@ async function cargarMisRegistros() {
           <div>
             <div style="font-weight:700;font-size:13px;">${v.ref}</div>
             <div style="font-size:11px;color:#64748b;">${v.imei}</div>
-            <div style="font-size:11px;color:#64748b;">💳 ${v.pago}</div>
+            <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?` · Efectivo: $${v.efectivo.toLocaleString('es-CO')}`:''}</div>
           </div>
           <div style="font-weight:800;color:#16a34a;font-size:14px;">${fmt(v.precio)}</div>
         </div>
@@ -4019,10 +4021,11 @@ async function cargarMisRegistros() {
     `).join('');
 
   } catch(e) {
+    console.error('Error en cargarMisRegistros:', e);
     document.getElementById('mr-loading').style.display = 'none';
     document.getElementById('mr-contenido').style.display = 'block';
     document.getElementById('mr-sin-registros').style.display = 'block';
-    document.getElementById('mr-sin-registros').textContent = '❌ Error al cargar. Verifica conexión.';
+    document.getElementById('mr-sin-registros').textContent = '❌ Error: ' + e.message;
   }
 }
 
