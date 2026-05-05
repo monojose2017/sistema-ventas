@@ -515,9 +515,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field">
       <label>IMEI</label>
       <div style="display:flex;gap:8px;">
-        <input type="text" id="it-imei" placeholder="Escribe el IMEI" inputmode="numeric" style="flex:1;">
+        <input type="text" id="it-imei" placeholder="Escribe el IMEI" inputmode="numeric" style="flex:1;" oninput="validarIMEIDuplicado()">
         <button type="button" onclick="toggleScanner()" id="scan-btn" style="padding:10px 14px;background:#0369a1;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">📷 Escanear</button>
       </div>
+      <div id="it-imei-aviso" style="display:none;margin-top:6px;background:#fee2e2;border-radius:8px;padding:10px 12px;font-size:12px;color:#b91c1c;font-weight:700;"></div>
     </div>
     <div id="scanner-container" style="display:none;margin-bottom:12px;">
       <div id="qr-reader" style="width:100%;border-radius:12px;overflow:hidden;"></div>
@@ -1394,14 +1395,16 @@ async function toggleScanner() {
   if(container.style.display === 'none') {
     container.style.display = 'block';
     document.getElementById('scan-btn').textContent = '⏸ Parar';
-    await startScanner();
+    await startScanner('it-imei', 'validarIMEIDuplicado');
   } else {
     stopScanner();
   }
 }
 
-async function startScanner() {
-  // Cargar html5-qrcode si no está cargado
+async function startScanner(campoDestino, callback) {
+  window._scannerCampo = campoDestino || 'it-imei';
+  window._scannerCallback = callback || null;
+
   if(!window.Html5Qrcode) {
     await new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -1412,8 +1415,23 @@ async function startScanner() {
     });
   }
 
+  // Mostrar overlay global del scanner
+  let overlay = document.getElementById('global-scanner-overlay');
+  if(!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'global-scanner-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="color:white;font-size:16px;font-weight:800;margin-bottom:16px;">📷 Escanea el IMEI</div>
+      <div id="global-qr-reader" style="width:300px;max-width:100%;border-radius:12px;overflow:hidden;"></div>
+      <button onclick="stopScanner()" style="margin-top:20px;padding:12px 30px;background:#dc2626;color:white;border:none;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;">✕ Cancelar</button>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+
   try {
-    html5Scanner = new Html5Qrcode('qr-reader');
+    html5Scanner = new Html5Qrcode('global-qr-reader');
     await html5Scanner.start(
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 100 } },
@@ -1421,12 +1439,15 @@ async function startScanner() {
         const match = decodedText.match(/\d{15}/);
         const imei = match ? match[0] : decodedText.replace(/\D/g, '');
         if(imei.length >= 10) {
-          document.getElementById('it-imei').value = imei;
+          const campo = document.getElementById(window._scannerCampo);
+          if(campo) campo.value = imei;
           stopScanner();
-          alert('✅ IMEI: ' + imei);
+          if(window._scannerCallback && typeof window[window._scannerCallback] === 'function') {
+            window[window._scannerCallback]();
+          }
         }
       },
-      () => {} // error silencioso mientras busca
+      () => {}
     );
   } catch(e) {
     alert('⚠️ No se pudo acceder a la cámara. Verifica los permisos.');
@@ -1439,10 +1460,33 @@ async function stopScanner() {
     try { await html5Scanner.stop(); } catch(e) {}
     html5Scanner = null;
   }
+  // Ocultar scanner original
   const container = document.getElementById('scanner-container');
   if(container) container.style.display = 'none';
   const btn = document.getElementById('scan-btn');
   if(btn) btn.textContent = '📷 Escanear';
+  // Ocultar overlay global
+  const overlay = document.getElementById('global-scanner-overlay');
+  if(overlay) overlay.style.display = 'none';
+}
+
+function validarIMEIDuplicado() {
+  const imei = document.getElementById('it-imei').value.trim();
+  const aviso = document.getElementById('it-imei-aviso');
+  if(!aviso) return;
+  if(imei.length < 10) { aviso.style.display='none'; return; }
+  const existe = window.IMEIS_TODOS_CON_ESTADO?.find(t => t.imei === imei);
+  if(existe) {
+    aviso.style.display='block';
+    aviso.style.background='#fee2e2';
+    aviso.style.color='#b91c1c';
+    aviso.innerHTML = `⚠️ IMEI ya registrado — <b>${existe.ref||'Sin ref'}</b> · Estado: <b>${existe.estado||'?'}</b> · ${existe.ubicacion||''}`;
+  } else {
+    aviso.style.display='block';
+    aviso.style.background='#f0fdf4';
+    aviso.style.color='#15803d';
+    aviso.textContent='✅ IMEI disponible — no está registrado';
+  }
 }
 
 function calcularCuotaPayjoy() {
@@ -2047,9 +2091,18 @@ async function enviarForm(tipo) {
 
   } else if(tipo === 'ingreso-telefono') {
     hoja = 'INVENTARIO_TELEFONO';
+    const imeiNuevo = getVal('it-imei').trim();
+    // Validar que no exista ya en inventario
+    if(imeiNuevo && window.IMEIS_TODOS_CON_ESTADO) {
+      const existe = window.IMEIS_TODOS_CON_ESTADO.find(t => t.imei === imeiNuevo);
+      if(existe) {
+        alert(`⚠️ Este IMEI ya está registrado en el inventario.\n\n📱 ${existe.ref||'Sin referencia'}\n📊 Estado: ${existe.estado||'Desconocido'}\n📍 Ubicación: ${existe.ubicacion||'Sin ubicación'}\n\nVerifica el IMEI antes de continuar.`);
+        return;
+      }
+    }
     const repuesto = getVal('it-repuesto');
     // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, PRECIO_VENTA
-    fila = [getVal('it-imei'), getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta')];
+    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta')];
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
@@ -3725,190 +3778,6 @@ function quitarFiltro(campo, valor) {
     if(regFiltrosActivos[campo].length === 0) delete regFiltrosActivos[campo];
   }
   renderRegistros();
-}
-
-
-
-function abrirRegistros(tipo) {
-  regTipo = tipo;
-  regPeriodo = 'hoy';
-  const esIngreso = tipo === 'ingresos';
-  document.getElementById('reg-titulo').textContent = esIngreso ? '📥 Ingresos de Gerencia' : '📤 Egresos de Gerencia';
-  document.getElementById('reg-sub').textContent = esIngreso ? 'Historial de ingresos' : 'Historial de egresos';
-  document.getElementById('reg-header').style.background = esIngreso
-    ? 'linear-gradient(135deg,#16a34a,#15803d)'
-    : 'linear-gradient(135deg,#dc2626,#b91c1c)';
-  // Reset filtros
-  ['hoy','ayer','semana','mes','custom'].forEach(p => {
-    const btn = document.getElementById('reg-per-'+p);
-    if(btn) {
-      const color = esIngreso ? '#15803d' : '#b91c1c';
-      btn.style.borderColor = color;
-      btn.style.background = p==='hoy' ? color : 'white';
-      btn.style.color = p==='hoy' ? 'white' : color;
-    }
-  });
-  document.getElementById('reg-custom-fields').style.display = 'none';
-  irA('registros-detalle');
-  cargarRegistros();
-}
-
-function setRegPeriodo(p) {
-  regPeriodo = p;
-  const esIngreso = regTipo === 'ingresos';
-  const color = esIngreso ? '#15803d' : '#b91c1c';
-  ['hoy','ayer','semana','mes','custom'].forEach(x => {
-    const btn = document.getElementById('reg-per-'+x);
-    if(btn) {
-      btn.style.background = x===p ? color : 'white';
-      btn.style.color = x===p ? 'white' : color;
-      btn.style.borderColor = color;
-    }
-  });
-  document.getElementById('reg-custom-fields').style.display = p==='custom' ? 'block' : 'none';
-  if(p !== 'custom') cargarRegistros();
-}
-
-function getRegFechas() {
-  const hoy = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
-  if(regPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
-  if(regPeriodo === 'ayer') {
-    const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
-    return { desde: fmt(ayer), hasta: fmt(ayer) };
-  }
-  if(regPeriodo === 'semana') {
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
-    return { desde: fmt(lunes), hasta: fmt(hoy) };
-  }
-  if(regPeriodo === 'mes') {
-    const ini = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    return { desde: fmt(ini), hasta: fmt(hoy) };
-  }
-  if(regPeriodo === 'custom') {
-    return { desde: document.getElementById('reg-desde').value, hasta: document.getElementById('reg-hasta').value };
-  }
-  return { desde: fmt(hoy), hasta: fmt(hoy) };
-}
-
-function fmtFechaExcel(f) {
-  if(!f) return '';
-  if(typeof f === 'number') {
-    const d = new Date(Math.round((f - 25569) * 86400 * 1000));
-    d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
-    return d.toLocaleDateString('es-CO');
-  }
-  return f.toString();
-}
-
-async function cargarRegistros() {
-  const { desde, hasta } = getRegFechas();
-  if(!desde || !hasta) return;
-  document.getElementById('reg-loading').style.display = 'block';
-  document.getElementById('reg-lista').innerHTML = '';
-  document.getElementById('reg-totales').style.display = 'none';
-
-  try {
-    const hoja = regTipo === 'ingresos' ? 'INGRESOS_GERENCIA' : 'EGRESOS_GERENCIA';
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-    document.getElementById('reg-loading').style.display = 'none';
-
-    if(!data || !data.values || data.values.length <= 1) {
-      document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">No hay registros en este período</div>';
-      return;
-    }
-
-    let totalEfectivo = 0, totalTransfer = 0, totalGeneral = 0;
-    const esIngreso = regTipo === 'ingresos';
-    const items = [];
-
-    for(let i = 1; i < data.values.length; i++) {
-      const r = data.values[i];
-      if(!r[0]) continue;
-
-      // Convertir fecha
-      let fechaStr = '';
-      let fechaComp = '';
-      if(typeof r[0] === 'number') {
-        const d = new Date(Math.round((r[0] - 25569) * 86400 * 1000));
-        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
-        fechaStr = d.toLocaleDateString('es-CO');
-        fechaComp = d.toISOString().split('T')[0];
-      } else {
-        fechaStr = r[0].toString();
-        fechaComp = r[0].toString();
-      }
-
-      if(fechaComp < desde || fechaComp > hasta) continue;
-
-      if(esIngreso) {
-        // INGRESOS_GERENCIA: FECHA, TIPO, PROVEEDOR, DESCRIPCION, LOCAL, VALOR, METODO_PAGO, EFECTIVO, TRANSFERENCIA
-        const valor = parseFloat(r[5]) || 0;
-        const efectivo = parseFloat(r[7]) || 0;
-        const transfer = parseFloat(r[8]) || 0;
-        totalGeneral += valor;
-        totalEfectivo += efectivo;
-        totalTransfer += transfer;
-        items.push({ fecha: fechaStr, tipo: r[1]||'', proveedor: r[2]||'', desc: r[3]||'', local: r[4]||'', valor, metodo: r[6]||'', efectivo, transfer });
-      } else {
-        // EGRESOS_GERENCIA: FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO_PAGO, EFECTIVO, TRANSFERENCIA, CONTROL, RESPONSABLE
-        const valor = parseFloat(r[5]) || 0;
-        const efectivo = parseFloat(r[7]) || 0;
-        const transfer = parseFloat(r[8]) || 0;
-        totalGeneral += valor;
-        totalEfectivo += efectivo;
-        totalTransfer += transfer;
-        items.push({ fecha: fechaStr, tipo: r[1]||'', cat: r[2]||'', desc: r[3]||'', local: r[4]||'', valor, metodo: r[6]||'', efectivo, transfer, resp: r[10]||'' });
-      }
-    }
-
-    // Mostrar totales
-    const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
-    document.getElementById('reg-tot-efectivo').textContent = fmt(totalEfectivo);
-    document.getElementById('reg-tot-transfer').textContent = fmt(totalTransfer);
-    document.getElementById('reg-tot-total').textContent = fmt(totalGeneral);
-    document.getElementById('reg-totales').style.display = items.length > 0 ? 'block' : 'none';
-
-    if(!items.length) {
-      document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">No hay registros en este período</div>';
-      return;
-    }
-
-    const colorBorde = esIngreso ? '#16a34a' : '#dc2626';
-    const colorTipo = esIngreso ? '#15803d' : '#b91c1c';
-
-    document.getElementById('reg-lista').innerHTML = items.reverse().map(item => `
-      <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);border-left:4px solid ${colorBorde};">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-              <span style="background:${colorTipo};color:white;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:800;">${item.tipo}</span>
-              ${esIngreso && item.proveedor ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.proveedor}</span>` : ''}
-              ${!esIngreso && item.cat ? `<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">${item.cat}</span>` : ''}
-            </div>
-            <div style="font-weight:700;font-size:14px;color:#1e293b;">${item.desc||'Sin descripción'}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">
-              📅 ${item.fecha} · 🏪 ${item.local||'General'}
-              ${!esIngreso && item.resp ? ` · 👤 ${item.resp}` : ''}
-            </div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">
-              💳 ${item.metodo}
-              ${item.efectivo > 0 ? ` · Efectivo: $${item.efectivo.toLocaleString('es-CO')}` : ''}
-              ${item.transfer > 0 ? ` · Transfer: $${item.transfer.toLocaleString('es-CO')}` : ''}
-            </div>
-          </div>
-          <div style="font-size:16px;font-weight:900;color:${colorBorde};margin-left:8px;white-space:nowrap;">
-            ${esIngreso ? '+' : '-'}$${item.valor.toLocaleString('es-CO')}
-          </div>
-        </div>
-      </div>
-    `).join('');
-
-  } catch(e) {
-    document.getElementById('reg-loading').style.display = 'none';
-    document.getElementById('reg-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Verifica conexión.</div>';
-    console.error(e);
-  }
 }
 
 // =============================================
