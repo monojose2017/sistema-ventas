@@ -3807,7 +3807,7 @@ async function cargarMisRegistros() {
   };
 
   try {
-    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas] = await Promise.all([
+    const resultados = await Promise.allSettled([
       graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`),
       graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CONTADO/usedRange`),
       graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`),
@@ -3816,6 +3816,7 @@ async function cargarMisRegistros() {
       graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/RETIROS_CAJA/usedRange`),
       graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/APERTURA_CAJA/usedRange`)
     ]);
+    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas] = resultados.map(r => r.status === 'fulfilled' ? r.value : null);
 
     // CRÉDITO — FECHA, LOCAL, TIPO_VENTA, REFERENCIA, IMEI, PORCENTAJE, CUOTA_INICIAL, DESCUENTO, CUOTA_FINAL
     const listaCred = [];
