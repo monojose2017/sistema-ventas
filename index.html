@@ -3823,7 +3823,7 @@ async function cargarMisRegistros() {
       for(let i=1;i<creditos.values.length;i++) {
         const r = creditos.values[i];
         if(fmtFecha(r[0])===fecha && r[1]?.toString()===local && r[13]!=='ANULADO') {
-          listaCred.push({ tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'' });
+          listaCred.push({ tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'', efectivo:parseFloat(r[10])||0 });
         }
       }
     }
@@ -3834,7 +3834,7 @@ async function cargarMisRegistros() {
       for(let i=1;i<contado.values.length;i++) {
         const r = contado.values[i];
         if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          listaCont.push({ ref:r[3]||'', imei:r[2]||'', precio:parseFloat(r[4])||0, pago:r[5]||'' });
+          listaCont.push({ ref:r[3]||'', imei:r[2]||'', precio:parseFloat(r[4])||0, pago:r[5]||'', efectivo:parseFloat(r[6])||0 });
         }
       }
     }
@@ -3845,7 +3845,7 @@ async function cargarMisRegistros() {
       for(let i=1;i<accesorios.values.length;i++) {
         const r = accesorios.values[i];
         if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          listaAcc.push({ cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'' });
+          listaAcc.push({ cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
         }
       }
     }
@@ -3898,9 +3898,9 @@ async function cargarMisRegistros() {
 
     const totalVentas = listaCred.length + listaCont.length + listaAcc.length;
     const totalEfectivoEntrado = 
-      listaCred.filter(v=>v.pago==='EFECTIVO').reduce((s,i)=>s+i.cuota,0) +
-      listaCont.filter(v=>v.pago==='EFECTIVO').reduce((s,i)=>s+i.precio,0) +
-      listaAcc.filter(v=>v.pago==='EFECTIVO').reduce((s,i)=>s+i.total,0) +
+      listaCred.reduce((s,i) => s + (i.pago==='EFECTIVO' ? i.cuota : i.pago==='MIXTO' ? i.efectivo : 0), 0) +
+      listaCont.reduce((s,i) => s + (i.pago==='EFECTIVO' ? i.precio : i.pago==='MIXTO' ? i.efectivo : 0), 0) +
+      listaAcc.reduce((s,i) => s + (i.pago==='EFECTIVO' ? i.total : i.pago==='MIXTO' ? i.efectivo : 0), 0) +
       listaIng.reduce((s,i)=>s+i.valor,0);
     const totalGastosEfectivo = listaGas.reduce((s,i)=>s+i.valor,0);
     const totalRetiros = listaRet.reduce((s,i)=>s+i.valor,0);
