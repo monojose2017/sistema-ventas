@@ -85,7 +85,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="header"><h1>📱 Sistema de Ventas</h1><p>Selecciona el tipo de registro</p></div>
   <div class="inicio-body">
     <div id="btn-conectar" style="width:100%;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;text-align:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(22,163,74,.3);">✅ Conectado a Google Sheets</div>
-    <p class="titulo-sec">¿Qué vas a registrar?</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <p class="titulo-sec" style="margin:0;">¿Qué vas a registrar?</p>
+      <button onclick="irA('mis-registros')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;box-shadow:0 4px 12px rgba(37,99,235,.4);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;" title="Mis Registros del Día">📋</button>
+    </div>
     <p class="sec-titulo">Ventas</p>
     <button class="btn-menu" onclick="irA('credito')"><div class="btn-icon verde">📋</div><div class="btn-info"><div class="btn-titulo">Venta a Crédito</div><div class="btn-sub">Oficina · ET Oficina · ET Claro · Recompra · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('contado')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Venta de Contado</div><div class="btn-sub">Pago inmediato</div></div><span class="btn-arrow">›</span></button>
@@ -93,6 +96,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="divider"></div>
     <p class="sec-titulo">Gastos</p>
     <button class="btn-menu" onclick="irA('gastos')"><div class="btn-icon rojo">🧾</div><div class="btn-info"><div class="btn-titulo">Gasto Diario</div><div class="btn-sub">Aseo · Papelería · Domicilio · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('caja')"><div class="btn-icon azul">🏦</div><div class="btn-info"><div class="btn-titulo">Caja</div><div class="btn-sub">Apertura · Retiro de efectivo</div></div><span class="btn-arrow">›</span></button>
     <div class="divider"></div>
     <p class="sec-titulo">Ingresos</p>
     <button class="btn-menu" onclick="irA('ingresos-local')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos Adicionales</div><div class="btn-sub">Abonos · Otros ingresos</div></div><span class="btn-arrow">›</span></button>
@@ -295,11 +299,18 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-inventario">
   <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📦 Inventario</div><div class="form-header-sub">Gestiona tu inventario</div></div></div>
   <div class="form-body">
+    <p class="sec-titulo">Ingresar</p>
     <button class="btn-menu" onclick="irA('ingreso-telefono')"><div class="btn-icon azul">📱</div><div class="btn-info"><div class="btn-titulo">Ingresar Teléfono</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingreso-accesorio')"><div class="btn-icon verde">🎧</div><div class="btn-info"><div class="btn-titulo">Ingresar Accesorio</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('ingresar-mercancia')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Ingresar Mercancía</div><div class="btn-sub">Inteligente · Detecta duplicados</div></div><span class="btn-arrow">›</span></button>
+    <div class="divider"></div>
+    <p class="sec-titulo">Consultar y editar</p>
     <button class="btn-menu" onclick="irA('cambiar-precios')"><div class="btn-icon naranja">💰</div><div class="btn-info"><div class="btn-titulo">Cambiar Precio de Venta</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="verInventario()"><div class="btn-icon verde">🔍</div><div class="btn-info"><div class="btn-titulo">Ver Inventario</div><div class="btn-sub">Consultar stock · Precios</div></div><span class="btn-arrow">›</span></button>
+    <div class="divider"></div>
+    <p class="sec-titulo">Movimientos especiales</p>
+    <button class="btn-menu" onclick="irA('prestamos')"><div class="btn-icon naranja">🤝</div><div class="btn-info"><div class="btn-titulo">Préstamos</div><div class="btn-sub">Prestar · Recibir prestado</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('garantia')"><div class="btn-icon rojo">🔧</div><div class="btn-info"><div class="btn-titulo">Garantía / Cambio de IMEI</div><div class="btn-sub">Enviar garantía · Recuperar · Cambio</div></div><span class="btn-arrow">›</span></button>
   </div>
 </div>
 
@@ -594,6 +605,11 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Tipo</label><div class="select-wrap"><select id="nd-tipo"><option value="">Seleccionar...</option><option>SIMPLE</option><option>CON INTERES</option></select></div></div>
     <div class="field"><label>Monto Total</label><input type="text" id="nd-monto" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Fecha Próximo Pago</label><input type="date" id="nd-vence"></div>
+    <div class="field"><label>Local <span style="color:#94a3b8;font-weight:400;">(opcional — dejar vacío si es deuda general)</span></label>
+      <div class="select-wrap"><select id="nd-local">
+        <option value="">GENERAL (no es de un local específico)</option>
+      </select></div>
+    </div>
     <div class="field" style="background:#fef3c7;border-radius:12px;padding:14px;">
       <label style="color:#92400e;font-weight:700;">¿Ya recibiste este dinero?</label>
       <div style="display:flex;gap:12px;margin-top:8px;">
@@ -885,6 +901,323 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 </div>
 
 
+<!-- PRESTAMOS -->
+<div class="screen" id="screen-prestamos">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">🤝 Préstamos</div><div class="form-header-sub">Gestiona teléfonos prestados</div></div></div>
+  <div class="form-body">
+    <button class="btn-menu" onclick="irA('prestamo-saliente')"><div class="btn-icon naranja">📤</div><div class="btn-info"><div class="btn-titulo">Presto yo un teléfono</div><div class="btn-sub">Sale de mi inventario</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('prestamo-entrante')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Me prestan a mí</div><div class="btn-sub">Entra a mi inventario para vender</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- PRESTAMO SALIENTE -->
+<div class="screen" id="screen-prestamo-saliente">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('prestamos')">‹</button><div><div class="form-header-title">📤 Presto un Teléfono</div><div class="form-header-sub">Sale de tu inventario</div></div></div>
+  <div class="form-body">
+    <div style="background:#fff7ed;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#92400e;font-weight:600;">
+      ⚠️ El teléfono saldrá del inventario. Si es OFICINA no te lo reponen. Si no es OFICINA te lo deben reponer.
+    </div>
+    <div class="field"><label>IMEI</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="ps-imei" placeholder="Escanea o escribe el IMEI" style="flex:1;" oninput="buscarTelefonoPrestamo('saliente')">
+        <button onclick="startScanner('ps-imei','buscarTelefonoPrestamo')" style="padding:10px 14px;background:#d97706;color:white;border:none;border-radius:10px;font-size:18px;cursor:pointer;">📷</button>
+      </div>
+    </div>
+    <div id="ps-info" style="display:none;background:#fef3c7;border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:#78350f;line-height:1.8;">
+      <div>📱 <b id="ps-ref"></b></div>
+      <div>📍 <b id="ps-ubicacion"></b></div>
+      <div>💰 Costo: <b id="ps-costo"></b></div>
+      <div id="ps-tipo-wrap">🏦 Tipo: <b id="ps-origen"></b></div>
+    </div>
+    <div id="ps-campos" style="display:none;">
+      <div class="field"><label>¿A quién se presta?</label><input type="text" id="ps-a-quien" placeholder="Nombre o empresa"></div>
+      <div class="field"><label>Tipo de préstamo</label>
+        <div class="select-wrap"><select id="ps-tipo-prestamo">
+          <option value="OFICINA">OFICINA — no me reponen</option>
+          <option value="PROPIO">Teléfono propio — me deben reponer</option>
+        </select></div>
+      </div>
+      <div class="field"><label>Observación (opcional)</label><input type="text" id="ps-obs" placeholder="Ej: Para vender en punto externo"></div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706)" onclick="registrarPrestamoSaliente()">Registrar Préstamo ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- PRESTAMO ENTRANTE -->
+<div class="screen" id="screen-prestamo-entrante">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('prestamos')">‹</button><div><div class="form-header-title">📥 Me Prestan un Teléfono</div><div class="form-header-sub">Entra a tu inventario para vender</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>IMEI</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="pe-imei" placeholder="Escanea o escribe el IMEI" style="flex:1;">
+        <button onclick="startScanner('pe-imei',null)" style="padding:10px 14px;background:#15803d;color:white;border:none;border-radius:10px;font-size:18px;cursor:pointer;">📷</button>
+      </div>
+    </div>
+    <div class="field"><label>Referencia</label><input type="text" id="pe-ref" placeholder="Ej: Samsung A15 4 128GB"></div>
+    <div class="field"><label>¿Quién lo presta?</label><input type="text" id="pe-quien" placeholder="Nombre o empresa"></div>
+    <div class="field"><label>Costo (valor del teléfono)</label><input type="text" id="pe-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Ubicación</label>
+      <div class="select-wrap"><select id="pe-ubicacion"><option value="">Seleccionar...</option></select></div>
+    </div>
+    <div class="field"><label>Observación (opcional)</label><input type="text" id="pe-obs" placeholder="Ej: Prestado por Comtel"></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d)" onclick="registrarPrestamoEntrante()">Registrar ✓</button>
+  </div>
+</div>
+
+<!-- GARANTIA / CAMBIO IMEI -->
+<div class="screen" id="screen-garantia">
+  <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#b91c1c)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">🔧 Garantía / Cambio IMEI</div><div class="form-header-sub">Gestiona garantías y cambios</div></div></div>
+  <div class="form-body">
+    <button class="btn-menu" onclick="irA('garantia-enviar')"><div class="btn-icon rojo">📤</div><div class="btn-info"><div class="btn-titulo">Enviar a Garantía</div><div class="btn-sub">Teléfono con crédito anulado</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('garantia-recuperar')"><div class="btn-icon verde">✅</div><div class="btn-info"><div class="btn-titulo">Recuperar de Garantía</div><div class="btn-sub">El teléfono volvió, disponible para vender</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('cambio-imei')"><div class="btn-icon azul">🔄</div><div class="btn-info"><div class="btn-titulo">Cambio de IMEI</div><div class="btn-sub">Teléfono malo → nuevo al cliente</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- ENVIAR A GARANTIA -->
+<div class="screen" id="screen-garantia-enviar">
+  <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#b91c1c)"><button class="back-btn" onclick="irA('garantia')">‹</button><div><div class="form-header-title">📤 Enviar a Garantía</div><div class="form-header-sub">El teléfono queda bloqueado hasta volver</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>IMEI</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="genv-imei" placeholder="Escanea o escribe el IMEI" style="flex:1;" oninput="buscarTelefonoGarantia('enviar')">
+        <button onclick="startScanner('genv-imei','buscarTelefonoGarantia')" style="padding:10px 14px;background:#b91c1c;color:white;border:none;border-radius:10px;font-size:18px;cursor:pointer;">📷</button>
+      </div>
+    </div>
+    <div id="genv-info" style="display:none;background:#fee2e2;border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:#7f1d1d;line-height:1.8;">
+      <div>📱 <b id="genv-ref"></b></div>
+      <div>📊 Estado actual: <b id="genv-estado"></b></div>
+    </div>
+    <div id="genv-campos" style="display:none;">
+      <div class="field"><label>Motivo</label><input type="text" id="genv-motivo" placeholder="Ej: Pantalla dañada, no enciende..."></div>
+      <div class="field"><label>Observación (opcional)</label><input type="text" id="genv-obs" placeholder="Ej: Enviado a Samsung"></div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c)" onclick="enviarGarantia()">Enviar a Garantía ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECUPERAR DE GARANTIA -->
+<div class="screen" id="screen-garantia-recuperar">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('garantia')">‹</button><div><div class="form-header-title">✅ Recuperar de Garantía</div><div class="form-header-sub">El teléfono vuelve al inventario</div></div></div>
+  <div class="form-body">
+    <div id="grec-loading" style="text-align:center;padding:20px;color:#64748b;font-weight:600;display:none;">⏳ Cargando teléfonos en garantía...</div>
+    <div id="grec-lista"></div>
+    <div id="grec-campos" style="display:none;">
+      <div style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px;color:#15803d;line-height:1.8;">
+        <div>📱 <b id="grec-ref"></b></div>
+        <div>🔢 IMEI: <b id="grec-imei-show"></b></div>
+      </div>
+      <div class="field"><label>Observación (opcional)</label><input type="text" id="grec-obs" placeholder="Ej: Volvió reparado"></div>
+      <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d)" onclick="recuperarGarantia()">Recuperar ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMBIO DE IMEI -->
+<div class="screen" id="screen-cambio-imei">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('garantia')">‹</button><div><div class="form-header-title">🔄 Cambio de IMEI</div><div class="form-header-sub">Teléfono malo → nuevo al cliente</div></div></div>
+  <div class="form-body">
+    <div style="background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#1e40af;font-weight:600;">
+      El IMEI malo va a garantía. El nuevo queda registrado como vendido.
+    </div>
+    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+      <div style="font-size:13px;font-weight:800;color:#dc2626;margin-bottom:10px;">📤 IMEI Malo (va a garantía)</div>
+      <div class="field"><label>IMEI malo</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="ci-imei-malo" placeholder="Escanea o escribe" style="flex:1;" oninput="buscarTelefonoCambio()">
+          <button onclick="startScanner('ci-imei-malo','buscarTelefonoCambio')" style="padding:10px 14px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:18px;cursor:pointer;">📷</button>
+        </div>
+      </div>
+      <div id="ci-info-malo" style="display:none;background:#fee2e2;border-radius:10px;padding:12px;font-size:13px;color:#7f1d1d;line-height:1.8;">
+        <div>📱 <b id="ci-ref-malo"></b></div>
+        <div>📊 Estado: <b id="ci-estado-malo"></b></div>
+      </div>
+    </div>
+    <div style="background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+      <div style="font-size:13px;font-weight:800;color:#16a34a;margin-bottom:10px;">📥 IMEI Nuevo (se entrega al cliente)</div>
+      <div class="field"><label>IMEI nuevo</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="ci-imei-nuevo" placeholder="Escanea o escribe" style="flex:1;">
+          <button onclick="startScanner('ci-imei-nuevo',null)" style="padding:10px 14px;background:#15803d;color:white;border:none;border-radius:10px;font-size:18px;cursor:pointer;">📷</button>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>Motivo del cambio</label><input type="text" id="ci-motivo" placeholder="Ej: Pantalla dañada de fábrica"></div>
+    <div class="field"><label>Observación (opcional)</label><input type="text" id="ci-obs" placeholder="Ej: Cambio autorizado por Comtel"></div>
+    <div id="ci-btn-wrap" style="display:none;">
+      <button class="submit-btn" style="background:linear-gradient(135deg,#0369a1,#0284c7)" onclick="ejecutarCambioImei()">Registrar Cambio ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAJA MENU -->
+<div class="screen" id="screen-caja">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a3c6e,#2563eb)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🏦 Caja</div><div class="form-header-sub">Gestiona el efectivo del local</div></div></div>
+  <div class="form-body">
+    <button class="btn-menu" onclick="irA('apertura-caja')"><div class="btn-icon verde">🌅</div><div class="btn-info"><div class="btn-titulo">Apertura de Caja</div><div class="btn-sub">Registra el saldo al iniciar el día</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('retiro-caja')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Retiro de Caja</div><div class="btn-sub">Registra cuando se retira efectivo</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- APERTURA DE CAJA -->
+<div class="screen" id="screen-apertura-caja">
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('caja')">‹</button><div><div class="form-header-title">🌅 Apertura de Caja</div><div class="form-header-sub">¿Cuánto hay en caja al abrir?</div></div></div>
+  <div class="form-body">
+    <div style="background:#f0fdf4;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#15803d;font-weight:600;">
+      Cuenta el efectivo físico que hay en caja y regístralo aquí cada mañana al abrir el local.
+    </div>
+    <div class="field"><label>Fecha</label><input type="date" id="ac-fecha"></div>
+    <div class="field"><label>Local</label>
+      <div class="select-wrap"><select id="ac-local">
+        <option value="">Seleccionar...</option>
+        <option>PALMAR DE VARELA</option>
+        <option>SABANALARGA</option>
+        <option>PUERTO COLOMBIA</option>
+      </select></div>
+    </div>
+    <div class="field"><label>Saldo en caja al abrir</label><input type="text" id="ac-saldo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Responsable</label>
+      <div class="select-wrap"><select id="ac-responsable">
+        <option value="">Seleccionar...</option>
+      </select></div>
+    </div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d)" onclick="enviarForm('apertura-caja')">Registrar Apertura ✓</button>
+  </div>
+</div>
+
+<!-- RETIRO DE CAJA -->
+<div class="screen" id="screen-retiro-caja">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a3c6e,#2563eb)"><button class="back-btn" onclick="irA('caja')">‹</button><div><div class="form-header-title">💵 Retiro de Caja</div><div class="form-header-sub">Registra el efectivo retirado</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="rc-fecha"></div>
+    <div class="field"><label>Local</label>
+      <div class="select-wrap"><select id="rc-local">
+        <option value="">Seleccionar...</option>
+        <option>PALMAR DE VARELA</option>
+        <option>SABANALARGA</option>
+        <option>PUERTO COLOMBIA</option>
+      </select></div>
+    </div>
+    <div class="field"><label>Valor retirado</label><input type="text" id="rc-valor" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Descripción</label><input type="text" id="rc-desc" placeholder="Ej: Retiro para compra de teléfonos"></div>
+    <div class="field"><label>Responsable</label>
+      <div class="select-wrap"><select id="rc-responsable">
+        <option value="">Seleccionar...</option>
+      </select></div>
+    </div>
+    <button class="submit-btn" onclick="enviarForm('retiro-caja')">Registrar Retiro ✓</button>
+  </div>
+</div>
+
+<!-- MIS REGISTROS DEL DIA -->
+<div class="screen" id="screen-mis-registros">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a3c6e,#2563eb)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">📋 Mis Registros del Día</div><div class="form-header-sub">Verifica lo que ingresaste</div></div></div>
+  <div class="form-body">
+    <!-- Filtros -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="flex:1;">
+        <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px;">LOCAL</div>
+        <div class="select-wrap"><select id="mr-local" onchange="cargarMisRegistros()" style="font-size:13px;">
+          <option value="">Seleccionar...</option>
+        </select></div>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px;">FECHA</div>
+        <input type="date" id="mr-fecha" onchange="cargarMisRegistros()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:13px;">
+      </div>
+    </div>
+
+    <div id="mr-loading" style="display:none;text-align:center;padding:30px;color:#64748b;font-weight:600;">⏳ Cargando...</div>
+    <div id="mr-sin-filtro" style="text-align:center;padding:30px;color:#94a3b8;font-weight:600;">Selecciona un local para ver tus registros</div>
+    <div id="mr-contenido" style="display:none;">
+
+      <!-- Resumen rápido -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="background:#dbeafe;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:10px;font-weight:800;color:#64748b;">VENTAS</div>
+          <div style="font-size:22px;font-weight:900;color:#1d4ed8;" id="mr-count-ventas">0</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:10px;font-weight:800;color:#64748b;">INGRESOS</div>
+          <div style="font-size:16px;font-weight:900;color:#16a34a;" id="mr-total-ingresos">$0</div>
+        </div>
+      </div>
+
+      <!-- VENTAS CRÉDITO -->
+      <div id="mr-sec-credito" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>📱 Ventas a Crédito</span>
+          <span id="mr-count-credito" style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-credito"></div>
+      </div>
+
+      <!-- VENTAS CONTADO -->
+      <div id="mr-sec-contado" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>💵 Ventas de Contado</span>
+          <span id="mr-count-contado" style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-contado"></div>
+      </div>
+
+      <!-- VENTAS ACCESORIOS -->
+      <div id="mr-sec-accesorios" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>🎧 Ventas de Accesorios</span>
+          <span id="mr-count-accesorios" style="background:#fff7ed;color:#d97706;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-accesorios"></div>
+      </div>
+
+      <!-- GASTOS -->
+      <div id="mr-sec-gastos" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>🧾 Gastos del Día</span>
+          <span id="mr-count-gastos" style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-gastos"></div>
+      </div>
+
+      <!-- INGRESOS ADICIONALES -->
+      <div id="mr-sec-ingresos" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>📥 Ingresos Adicionales</span>
+          <span id="mr-count-ingresos" style="background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-ingresos"></div>
+      </div>
+
+      <!-- RETIROS DE CAJA -->
+      <div id="mr-sec-retiros" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>💵 Retiros de Caja</span>
+          <span id="mr-count-retiros" style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-retiros"></div>
+      </div>
+
+      <!-- RESUMEN CAJA -->
+      <div id="mr-sec-caja" style="background:linear-gradient(135deg,#1a3c6e,#2563eb);border-radius:16px;padding:16px;margin-bottom:14px;color:white;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:12px;">💵 Resumen de Caja</div>
+        <div style="font-size:13px;line-height:2;">
+          <div style="display:flex;justify-content:space-between;"><span>🌅 Saldo apertura</span><span id="mr-caja-apertura" style="font-weight:800;">$0</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>✅ Efectivo recibido</span><span id="mr-caja-entrado" style="font-weight:800;">$0</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>📤 Gastos en efectivo</span><span id="mr-caja-gastos" style="font-weight:800;">$0</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>💸 Retiros gerencia</span><span id="mr-caja-retiros" style="font-weight:800;">$0</span></div>
+          <div style="border-top:1px solid rgba(255,255,255,.3);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;font-size:16px;">
+            <span style="font-weight:800;">💰 En caja ahora</span>
+            <span id="mr-caja-total" style="font-weight:900;font-size:20px;">$0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sin registros -->
+      <div id="mr-sin-registros" style="display:none;text-align:center;padding:30px;color:#94a3b8;font-weight:600;">No hay registros para este día y local</div>
+    </div>
+  </div>
+</div>
+
 <!-- SUCCESS -->
 <div class="screen" id="screen-success">
   <div class="success-screen">
@@ -952,7 +1285,60 @@ function irA(s){
   screen.classList.add('active');
   window.scrollTo(0,0);
   if(s === 'ingresar-mercancia') iniciarMercancia();
-  if(s === 'credito') cargarPrecios(); // Cargar precios solo cuando se necesita
+  if(s === 'credito') cargarPrecios();
+  if(s === 'garantia-recuperar') cargarTelefonosEnGarantia();
+  if(s === 'apertura-caja') {
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('ac-fecha').value = hoy;
+    const sel = document.getElementById('ac-responsable');
+    if(sel) {
+      sel.innerHTML = '<option value="">Seleccionar...</option>';
+      (window.CONFIG_LISTAS?.responsables||['CARO','ADISSON','JOHANETH','DIANA']).forEach(r => {
+        sel.innerHTML += `<option value="${r}">${r}</option>`;
+      });
+    }
+  }
+  if(s === 'retiro-caja') {
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('rc-fecha').value = hoy;
+    const sel = document.getElementById('rc-responsable');
+    if(sel) {
+      sel.innerHTML = '<option value="">Seleccionar...</option>';
+      (window.CONFIG_LISTAS?.responsables||['CARO','ADISSON','JOHANETH','DIANA']).forEach(r => {
+        sel.innerHTML += `<option value="${r}">${r}</option>`;
+      });
+    }
+  }
+  if(s === 'nueva-deuda') {
+    const sel = document.getElementById('nd-local');
+    if(sel) {
+      sel.innerHTML = '<option value="">GENERAL (no es de un local específico)</option>';
+      (window.CONFIG_LISTAS?.locales||['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA']).forEach(l => {
+        sel.innerHTML += `<option value="${l}">${l}</option>`;
+      });
+    }
+  }
+  if(s === 'mis-registros') {
+    // Fecha de hoy por defecto
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('mr-fecha').value = hoy;
+    // Llenar locales desde CONFIG
+    const sel = document.getElementById('mr-local');
+    sel.innerHTML = '<option value="">Seleccionar...</option>';
+    (window.CONFIG_LISTAS?.locales||['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA']).forEach(l => {
+      sel.innerHTML += `<option value="${l}">${l}</option>`;
+    });
+    document.getElementById('mr-sin-filtro').style.display = 'block';
+    document.getElementById('mr-contenido').style.display = 'none';
+  }
+  if(s === 'prestamo-entrante') {
+    // Llenar select de ubicaciones
+    const sel = document.getElementById('pe-ubicacion');
+    if(sel && window.CONFIG_LISTAS) {
+      sel.innerHTML = '<option value="">Seleccionar...</option>';
+      (window.CONFIG_LISTAS.ubicaciones||[]).forEach(u => sel.innerHTML += `<option value="${u}">${u}</option>`);
+    }
+  }
 }
 function volver(){irA('inicio');}
 
@@ -1546,7 +1932,9 @@ async function agregarFilaExcel(hoja, fila) {
     'ABONOS_DEUDAS': 'TBL_ABONOS_DEUDAS',
     'INVENTARIO_TELEFONO': 'TBL_INVENTARIO_TELEFONO',
     'INVENTARIO_ACCESORIOS': 'TBL_INVENTARIO_ACCESORIOS',
-    'LIQUIDACIONES': 'TBL_LIQUIDACIONES'
+    'LIQUIDACIONES': 'TBL_LIQUIDACIONES',
+    'RETIROS_CAJA': 'TBL_RETIROS_CAJA',
+    'APERTURA_CAJA': 'TBL_APERTURA_CAJA'
   };
   const tabla = tablaMap[hoja];
   console.log('Enviando a hoja:', hoja, 'tabla:', tabla, 'fila:', JSON.stringify(fila));
@@ -1682,10 +2070,11 @@ async function enviarForm(tipo) {
 
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
+    const localDeuda = getVal('nd-local') || 'GENERAL';
     hoja = 'DEUDAS';
-    fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), ''];
+    fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), '', localDeuda];
     if(ndRecibido) {
-      await agregarFilaExcel('INGRESOS_GERENCIA', [getVal('nd-fecha')||fecha, 'PRESTAMO RECIBIDO', '', 'Prestamo de '+getVal('nd-acreedor'), 'GENERAL', monto, 'EFECTIVO', monto, 0]);
+      await agregarFilaExcel('INGRESOS_GERENCIA', [getVal('nd-fecha')||fecha, 'PRESTAMO RECIBIDO', '', 'Prestamo de '+getVal('nd-acreedor'), localDeuda, monto, 'EFECTIVO', monto, 0]);
     }
 
   } else if(tipo === 'abono-deuda') {
@@ -1697,6 +2086,20 @@ async function enviarForm(tipo) {
   } else if(tipo === 'ingresos-local') {
     hoja = 'INGRESOS_LOCAL';
     fila = [getVal('il-fecha')||fecha, getVal('il-local'), getVal('il-tipo'), getVal('il-desc'), getNumero('il-valor'), getVal('il-pago'), getNumero('il-efectivo'), getNumero('il-transfer'), getVal('il-resp')];
+
+  } else if(tipo === 'apertura-caja') {
+    if(!getVal('ac-local')) { alert('⚠️ Selecciona el local'); return; }
+    if(!getNumero('ac-saldo') && getNumero('ac-saldo') !== 0) { alert('⚠️ Ingresa el saldo'); return; }
+    if(!getVal('ac-responsable')) { alert('⚠️ Selecciona el responsable'); return; }
+    hoja = 'APERTURA_CAJA';
+    fila = [getVal('ac-fecha')||fecha, getVal('ac-local'), getNumero('ac-saldo'), getVal('ac-responsable')];
+
+  } else if(tipo === 'retiro-caja') {
+    hoja = 'RETIROS_CAJA';
+    fila = [getVal('rc-fecha')||fecha, getVal('rc-local'), getNumero('rc-valor'), getVal('rc-desc'), getVal('rc-responsable')];
+    if(!getVal('rc-local')) { alert('⚠️ Selecciona el local'); return; }
+    if(!getNumero('rc-valor')) { alert('⚠️ Ingresa el valor retirado'); return; }
+    if(!getVal('rc-responsable')) { alert('⚠️ Selecciona el responsable'); return; }
 
   } else if(tipo === 'ingresos-gerencia') {
     hoja = 'INGRESOS_GERENCIA';
@@ -2632,8 +3035,7 @@ async function reponerAccesorio() {
   if(btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
   const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
   const prod = productos[parseInt(idx)];
-  const promedio = Math.round((prod.stock * prod.costo + cantNueva * precioNuevo) / (prod.stock + cantNueva));
-  const nuevoStock = prod.stock + cantNueva;
+
   try {
     const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
     if(!inv || !inv.values) { alert('❌ Error al buscar el producto'); return; }
@@ -2641,8 +3043,20 @@ async function reponerAccesorio() {
       const row = inv.values[i];
       if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
         const filaExcel = i+1;
+        // Usar STOCK_INICIAL original (columna D = row[3]) no el stock actual calculado
+        const stockInicialOriginal = parseInt(row[3]) || 0;
+        const costoActual = parseFloat(row[4]) || 0;
+        // Calcular ventas realizadas = stockInicial - stockActual
+        const stockActualReal = parseInt(row[6]) || 0;
+        const ventasRealizadas = stockInicialOriginal - stockActualReal;
+        // Nuevo stock inicial = original + cantidad nueva
+        const nuevoStockInicial = stockInicialOriginal + cantNueva;
+        // Precio promedio basado en stock actual real + cantidad nueva
+        const promedio = Math.round((stockActualReal * costoActual + cantNueva * precioNuevo) / (stockActualReal + cantNueva));
+
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStockInicial, promedio]] });
+
         const precioVentaNuevo = parseInt((document.getElementById('ia-reponer-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStock, promedio]] });
         if(precioVentaNuevo > 0) {
           await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${filaExcel}')`, { values: [[precioVentaNuevo]] });
         }
@@ -2653,6 +3067,7 @@ async function reponerAccesorio() {
     }
     alert('❌ No se encontró el producto');
   } catch(e) {
+    if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
     alert('❌ Error al actualizar. Verifica conexión.');
   }
 }
@@ -2861,7 +3276,7 @@ async function cargarDeudas() {
         const fechaVence = new Date(vence);
         const diasRestantes = Math.ceil((fechaVence - hoy) / (1000*60*60*24));
         const alerta = diasRestantes <= 5 ? '🔴' : diasRestantes <= 15 ? '🟡' : '🟢';
-        deudasActivas.push({ acreedor, concepto, saldo, vence, alerta, diasRestantes });
+        deudasActivas.push({ acreedor, concepto, saldo, vence, alerta, diasRestantes, local: row[9]||'' });
       }
     }
     renderDeudas();
@@ -2885,6 +3300,7 @@ function renderDeudas() {
           <div style="font-weight:700;font-size:15px;">${d.alerta} ${d.acreedor}</div>
           <div style="font-size:12px;color:#64748b;">${d.concepto}</div>
           <div style="font-size:12px;color:#64748b;">Vence: ${d.vence}</div>
+          ${d.local ? `<div style="font-size:11px;margin-top:3px;"><span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:700;">🏪 ${d.local}</span></div>` : `<div style="font-size:11px;margin-top:3px;"><span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:6px;font-weight:700;">🏢 GENERAL</span></div>`}
         </div>
         <div style="font-weight:800;font-size:16px;color:#b45309;">$${d.saldo.toLocaleString('es-CO')}</div>
       </div>
@@ -3493,6 +3909,450 @@ async function cargarRegistros() {
     document.getElementById('reg-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Verifica conexión.</div>';
     console.error(e);
   }
+}
+
+// =============================================
+// MIS REGISTROS DEL DÍA
+// =============================================
+async function cargarMisRegistros() {
+  const local = document.getElementById('mr-local').value;
+  const fecha = document.getElementById('mr-fecha').value;
+  if(!local || !fecha) {
+    document.getElementById('mr-sin-filtro').style.display = 'block';
+    document.getElementById('mr-contenido').style.display = 'none';
+    return;
+  }
+  document.getElementById('mr-sin-filtro').style.display = 'none';
+  document.getElementById('mr-loading').style.display = 'block';
+  document.getElementById('mr-contenido').style.display = 'none';
+
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const fmtFecha = f => {
+    if(!f) return '';
+    if(typeof f === 'number') {
+      const d = new Date(Math.round((f-25569)*86400*1000));
+      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+      return d.toISOString().split('T')[0];
+    }
+    return f.toString();
+  };
+
+  try {
+    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas] = await Promise.all([
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CONTADO/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/GASTOS_DIARIOS/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INGRESOS_LOCAL/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/RETIROS_CAJA/usedRange`),
+      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/APERTURA_CAJA/usedRange`)
+    ]);
+
+    // CRÉDITO — FECHA, LOCAL, TIPO_VENTA, REFERENCIA, IMEI, PORCENTAJE, CUOTA_INICIAL, DESCUENTO, CUOTA_FINAL
+    const listaCred = [];
+    if(creditos?.values?.length > 1) {
+      for(let i=1;i<creditos.values.length;i++) {
+        const r = creditos.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local && r[13]!=='ANULADO') {
+          listaCred.push({ tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'' });
+        }
+      }
+    }
+
+    // CONTADO — FECHA, LOCAL, IMEI, REFERENCIA, PRECIO_VENTA
+    const listaCont = [];
+    if(contado?.values?.length > 1) {
+      for(let i=1;i<contado.values.length;i++) {
+        const r = contado.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          listaCont.push({ ref:r[3]||'', imei:r[2]||'', precio:parseFloat(r[4])||0, pago:r[5]||'' });
+        }
+      }
+    }
+
+    // ACCESORIOS — FECHA, LOCAL, CATEGORIA, PRODUCTO, CANTIDAD, PRECIO_UNITARIO, TOTAL
+    const listaAcc = [];
+    if(accesorios?.values?.length > 1) {
+      for(let i=1;i<accesorios.values.length;i++) {
+        const r = accesorios.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          listaAcc.push({ cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'' });
+        }
+      }
+    }
+
+    // GASTOS — FECHA, LOCAL, TIPO, DESCRIPCION, VALOR
+    const listaGas = [];
+    if(gastos?.values?.length > 1) {
+      for(let i=1;i<gastos.values.length;i++) {
+        const r = gastos.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          listaGas.push({ tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
+        }
+      }
+    }
+
+    // INGRESOS LOCAL — FECHA, LOCAL, TIPO, DESCRIPCION, VALOR
+    const listaIng = [];
+    if(ingresos?.values?.length > 1) {
+      for(let i=1;i<ingresos.values.length;i++) {
+        const r = ingresos.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          listaIng.push({ tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
+        }
+      }
+    }
+
+    // APERTURA CAJA — FECHA, LOCAL, SALDO_INICIAL, RESPONSABLE
+    let saldoApertura = 0;
+    if(aperturas?.values?.length > 1) {
+      for(let i=1;i<aperturas.values.length;i++) {
+        const r = aperturas.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          saldoApertura = parseFloat(r[2])||0;
+        }
+      }
+    }
+
+    // RETIROS CAJA — FECHA, LOCAL, VALOR, DESCRIPCION, RESPONSABLE
+    const listaRet = [];
+    if(retiros?.values?.length > 1) {
+      for(let i=1;i<retiros.values.length;i++) {
+        const r = retiros.values[i];
+        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
+          listaRet.push({ valor:parseFloat(r[2])||0, desc:r[3]||'', resp:r[4]||'' });
+        }
+      }
+    }
+
+    document.getElementById('mr-loading').style.display = 'none';
+
+    const totalVentas = listaCred.length + listaCont.length + listaAcc.length;
+    const totalEfectivoEntrado = 
+      listaCred.filter(v=>v.pago==='EFECTIVO').reduce((s,i)=>s+i.cuota,0) +
+      listaCont.filter(v=>v.pago==='EFECTIVO').reduce((s,i)=>s+i.precio,0) +
+      listaAcc.filter(v=>v.pago==='EFECTIVO').reduce((s,i)=>s+i.total,0) +
+      listaIng.reduce((s,i)=>s+i.valor,0);
+    const totalGastosEfectivo = listaGas.reduce((s,i)=>s+i.valor,0);
+    const totalRetiros = listaRet.reduce((s,i)=>s+i.valor,0);
+    const efectivoCaja = saldoApertura + totalEfectivoEntrado - totalGastosEfectivo - totalRetiros;
+    const totalIngresos = listaCred.reduce((s,i)=>s+i.cuota,0) + listaCont.reduce((s,i)=>s+i.precio,0) + listaAcc.reduce((s,i)=>s+i.total,0) + listaIng.reduce((s,i)=>s+i.valor,0);
+
+    document.getElementById('mr-count-ventas').textContent = totalVentas;
+    document.getElementById('mr-total-ingresos').textContent = fmt(totalIngresos);
+
+    const hayAlgo = totalVentas > 0 || listaGas.length > 0 || listaIng.length > 0;
+    document.getElementById('mr-sin-registros').style.display = hayAlgo ? 'none' : 'block';
+    document.getElementById('mr-contenido').style.display = 'block';
+
+    // Render crédito
+    const secCred = document.getElementById('mr-sec-credito');
+    secCred.style.display = listaCred.length ? 'block' : 'none';
+    document.getElementById('mr-count-credito').textContent = listaCred.length;
+    document.getElementById('mr-lista-credito').innerHTML = listaCred.map(v=>`
+      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #2563eb;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${v.ref}</div>
+            <div style="font-size:11px;color:#64748b;">${v.imei} · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-weight:700;">${v.tipo.replace('_',' ')}</span></div>
+            <div style="font-size:11px;color:#64748b;">💳 ${v.pago}</div>
+          </div>
+          <div style="font-weight:800;color:#2563eb;font-size:14px;">${fmt(v.cuota)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Render contado
+    const secCont = document.getElementById('mr-sec-contado');
+    secCont.style.display = listaCont.length ? 'block' : 'none';
+    document.getElementById('mr-count-contado').textContent = listaCont.length;
+    document.getElementById('mr-lista-contado').innerHTML = listaCont.map(v=>`
+      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #16a34a;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${v.ref}</div>
+            <div style="font-size:11px;color:#64748b;">${v.imei}</div>
+            <div style="font-size:11px;color:#64748b;">💳 ${v.pago}</div>
+          </div>
+          <div style="font-weight:800;color:#16a34a;font-size:14px;">${fmt(v.precio)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Render accesorios
+    const secAcc = document.getElementById('mr-sec-accesorios');
+    secAcc.style.display = listaAcc.length ? 'block' : 'none';
+    document.getElementById('mr-count-accesorios').textContent = listaAcc.length;
+    document.getElementById('mr-lista-accesorios').innerHTML = listaAcc.map(v=>`
+      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #d97706;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${v.prod}</div>
+            <div style="font-size:11px;color:#64748b;">${v.cat} · ${v.cant} und · 💳 ${v.pago}</div>
+          </div>
+          <div style="font-weight:800;color:#d97706;font-size:14px;">${fmt(v.total)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Render gastos
+    const secGas = document.getElementById('mr-sec-gastos');
+    secGas.style.display = listaGas.length ? 'block' : 'none';
+    document.getElementById('mr-count-gastos').textContent = listaGas.length;
+    document.getElementById('mr-lista-gastos').innerHTML = listaGas.map(v=>`
+      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #dc2626;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
+            <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
+          </div>
+          <div style="font-weight:800;color:#dc2626;font-size:14px;">-${fmt(v.valor)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Render retiros
+    const secRet = document.getElementById('mr-sec-retiros');
+    secRet.style.display = listaRet.length ? 'block' : 'none';
+    document.getElementById('mr-count-retiros').textContent = listaRet.length;
+    document.getElementById('mr-lista-retiros').innerHTML = listaRet.map(v=>`
+      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #2563eb;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${v.desc||'Retiro de caja'}</div>
+            <div style="font-size:11px;color:#64748b;">👤 ${v.resp}</div>
+          </div>
+          <div style="font-weight:800;color:#2563eb;font-size:14px;">-${fmt(v.valor)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Resumen de caja
+    document.getElementById('mr-caja-apertura').textContent = fmt(saldoApertura);
+    document.getElementById('mr-caja-entrado').textContent = fmt(totalEfectivoEntrado);
+    document.getElementById('mr-caja-gastos').textContent = '-'+fmt(totalGastosEfectivo);
+    document.getElementById('mr-caja-retiros').textContent = '-'+fmt(totalRetiros);
+    document.getElementById('mr-caja-total').textContent = fmt(efectivoCaja);
+    document.getElementById('mr-caja-total').style.color = efectivoCaja >= 0 ? 'white' : '#fca5a5';
+    secIng.style.display = listaIng.length ? 'block' : 'none';
+    document.getElementById('mr-count-ingresos').textContent = listaIng.length;
+    document.getElementById('mr-lista-ingresos').innerHTML = listaIng.map(v=>`
+      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #15803d;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
+            <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
+          </div>
+          <div style="font-weight:800;color:#15803d;font-size:14px;">+${fmt(v.valor)}</div>
+        </div>
+      </div>
+    `).join('');
+
+  } catch(e) {
+    document.getElementById('mr-loading').style.display = 'none';
+    document.getElementById('mr-contenido').style.display = 'block';
+    document.getElementById('mr-sin-registros').style.display = 'block';
+    document.getElementById('mr-sin-registros').textContent = '❌ Error al cargar. Verifica conexión.';
+  }
+}
+
+// =============================================
+// PRÉSTAMOS
+// =============================================
+let prestamoTelefonoActual = null;
+
+async function buscarTelefonoPrestamo() {
+  const imei = document.getElementById('ps-imei').value.trim();
+  if(imei.length<10) return;
+  const tel = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei);
+  if(!tel){document.getElementById('ps-info').style.display='none';document.getElementById('ps-campos').style.display='none';return;}
+  prestamoTelefonoActual=tel;
+  document.getElementById('ps-ref').textContent=tel.ref||'';
+  document.getElementById('ps-ubicacion').textContent=tel.ubicacion||'';
+  document.getElementById('ps-costo').textContent=tel.costo?'$'+parseFloat(tel.costo).toLocaleString('es-CO'):'';
+  document.getElementById('ps-origen').textContent=tel.origen||tel.tipoVenta||'';
+  document.getElementById('ps-info').style.display='block';
+  document.getElementById('ps-campos').style.display='block';
+}
+
+async function registrarPrestamoSaliente() {
+  if(!prestamoTelefonoActual){alert('⚠️ Busca el IMEI primero');return;}
+  const aQuien=document.getElementById('ps-a-quien').value.trim();
+  const tipoPrestamo=document.getElementById('ps-tipo-prestamo').value;
+  const obs=document.getElementById('ps-obs').value.trim();
+  if(!aQuien){alert('⚠️ Indica a quién se presta');return;}
+  const imei=prestamoTelefonoActual.imei;
+  const observacion=`PRESTADO A: ${aQuien}${obs?' — '+obs:''} | ${tipoPrestamo==='OFICINA'?'No reponen':'Deben reponer'}`;
+  try {
+    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    for(let i=1;i<inv.values.length;i++){
+      const r=inv.values[i];
+      if(r[0]&&r[0].toString().trim()===imei){
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['PRESTADO',observacion]]});
+        break;
+      }
+    }
+    await cargarTodo();
+    mostrarToastVerde('✅ Préstamo registrado correctamente');
+    document.getElementById('ps-imei').value='';document.getElementById('ps-info').style.display='none';
+    document.getElementById('ps-campos').style.display='none';document.getElementById('ps-a-quien').value='';
+    document.getElementById('ps-obs').value='';prestamoTelefonoActual=null;irA('prestamos');
+  } catch(e){alert('❌ Error al registrar. Verifica conexión.');}
+}
+
+async function registrarPrestamoEntrante() {
+  const imei=document.getElementById('pe-imei').value.trim();
+  const ref=document.getElementById('pe-ref').value.trim();
+  const quien=document.getElementById('pe-quien').value.trim();
+  const costo=parseInt((document.getElementById('pe-costo').value||'').replace(/[^0-9]/g,''))||0;
+  const ubicacion=document.getElementById('pe-ubicacion').value;
+  const obs=document.getElementById('pe-obs').value.trim();
+  if(!imei||!ref||!quien||!costo||!ubicacion){alert('⚠️ Completa todos los campos obligatorios');return;}
+  const hoy=new Date().toISOString().split('T')[0];
+  const observacion=`PRESTADO DE: ${quien}${obs?' — '+obs:''}`;
+  const fila=[imei,ref,costo,hoy,quien,observacion,'DISPONIBLE','PRESTADO','',ubicacion,0];
+  try {
+    await agregarFilaExcel('INVENTARIO_TELEFONO',fila);
+    await cargarTodo();
+    mostrarToastVerde('✅ Teléfono prestado ingresado al inventario');
+    ['pe-imei','pe-ref','pe-quien','pe-costo','pe-obs'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('pe-ubicacion').value='';irA('prestamos');
+  } catch(e){alert('❌ Error al registrar. Verifica conexión.');}
+}
+
+// =============================================
+// GARANTÍA / CAMBIO IMEI
+// =============================================
+let garantiaTelefonoActual = null;
+let garantiaRecuperarActual = null;
+let cambioImeiFila = null;
+
+async function buscarTelefonoGarantia() {
+  const imei=document.getElementById('genv-imei').value.trim();
+  if(imei.length<10) return;
+  const tel=window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei);
+  if(!tel){document.getElementById('genv-info').style.display='none';document.getElementById('genv-campos').style.display='none';return;}
+  garantiaTelefonoActual=tel;
+  document.getElementById('genv-ref').textContent=tel.ref||'';
+  document.getElementById('genv-estado').textContent=tel.estado||'';
+  document.getElementById('genv-info').style.display='block';
+  document.getElementById('genv-campos').style.display='block';
+}
+
+async function enviarGarantia() {
+  if(!garantiaTelefonoActual){alert('⚠️ Busca el IMEI primero');return;}
+  const motivo=document.getElementById('genv-motivo').value.trim();
+  const obs=document.getElementById('genv-obs').value.trim();
+  if(!motivo){alert('⚠️ Indica el motivo');return;}
+  const imei=garantiaTelefonoActual.imei;
+  const observacion=`GARANTÍA: ${motivo}${obs?' — '+obs:''}`;
+  try {
+    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    for(let i=1;i<inv.values.length;i++){
+      const r=inv.values[i];
+      if(r[0]&&r[0].toString().trim()===imei){
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['EN GARANTIA',observacion]]});
+        break;
+      }
+    }
+    await cargarTodo();
+    mostrarToastVerde('✅ Teléfono enviado a garantía');
+    document.getElementById('genv-imei').value='';document.getElementById('genv-info').style.display='none';
+    document.getElementById('genv-campos').style.display='none';garantiaTelefonoActual=null;irA('garantia');
+  } catch(e){alert('❌ Error al registrar. Verifica conexión.');}
+}
+
+async function cargarTelefonosEnGarantia() {
+  document.getElementById('grec-loading').style.display='block';
+  document.getElementById('grec-lista').innerHTML='';document.getElementById('grec-campos').style.display='none';
+  document.getElementById('grec-lista').style.display='block';
+  const tels=window.IMEIS_TODOS_CON_ESTADO?.filter(t=>t.estado==='EN GARANTIA')||[];
+  document.getElementById('grec-loading').style.display='none';
+  if(!tels.length){document.getElementById('grec-lista').innerHTML='<div style="text-align:center;padding:30px;color:#16a34a;font-weight:700;">✅ No hay teléfonos en garantía</div>';return;}
+  window.TELS_GARANTIA=tels;
+  document.getElementById('grec-lista').innerHTML=tels.map((t,i)=>`
+    <div onclick="seleccionarRecuperar(${i})" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid #dc2626;">
+      <div style="font-weight:800;font-size:14px;">${t.ref||'Sin referencia'}</div>
+      <div style="font-size:12px;color:#64748b;">${t.imei}</div>
+      <div style="font-size:12px;color:#dc2626;font-weight:700;">🔧 EN GARANTÍA</div>
+    </div>
+  `).join('');
+}
+
+function seleccionarRecuperar(idx) {
+  const t=window.TELS_GARANTIA[idx];
+  garantiaRecuperarActual=t;
+  document.getElementById('grec-ref').textContent=t.ref||'';
+  document.getElementById('grec-imei-show').textContent=t.imei||'';
+  document.getElementById('grec-campos').style.display='block';
+  document.getElementById('grec-lista').style.display='none';
+}
+
+async function recuperarGarantia() {
+  if(!garantiaRecuperarActual){alert('⚠️ Selecciona un teléfono');return;}
+  const obs=document.getElementById('grec-obs').value.trim();
+  const imei=garantiaRecuperarActual.imei;
+  try {
+    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    for(let i=1;i<inv.values.length;i++){
+      const r=inv.values[i];
+      if(r[0]&&r[0].toString().trim()===imei){
+        const obsActual=r[7]?r[7].toString():'';
+        const nuevaObs=obs?`${obsActual} | RECUPERADO: ${obs}`:`${obsActual} | RECUPERADO`;
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['DISPONIBLE',nuevaObs]]});
+        break;
+      }
+    }
+    await cargarTodo();
+    mostrarToastVerde('✅ Teléfono recuperado y disponible para vender');
+    garantiaRecuperarActual=null;
+    document.getElementById('grec-lista').style.display='block';
+    document.getElementById('grec-campos').style.display='none';
+    document.getElementById('grec-obs').value='';irA('garantia');
+  } catch(e){alert('❌ Error al recuperar. Verifica conexión.');}
+}
+
+async function buscarTelefonoCambio() {
+  const imei=document.getElementById('ci-imei-malo').value.trim();
+  if(imei.length<10){document.getElementById('ci-info-malo').style.display='none';document.getElementById('ci-btn-wrap').style.display='none';return;}
+  const tel=window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei);
+  if(!tel){document.getElementById('ci-info-malo').style.display='none';return;}
+  cambioImeiFila=tel;
+  document.getElementById('ci-ref-malo').textContent=tel.ref||'';
+  document.getElementById('ci-estado-malo').textContent=tel.estado||'';
+  document.getElementById('ci-info-malo').style.display='block';
+  document.getElementById('ci-btn-wrap').style.display='block';
+}
+
+async function ejecutarCambioImei() {
+  if(!cambioImeiFila){alert('⚠️ Busca el IMEI malo primero');return;}
+  const imeiNuevo=document.getElementById('ci-imei-nuevo').value.trim();
+  const motivo=document.getElementById('ci-motivo').value.trim();
+  const obs=document.getElementById('ci-obs').value.trim();
+  if(!imeiNuevo){alert('⚠️ Ingresa el IMEI nuevo');return;}
+  if(!motivo){alert('⚠️ Indica el motivo del cambio');return;}
+  const imeiMalo=cambioImeiFila.imei;
+  const hoy=new Date().toISOString().split('T')[0];
+  try {
+    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    for(let i=1;i<inv.values.length;i++){
+      const r=inv.values[i];
+      if(r[0]&&r[0].toString().trim()===imeiMalo){
+        const obsGarantia=`CAMBIO IMEI: ${motivo}${obs?' — '+obs:''} | IMEI nuevo: ${imeiNuevo}`;
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['EN GARANTIA',obsGarantia]]});
+        break;
+      }
+    }
+    const obsNuevo=`CAMBIO DE IMEI — reemplaza: ${imeiMalo} | ${motivo}`;
+    const filaNueva=[imeiNuevo,cambioImeiFila.ref,cambioImeiFila.costo,hoy,cambioImeiFila.proveedor,obsNuevo,'VENDIDO','CAMBIO IMEI','',cambioImeiFila.ubicacion,cambioImeiFila.precioVenta||0];
+    await agregarFilaExcel('INVENTARIO_TELEFONO',filaNueva);
+    await cargarTodo();
+    mostrarToastVerde('✅ Cambio de IMEI registrado correctamente');
+    ['ci-imei-malo','ci-imei-nuevo','ci-motivo','ci-obs'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('ci-info-malo').style.display='none';
+    document.getElementById('ci-btn-wrap').style.display='none';
+    cambioImeiFila=null;irA('garantia');
+  } catch(e){alert('❌ Error al registrar cambio. Verifica conexión.');}
 }
 
 
