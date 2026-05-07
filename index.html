@@ -1745,13 +1745,11 @@ async function initMSAL() {
   msalApp = new msal.PublicClientApplication(config);
   await msalApp.initialize();
 
-  // Manejar respuesta de redirect
   try {
     const resp = await msalApp.handleRedirectPromise();
     if (resp) {
       msAccount = resp.account;
       msalApp.setActiveAccount(msAccount);
-      actualizarBotonConexion(true);
       preciosCargados = false;
       await cargarTodo();
     } else {
@@ -1759,28 +1757,31 @@ async function initMSAL() {
       if (accounts.length > 0) {
         msAccount = accounts[0];
         msalApp.setActiveAccount(msAccount);
-        actualizarBotonConexion(true);
         preciosCargados = false;
         await cargarTodo();
+      } else {
+        // No hay sesión — mostrar botón de conectar
+        const btn = document.getElementById('btn-conectar');
+        const menuBloqueado = document.getElementById('menu-bloqueado');
+        if(btn) {
+          btn.textContent = '🔗 Conectar con Excel (OneDrive)';
+          btn.style.background = 'linear-gradient(135deg,#1a3c6e,#2563eb)';
+          btn.style.color = 'white';
+          btn.style.boxShadow = '0 4px 12px rgba(26,60,110,.3)';
+          btn.onclick = conectarMicrosoft;
+        }
+        if(menuBloqueado) menuBloqueado.innerHTML = `<div style="font-size:32px;margin-bottom:8px;">🔗</div><div style="font-weight:800;color:#1e293b;font-size:15px;">No conectado</div><div style="color:#64748b;font-size:13px;margin-top:4px;">Toca el boton azul de arriba para conectar con Excel</div>`;
+        if(menuBloqueado) menuBloqueado.style.display = 'block';
       }
     }
   } catch(e) {
     console.log('Error MSAL init:', e);
+    setEstadoCarga('error');
   }
 }
 
 function actualizarBotonConexion(conectado) {
-  const btn = document.getElementById('btn-conectar');
-  if (!btn) return;
-  if (conectado) {
-    btn.textContent = '✅ Conectado a Excel';
-    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
-    btn.onclick = null;
-  } else {
-    btn.textContent = '🔗 Conectar con Excel (OneDrive)';
-    btn.style.background = 'linear-gradient(135deg,#1a3c6e,#2563eb)';
-    btn.onclick = conectarMicrosoft;
-  }
+  // Mantenido por compatibilidad — ya no hace nada
 }
 
 async function conectarMicrosoft() {
@@ -1877,6 +1878,7 @@ function setEstadoCarga(estado) {
     btn.style.background = 'linear-gradient(135deg,#d97706,#b45309)';
     btn.style.color = 'white';
     btn.style.boxShadow = '0 4px 12px rgba(217,119,6,.3)';
+    if(menuBloqueado) menuBloqueado.innerHTML = '<div style="font-size:32px;margin-bottom:8px;">⏳</div><div style="font-weight:800;color:#1e293b;font-size:15px;">Cargando datos...</div><div style="color:#64748b;font-size:13px;margin-top:4px;">Si tarda mucho toca Recargar</div><button onclick="reintentarCarga()" style="margin-top:14px;padding:10px 24px;background:#d97706;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Recargar</button>';
     if(menuBloqueado) menuBloqueado.style.display = 'block';
     if(menuPrincipal) menuPrincipal.style.display = 'none';
   } else if(estado === 'ok') {
@@ -1893,7 +1895,7 @@ function setEstadoCarga(estado) {
     btn.style.boxShadow = '0 4px 12px rgba(220,38,38,.3)';
     if(menuBloqueado) menuBloqueado.style.display = 'block';
     if(menuPrincipal) menuPrincipal.style.display = 'none';
-    if(menuBloqueado) menuBloqueado.innerHTML = '<div style="font-size:32px;margin-bottom:8px;">❌</div><div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div><div style="color:#64748b;font-size:13px;margin-top:4px;">Toca el botón rojo de arriba para reintentar</div>';
+    if(menuBloqueado) menuBloqueado.innerHTML = `<div style="font-size:32px;margin-bottom:8px;">❌</div><div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div><div style="color:#64748b;font-size:13px;margin-top:4px;">Toca el boton rojo de arriba para reintentar</div>`;
   }
 }
 
@@ -4109,14 +4111,91 @@ function renderMisRegistros(local, fecha) {
         <div>
           <div style="font-weight:700;font-size:13px;">${v.ref}</div>
           <div style="font-size:11px;color:#64748b;">${v.imei} · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-weight:700;">${v.tipo.replace('_',' ')}</span></div>
-          <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?` · Efectivo: $${v.efectivo.toLocaleString('es-CO')}`:''}</div>
+          <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?' · Efectivo: $'+v.efectivo.toLocaleString('es-CO'):''}</div>
         </div>
         <div style="font-weight:800;color:#2563eb;font-size:14px;">${fmt(v.cuota)}</div>
       </div>
+    </div>`).join('');
 
-// =============================================
-// PRÉSTAMOS
-// =============================================
+  // Contado
+  document.getElementById('mr-sec-contado').style.display = listaCont.length ? 'block' : 'none';
+  document.getElementById('mr-count-contado').textContent = listaCont.length;
+  document.getElementById('mr-lista-contado').innerHTML = listaCont.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #16a34a;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.ref}</div>
+          <div style="font-size:11px;color:#64748b;">${v.imei}</div>
+          <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?' · Efectivo: $'+v.efectivo.toLocaleString('es-CO'):''}</div>
+        </div>
+        <div style="font-weight:800;color:#16a34a;font-size:14px;">${fmt(v.precio)}</div>
+      </div>
+    </div>`).join('');
+
+  // Accesorios
+  document.getElementById('mr-sec-accesorios').style.display = listaAcc.length ? 'block' : 'none';
+  document.getElementById('mr-count-accesorios').textContent = listaAcc.length;
+  document.getElementById('mr-lista-accesorios').innerHTML = listaAcc.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #d97706;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.prod}</div>
+          <div style="font-size:11px;color:#64748b;">${v.cat} · ${v.cant} und · 💳 ${v.pago}${v.pago==='MIXTO'?' · Efectivo: $'+v.efectivo.toLocaleString('es-CO'):''}</div>
+        </div>
+        <div style="font-weight:800;color:#d97706;font-size:14px;">${fmt(v.total)}</div>
+      </div>
+    </div>`).join('');
+
+  // Gastos
+  document.getElementById('mr-sec-gastos').style.display = listaGas.length ? 'block' : 'none';
+  document.getElementById('mr-count-gastos').textContent = listaGas.length;
+  document.getElementById('mr-lista-gastos').innerHTML = listaGas.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #dc2626;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
+          <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
+        </div>
+        <div style="font-weight:800;color:#dc2626;font-size:14px;">-${fmt(v.valor)}</div>
+      </div>
+    </div>`).join('');
+
+  // Ingresos adicionales
+  document.getElementById('mr-sec-ingresos').style.display = listaIng.length ? 'block' : 'none';
+  document.getElementById('mr-count-ingresos').textContent = listaIng.length;
+  document.getElementById('mr-lista-ingresos').innerHTML = listaIng.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #15803d;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
+          <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
+        </div>
+        <div style="font-weight:800;color:#15803d;font-size:14px;">+${fmt(v.valor)}</div>
+      </div>
+    </div>`).join('');
+
+  // Retiros
+  document.getElementById('mr-sec-retiros').style.display = listaRet.length ? 'block' : 'none';
+  document.getElementById('mr-count-retiros').textContent = listaRet.length;
+  document.getElementById('mr-lista-retiros').innerHTML = listaRet.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #2563eb;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.desc||'Retiro de caja'}</div>
+          <div style="font-size:11px;color:#64748b;">👤 ${v.resp}</div>
+        </div>
+        <div style="font-weight:800;color:#2563eb;font-size:14px;">-${fmt(v.valor)}</div>
+      </div>
+    </div>`).join('');
+
+  // Resumen caja
+  document.getElementById('mr-caja-apertura').textContent = fmt(saldoApertura);
+  document.getElementById('mr-caja-entrado').textContent = fmt(totalEfectivoEntrado);
+  document.getElementById('mr-caja-gastos').textContent = '-'+fmt(totalGastosEfectivo);
+  document.getElementById('mr-caja-retiros').textContent = '-'+fmt(totalRetiros);
+  document.getElementById('mr-caja-total').textContent = fmt(efectivoCaja);
+  document.getElementById('mr-caja-total').style.color = efectivoCaja >= 0 ? 'white' : '#fca5a5';
+}
 let prestamoTelefonoActual = null;
 
 async function buscarTelefonoPrestamo() {
