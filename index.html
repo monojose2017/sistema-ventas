@@ -2002,12 +2002,18 @@ async function escribirFormulasInventario(imei) {
       const r = inv.values[i];
       if(r[0] && r[0].toString().trim() === imei.toString().trim()) {
         const filaNum = i + 1;
-        // Fórmula ESTADO en G: respeta PRESTADO/EN GARANTIA/ANULADO, sino calcula VENDIDO/DISPONIBLE
         const formulaEstado = `=SI(A${filaNum}="";"";SI(O(H${filaNum}="PRESTADO";H${filaNum}="EN GARANTIA";H${filaNum}="ANULADO");H${filaNum};SI(O(CONTAR.SI(VENTAS_CREDITOS!$E:$E;ESPACIOS(A${filaNum}))>0;CONTAR.SI(VENTAS_CONTADO!$C:$C;ESPACIOS(A${filaNum}))>0);"VENDIDO";"DISPONIBLE")))`;
-        // Fórmula TIPO_VENTA en H: busca en ventas crédito y contado
         const formulaTipo = `=SI.ERROR(INDICE(VENTAS_CREDITOS!$C:$C;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CREDITOS!$E:$E;0));SI.ERROR(INDICE(VENTAS_CONTADO!$L:$L;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CONTADO!$C:$C;0));""))`;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaNum}:H${filaNum}')`,
-          { formulas: [[formulaEstado, formulaTipo]] });
+        // Usar values con = para que Graph API lo interprete como fórmula
+        await graphPatch(
+          `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaNum}')`,
+          { values: [[formulaEstado]] }
+        );
+        await graphPatch(
+          `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='H${filaNum}')`,
+          { values: [[formulaTipo]] }
+        );
+        console.log('Fórmulas escritas en fila', filaNum);
         break;
       }
     }
