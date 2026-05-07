@@ -1994,6 +1994,28 @@ async function agregarFilaExcel(hoja, fila) {
   return result !== null;
 }
 
+async function escribirFormulasInventario(imei) {
+  try {
+    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    if(!inv || !inv.values) return;
+    for(let i=1; i<inv.values.length; i++) {
+      const r = inv.values[i];
+      if(r[0] && r[0].toString().trim() === imei.toString().trim()) {
+        const filaNum = i + 1;
+        // Fórmula ESTADO en G: respeta PRESTADO/EN GARANTIA/ANULADO, sino calcula VENDIDO/DISPONIBLE
+        const formulaEstado = `=SI(A${filaNum}="";"";SI(O(H${filaNum}="PRESTADO";H${filaNum}="EN GARANTIA";H${filaNum}="ANULADO");H${filaNum};SI(O(CONTAR.SI(VENTAS_CREDITOS!$E:$E;ESPACIOS(A${filaNum}))>0;CONTAR.SI(VENTAS_CONTADO!$C:$C;ESPACIOS(A${filaNum}))>0);"VENDIDO";"DISPONIBLE")))`;
+        // Fórmula TIPO_VENTA en H: busca en ventas crédito y contado
+        const formulaTipo = `=SI.ERROR(INDICE(VENTAS_CREDITOS!$C:$C;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CREDITOS!$E:$E;0));SI.ERROR(INDICE(VENTAS_CONTADO!$L:$L;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CONTADO!$C:$C;0));""))`;
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaNum}:H${filaNum}')`,
+          { formulas: [[formulaEstado, formulaTipo]] });
+        break;
+      }
+    }
+  } catch(e) {
+    console.error('Error escribiendo fórmulas inventario:', e);
+  }
+}
+
 async function marcarVendidoExcel(imei, tipoVenta) {
   if (!imei) return;
   try {
@@ -2101,8 +2123,9 @@ async function enviarForm(tipo) {
       }
     }
     const repuesto = getVal('it-repuesto');
-    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, PRECIO_VENTA
-    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta')];
+    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO(vacío), TIPO_VENTA(vacío), ALERTA, UBICACION, PRECIO_VENTA
+    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, '', '', '', getVal('it-local'), getNumero('it-precio-venta')];
+    window._pendingFormulaIMEI = imeiNuevo;
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
@@ -2195,7 +2218,15 @@ async function enviarForm(tipo) {
   if(btn){ btn.textContent = ok ? 'Registrar ✓' : 'Reintentar ⚠️'; btn.disabled = false; }
   if(ok) {
     limpiarFormulario(tipo);
-    if(tipo === 'ingreso-telefono' || tipo === 'ingreso-accesorio') {
+    if(tipo === 'ingreso-telefono') {
+      // Escribir fórmulas de ESTADO y TIPO_VENTA en la fila recién agregada
+      if(window._pendingFormulaIMEI) {
+        await escribirFormulasInventario(window._pendingFormulaIMEI);
+        window._pendingFormulaIMEI = null;
+      }
+      mostrarExito('inventario');
+    } else if(tipo === 'ingreso-accesorio') {
+      mostrarExito('inventario');
       mostrarExito('inventario');
     } else if(tipo === 'nueva-deuda' || tipo === 'abono-deuda') {
       await cargarDeudas();
