@@ -4696,8 +4696,29 @@ async function guardarLiquidacion() {
     }
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     mostrarToastVerde('✅ Liquidación guardada correctamente');
-    await cargarLiquidaciones();
+
+    // Actualizar memoria local inmediatamente sin recargar de la API
+    if(!v.esEdicion) {
+      // Mover de pendientes a completadas en memoria
+      window.LIQ_PENDIENTES = window.LIQ_PENDIENTES.filter(p => p.imei !== v.imei);
+      liqCompletadas.push({
+        imei: v.imei, ref: v.ref, tipo: v.tipo, porc: v.porc, costo: v.costo,
+        fecha: v.fecha, pagoFinanciera, obs, fechaAct: new Date().toISOString().split('T')[0],
+        costoClaro, valorSistema
+      });
+    } else {
+      // Actualizar en completadas
+      const idx = liqCompletadas.findIndex(c => c.imei === v.imei);
+      if(idx >= 0) {
+        liqCompletadas[idx].pagoFinanciera = pagoFinanciera;
+        liqCompletadas[idx].obs = obs;
+        liqCompletadas[idx].costoClaro = costoClaro;
+        liqCompletadas[idx].valorSistema = valorSistema;
+      }
+    }
+
     irA('liquidaciones');
+    renderLiquidaciones();
   } catch(e) {
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     alert('❌ Error al guardar. Verifica conexión.');
