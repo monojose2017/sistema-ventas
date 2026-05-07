@@ -84,25 +84,36 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen active" id="screen-inicio">
   <div class="header"><h1>📱 Sistema de Ventas</h1><p>Selecciona el tipo de registro</p></div>
   <div class="inicio-body">
-    <div id="btn-conectar" style="width:100%;background:linear-gradient(135deg,#16a34a,#15803d);color:white;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;text-align:center;margin-bottom:20px;box-shadow:0 4px 12px rgba(22,163,74,.3);">✅ Conectado a Google Sheets</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <p class="titulo-sec" style="margin:0;">¿Qué vas a registrar?</p>
-      <button onclick="irA('mis-registros')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;box-shadow:0 4px 12px rgba(37,99,235,.4);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;" title="Mis Registros del Día">📋</button>
+    <!-- Indicador de estado de carga -->
+    <div id="btn-conectar" onclick="reintentarCarga()" style="width:100%;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;text-align:center;margin-bottom:20px;cursor:pointer;transition:all .3s;">⏳ Conectando con Excel...</div>
+
+    <!-- Menú bloqueado hasta que cargue -->
+    <div id="menu-bloqueado" style="display:none;background:#f1f5f9;border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;">
+      <div style="font-size:32px;margin-bottom:8px;">⏳</div>
+      <div style="font-weight:800;color:#1e293b;font-size:15px;">Cargando datos...</div>
+      <div style="color:#64748b;font-size:13px;margin-top:4px;">Espera un momento</div>
     </div>
-    <p class="sec-titulo">Ventas</p>
-    <button class="btn-menu" onclick="irA('credito')"><div class="btn-icon verde">📋</div><div class="btn-info"><div class="btn-titulo">Venta a Crédito</div><div class="btn-sub">Oficina · ET Oficina · ET Claro · Recompra · más</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="irA('contado')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Venta de Contado</div><div class="btn-sub">Pago inmediato</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="irA('accesorios')"><div class="btn-icon naranja">🎧</div><div class="btn-info"><div class="btn-titulo">Venta de Accesorios</div><div class="btn-sub">Vidrios · Forros · Cargadores · más</div></div><span class="btn-arrow">›</span></button>
-    <div class="divider"></div>
-    <p class="sec-titulo">Gastos</p>
-    <button class="btn-menu" onclick="irA('gastos')"><div class="btn-icon rojo">🧾</div><div class="btn-info"><div class="btn-titulo">Gasto Diario</div><div class="btn-sub">Aseo · Papelería · Domicilio · más</div></div><span class="btn-arrow">›</span></button>
-    <button class="btn-menu" onclick="irA('caja')"><div class="btn-icon azul">🏦</div><div class="btn-info"><div class="btn-titulo">Caja</div><div class="btn-sub">Apertura · Retiro de efectivo</div></div><span class="btn-arrow">›</span></button>
-    <div class="divider"></div>
-    <p class="sec-titulo">Ingresos</p>
-    <button class="btn-menu" onclick="irA('ingresos-local')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos Adicionales</div><div class="btn-sub">Abonos · Otros ingresos</div></div><span class="btn-arrow">›</span></button>
-    <div class="divider"></div>
-    <p class="sec-titulo">Acceso restringido</p>
-    <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
+
+    <div id="menu-principal" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <p class="titulo-sec" style="margin:0;">¿Qué vas a registrar?</p>
+        <button onclick="irA('mis-registros')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;box-shadow:0 4px 12px rgba(37,99,235,.4);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;" title="Mis Registros del Día">📋</button>
+      </div>
+      <p class="sec-titulo">Ventas</p>
+      <button class="btn-menu" onclick="irA('credito')"><div class="btn-icon verde">📋</div><div class="btn-info"><div class="btn-titulo">Venta a Crédito</div><div class="btn-sub">Oficina · ET Oficina · ET Claro · Recompra · más</div></div><span class="btn-arrow">›</span></button>
+      <button class="btn-menu" onclick="irA('contado')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Venta de Contado</div><div class="btn-sub">Pago inmediato</div></div><span class="btn-arrow">›</span></button>
+      <button class="btn-menu" onclick="irA('accesorios')"><div class="btn-icon naranja">🎧</div><div class="btn-info"><div class="btn-titulo">Venta de Accesorios</div><div class="btn-sub">Vidrios · Forros · Cargadores · más</div></div><span class="btn-arrow">›</span></button>
+      <div class="divider"></div>
+      <p class="sec-titulo">Gastos</p>
+      <button class="btn-menu" onclick="irA('gastos')"><div class="btn-icon rojo">🧾</div><div class="btn-info"><div class="btn-titulo">Gasto Diario</div><div class="btn-sub">Aseo · Papelería · Domicilio · más</div></div><span class="btn-arrow">›</span></button>
+      <button class="btn-menu" onclick="irA('caja')"><div class="btn-icon azul">🏦</div><div class="btn-info"><div class="btn-titulo">Caja</div><div class="btn-sub">Apertura · Retiro de efectivo</div></div><span class="btn-arrow">›</span></button>
+      <div class="divider"></div>
+      <p class="sec-titulo">Ingresos</p>
+      <button class="btn-menu" onclick="irA('ingresos-local')"><div class="btn-icon verde">📥</div><div class="btn-info"><div class="btn-titulo">Ingresos Adicionales</div><div class="btn-sub">Abonos · Otros ingresos</div></div><span class="btn-arrow">›</span></button>
+      <div class="divider"></div>
+      <p class="sec-titulo">Acceso restringido</p>
+      <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
+    </div>
   </div>
 </div>
 
@@ -1320,10 +1331,8 @@ function irA(s){
     }
   }
   if(s === 'mis-registros') {
-    // Fecha de hoy por defecto
     const hoy = new Date().toISOString().split('T')[0];
     document.getElementById('mr-fecha').value = hoy;
-    // Llenar locales desde CONFIG
     const sel = document.getElementById('mr-local');
     sel.innerHTML = '<option value="">Seleccionar...</option>';
     (window.CONFIG_LISTAS?.locales||['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA']).forEach(l => {
@@ -1331,6 +1340,10 @@ function irA(s){
     });
     document.getElementById('mr-sin-filtro').style.display = 'block';
     document.getElementById('mr-contenido').style.display = 'none';
+    // Resetear y cargar datos frescos en background
+    MR_DATOS = null;
+    MR_CARGANDO = false;
+    iniciarMisRegistros();
   }
   if(s === 'prestamo-entrante') {
     // Llenar select de ubicaciones
@@ -1854,8 +1867,44 @@ window.onload = async function() {
   await initMSAL();
 };
 
+function setEstadoCarga(estado) {
+  const btn = document.getElementById('btn-conectar');
+  const menuBloqueado = document.getElementById('menu-bloqueado');
+  const menuPrincipal = document.getElementById('menu-principal');
+  if(!btn) return;
+  if(estado === 'cargando') {
+    btn.textContent = '⏳ Cargando datos de Excel...';
+    btn.style.background = 'linear-gradient(135deg,#d97706,#b45309)';
+    btn.style.color = 'white';
+    btn.style.boxShadow = '0 4px 12px rgba(217,119,6,.3)';
+    if(menuBloqueado) menuBloqueado.style.display = 'block';
+    if(menuPrincipal) menuPrincipal.style.display = 'none';
+  } else if(estado === 'ok') {
+    btn.textContent = '✅ Todo cargado — listo para usar';
+    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+    btn.style.color = 'white';
+    btn.style.boxShadow = '0 4px 12px rgba(22,163,74,.3)';
+    if(menuBloqueado) menuBloqueado.style.display = 'none';
+    if(menuPrincipal) menuPrincipal.style.display = 'block';
+  } else if(estado === 'error') {
+    btn.textContent = '❌ Error al cargar — toca aquí para reintentar';
+    btn.style.background = 'linear-gradient(135deg,#dc2626,#b91c1c)';
+    btn.style.color = 'white';
+    btn.style.boxShadow = '0 4px 12px rgba(220,38,38,.3)';
+    if(menuBloqueado) menuBloqueado.style.display = 'block';
+    if(menuPrincipal) menuPrincipal.style.display = 'none';
+    if(menuBloqueado) menuBloqueado.innerHTML = '<div style="font-size:32px;margin-bottom:8px;">❌</div><div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div><div style="color:#64748b;font-size:13px;margin-top:4px;">Toca el botón rojo de arriba para reintentar</div>';
+  }
+}
+
+async function reintentarCarga() {
+  setEstadoCarga('cargando');
+  await cargarTodo();
+}
+
 async function cargarTodo() {
   if (!msAccount) return;
+  setEstadoCarga('cargando');
 
   // Función helper para reintentar una llamada hasta 3 veces
   const fetchConReintento = async (endpoint) => {
@@ -1946,15 +1995,17 @@ async function cargarTodo() {
       llenarSelectsDesdeConfig();
     }
 
-    // Actualizar botón de conexión
-    const btnConectar = document.getElementById('btn-conectar');
-    if(btnConectar) {
-      btnConectar.textContent = '✅ Todo cargado desde OneDrive';
-      btnConectar.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+    // Verificar que los datos críticos cargaron
+    if(!window.IMEIS_TODOS_CON_ESTADO || !window.CONFIG_DATA) {
+      setEstadoCarga('error');
+      return;
     }
+
+    setEstadoCarga('ok');
     console.log('Todo cargado desde OneDrive ✅');
   } catch(e) {
     console.error('Error cargando datos:', e);
+    setEstadoCarga('error');
   }
 }
 
@@ -3888,6 +3939,118 @@ function quitarFiltro(campo, valor) {
 // =============================================
 // MIS REGISTROS DEL DÍA
 // =============================================
+// Datos cargados en memoria para Mis Registros
+let MR_DATOS = null;
+let MR_CARGANDO = false;
+
+async function iniciarMisRegistros() {
+  // Cargar todos los datos una sola vez
+  if(MR_CARGANDO) return;
+  MR_CARGANDO = true;
+  document.getElementById('mr-loading').style.display = 'block';
+  document.getElementById('mr-contenido').style.display = 'none';
+  document.getElementById('mr-sin-filtro').style.display = 'none';
+
+  try {
+    const fetchConReintento = async (hoja) => {
+      for(let i=0; i<3; i++) {
+        const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+        if(data && data.values) return data;
+        await new Promise(r => setTimeout(r, 800));
+      }
+      return null;
+    };
+
+    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas] = await Promise.all([
+      fetchConReintento('VENTAS_CREDITOS'),
+      fetchConReintento('VENTAS_CONTADO'),
+      fetchConReintento('VENTAS_ACCESORIOS'),
+      fetchConReintento('GASTOS_DIARIOS'),
+      fetchConReintento('INGRESOS_LOCAL'),
+      fetchConReintento('RETIROS_CAJA'),
+      fetchConReintento('APERTURA_CAJA')
+    ]);
+
+    const fmtFecha = f => {
+      if(!f) return '';
+      if(typeof f === 'number') {
+        const d = new Date(Math.round((f-25569)*86400*1000));
+        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+      }
+      return f.toString();
+    };
+
+    MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[] };
+
+    if(creditos?.values?.length > 1) {
+      for(let i=1;i<creditos.values.length;i++) {
+        const r = creditos.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.creditos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'', efectivo:parseFloat(r[10])||0, estado:r[13]||'' });
+      }
+    }
+    if(contado?.values?.length > 1) {
+      for(let i=1;i<contado.values.length;i++) {
+        const r = contado.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.contado.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', imei:r[2]||'', ref:r[3]||'', precio:parseFloat(r[4])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
+      }
+    }
+    if(accesorios?.values?.length > 1) {
+      for(let i=1;i<accesorios.values.length;i++) {
+        const r = accesorios.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.accesorios.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
+      }
+    }
+    if(gastos?.values?.length > 1) {
+      for(let i=1;i<gastos.values.length;i++) {
+        const r = gastos.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.gastos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
+      }
+    }
+    if(ingresos?.values?.length > 1) {
+      for(let i=1;i<ingresos.values.length;i++) {
+        const r = ingresos.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.ingresos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
+      }
+    }
+    if(retiros?.values?.length > 1) {
+      for(let i=1;i<retiros.values.length;i++) {
+        const r = retiros.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.retiros.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', valor:parseFloat(r[2])||0, desc:r[3]||'', resp:r[4]||'' });
+      }
+    }
+    if(aperturas?.values?.length > 1) {
+      for(let i=1;i<aperturas.values.length;i++) {
+        const r = aperturas.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.aperturas.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', saldo:parseFloat(r[2])||0 });
+      }
+    }
+
+    document.getElementById('mr-loading').style.display = 'none';
+    MR_CARGANDO = false;
+
+    // Si ya hay local y fecha seleccionados, renderizar
+    const local = document.getElementById('mr-local').value;
+    const fecha = document.getElementById('mr-fecha').value;
+    if(local && fecha) renderMisRegistros(local, fecha);
+    else document.getElementById('mr-sin-filtro').style.display = 'block';
+
+  } catch(e) {
+    console.error('Error cargando Mis Registros:', e);
+    document.getElementById('mr-loading').style.display = 'none';
+    MR_CARGANDO = false;
+    document.getElementById('mr-sin-filtro').style.display = 'block';
+    document.getElementById('mr-sin-filtro').textContent = '❌ Error al cargar. Verifica conexión.';
+  }
+}
+
 async function cargarMisRegistros() {
   const local = document.getElementById('mr-local').value;
   const fecha = document.getElementById('mr-fecha').value;
@@ -3896,247 +4059,60 @@ async function cargarMisRegistros() {
     document.getElementById('mr-contenido').style.display = 'none';
     return;
   }
-  document.getElementById('mr-sin-filtro').style.display = 'none';
-  document.getElementById('mr-loading').style.display = 'block';
-  document.getElementById('mr-contenido').style.display = 'none';
-
-  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
-  const fmtFecha = f => {
-    if(!f) return '';
-    if(typeof f === 'number') {
-      const d = new Date(Math.round((f-25569)*86400*1000));
-      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-      return d.toISOString().split('T')[0];
-    }
-    return f.toString();
-  };
-
-  try {
-    const resultados = await Promise.allSettled([
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CONTADO/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/GASTOS_DIARIOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INGRESOS_LOCAL/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/RETIROS_CAJA/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/APERTURA_CAJA/usedRange`)
-    ]);
-    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas] = resultados.map(r => r.status === 'fulfilled' ? r.value : null);
-
-    // CRÉDITO — FECHA, LOCAL, TIPO_VENTA, REFERENCIA, IMEI, PORCENTAJE, CUOTA_INICIAL, DESCUENTO, CUOTA_FINAL
-    const listaCred = [];
-    if(creditos?.values?.length > 1) {
-      for(let i=1;i<creditos.values.length;i++) {
-        const r = creditos.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local && r[13]!=='ANULADO') {
-          // CREDITO: FECHA(0),LOCAL(1),TIPO(2),REF(3),IMEI(4),PORC(5),CUOTA_INI(6),DESC(7),CUOTA_FINAL(8),TIPO_PAGO(9),EFECTIVO(10),TRANSFER(11)
-          listaCred.push({ tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'', efectivo:parseFloat(r[10])||0 });        }
-      }
-    }
-
-    // CONTADO — FECHA, LOCAL, IMEI, REFERENCIA, PRECIO_VENTA
-    const listaCont = [];
-    if(contado?.values?.length > 1) {
-      for(let i=1;i<contado.values.length;i++) {
-        const r = contado.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          // CONTADO: FECHA(0), LOCAL(1), IMEI(2), REFERENCIA(3), PRECIO_VENTA(4), COSTO(5), UTILIDAD(6), TIPO_PAGO(7), EFECTIVO(8), TRANSFERENCIA(9)
-          listaCont.push({ ref:r[3]||'', imei:r[2]||'', precio:parseFloat(r[4])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
-        }
-      }
-    }
-
-    // ACCESORIOS — FECHA, LOCAL, CATEGORIA, PRODUCTO, CANTIDAD, PRECIO_UNITARIO, TOTAL
-    const listaAcc = [];
-    if(accesorios?.values?.length > 1) {
-      for(let i=1;i<accesorios.values.length;i++) {
-        const r = accesorios.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          // ACCESORIOS: FECHA(0), LOCAL(1), CAT(2), PROD(3), CANT(4), PRECIO_UNIT(5), TOTAL(6), TIPO_PAGO(7), EFECTIVO(8), TRANSFER(9)
-          listaAcc.push({ cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
-        }
-      }
-    }
-
-    // GASTOS — FECHA, LOCAL, TIPO, DESCRIPCION, VALOR
-    const listaGas = [];
-    if(gastos?.values?.length > 1) {
-      for(let i=1;i<gastos.values.length;i++) {
-        const r = gastos.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          listaGas.push({ tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
-        }
-      }
-    }
-
-    // INGRESOS LOCAL — FECHA, LOCAL, TIPO, DESCRIPCION, VALOR
-    const listaIng = [];
-    if(ingresos?.values?.length > 1) {
-      for(let i=1;i<ingresos.values.length;i++) {
-        const r = ingresos.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          listaIng.push({ tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
-        }
-      }
-    }
-
-    // APERTURA CAJA — FECHA, LOCAL, SALDO_INICIAL, RESPONSABLE
-    let saldoApertura = 0;
-    if(aperturas?.values?.length > 1) {
-      for(let i=1;i<aperturas.values.length;i++) {
-        const r = aperturas.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          saldoApertura = parseFloat(r[2])||0;
-        }
-      }
-    }
-
-    // RETIROS CAJA — FECHA, LOCAL, VALOR, DESCRIPCION, RESPONSABLE
-    const listaRet = [];
-    if(retiros?.values?.length > 1) {
-      for(let i=1;i<retiros.values.length;i++) {
-        const r = retiros.values[i];
-        if(fmtFecha(r[0])===fecha && r[1]?.toString()===local) {
-          listaRet.push({ valor:parseFloat(r[2])||0, desc:r[3]||'', resp:r[4]||'' });
-        }
-      }
-    }
-
-    document.getElementById('mr-loading').style.display = 'none';
-
-    const totalVentas = listaCred.length + listaCont.length + listaAcc.length;
-    const totalEfectivoEntrado = 
-      listaCred.reduce((s,i) => s + (i.pago==='EFECTIVO' ? i.cuota : i.pago==='MIXTO' ? i.efectivo : 0), 0) +
-      listaCont.reduce((s,i) => s + (i.pago==='EFECTIVO' ? i.precio : i.pago==='MIXTO' ? i.efectivo : 0), 0) +
-      listaAcc.reduce((s,i) => s + (i.pago==='EFECTIVO' ? i.total : i.pago==='MIXTO' ? i.efectivo : 0), 0) +
-      listaIng.reduce((s,i)=>s+i.valor,0);
-    const totalGastosEfectivo = listaGas.reduce((s,i)=>s+i.valor,0);
-    const totalRetiros = listaRet.reduce((s,i)=>s+i.valor,0);
-    const efectivoCaja = saldoApertura + totalEfectivoEntrado - totalGastosEfectivo - totalRetiros;
-    const totalIngresos = listaCred.reduce((s,i)=>s+i.cuota,0) + listaCont.reduce((s,i)=>s+i.precio,0) + listaAcc.reduce((s,i)=>s+i.total,0) + listaIng.reduce((s,i)=>s+i.valor,0);
-
-    document.getElementById('mr-count-ventas').textContent = totalVentas;
-    document.getElementById('mr-total-ingresos').textContent = fmt(totalIngresos);
-
-    const hayAlgo = totalVentas > 0 || listaGas.length > 0 || listaIng.length > 0;
-    document.getElementById('mr-sin-registros').style.display = hayAlgo ? 'none' : 'block';
-    document.getElementById('mr-contenido').style.display = 'block';
-
-    // Render crédito
-    const secCred = document.getElementById('mr-sec-credito');
-    secCred.style.display = listaCred.length ? 'block' : 'none';
-    document.getElementById('mr-count-credito').textContent = listaCred.length;
-    document.getElementById('mr-lista-credito').innerHTML = listaCred.map(v=>`
-      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #2563eb;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-weight:700;font-size:13px;">${v.ref}</div>
-            <div style="font-size:11px;color:#64748b;">${v.imei} · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-weight:700;">${v.tipo.replace('_',' ')}</span></div>
-            <div style="font-size:11px;color:#64748b;">💳 ${v.pago}</div>
-          </div>
-          <div style="font-weight:800;color:#2563eb;font-size:14px;">${fmt(v.cuota)}</div>
-        </div>
-      </div>
-    `).join('');
-
-    // Render contado
-    const secCont = document.getElementById('mr-sec-contado');
-    secCont.style.display = listaCont.length ? 'block' : 'none';
-    document.getElementById('mr-count-contado').textContent = listaCont.length;
-    document.getElementById('mr-lista-contado').innerHTML = listaCont.map(v=>`
-      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #16a34a;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-weight:700;font-size:13px;">${v.ref}</div>
-            <div style="font-size:11px;color:#64748b;">${v.imei}</div>
-            <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?` · Efectivo: $${v.efectivo.toLocaleString('es-CO')}`:''}</div>
-          </div>
-          <div style="font-weight:800;color:#16a34a;font-size:14px;">${fmt(v.precio)}</div>
-        </div>
-      </div>
-    `).join('');
-
-    // Render accesorios
-    const secAcc = document.getElementById('mr-sec-accesorios');
-    secAcc.style.display = listaAcc.length ? 'block' : 'none';
-    document.getElementById('mr-count-accesorios').textContent = listaAcc.length;
-    document.getElementById('mr-lista-accesorios').innerHTML = listaAcc.map(v=>`
-      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #d97706;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-weight:700;font-size:13px;">${v.prod}</div>
-            <div style="font-size:11px;color:#64748b;">${v.cat} · ${v.cant} und · 💳 ${v.pago}</div>
-          </div>
-          <div style="font-weight:800;color:#d97706;font-size:14px;">${fmt(v.total)}</div>
-        </div>
-      </div>
-    `).join('');
-
-    // Render gastos
-    const secGas = document.getElementById('mr-sec-gastos');
-    secGas.style.display = listaGas.length ? 'block' : 'none';
-    document.getElementById('mr-count-gastos').textContent = listaGas.length;
-    document.getElementById('mr-lista-gastos').innerHTML = listaGas.map(v=>`
-      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #dc2626;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
-            <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
-          </div>
-          <div style="font-weight:800;color:#dc2626;font-size:14px;">-${fmt(v.valor)}</div>
-        </div>
-      </div>
-    `).join('');
-
-    // Render retiros
-    const secRet = document.getElementById('mr-sec-retiros');
-    secRet.style.display = listaRet.length ? 'block' : 'none';
-    document.getElementById('mr-count-retiros').textContent = listaRet.length;
-    document.getElementById('mr-lista-retiros').innerHTML = listaRet.map(v=>`
-      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #2563eb;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-weight:700;font-size:13px;">${v.desc||'Retiro de caja'}</div>
-            <div style="font-size:11px;color:#64748b;">👤 ${v.resp}</div>
-          </div>
-          <div style="font-weight:800;color:#2563eb;font-size:14px;">-${fmt(v.valor)}</div>
-        </div>
-      </div>
-    `).join('');
-
-    // Resumen de caja
-    document.getElementById('mr-caja-apertura').textContent = fmt(saldoApertura);
-    document.getElementById('mr-caja-entrado').textContent = fmt(totalEfectivoEntrado);
-    document.getElementById('mr-caja-gastos').textContent = '-'+fmt(totalGastosEfectivo);
-    document.getElementById('mr-caja-retiros').textContent = '-'+fmt(totalRetiros);
-    document.getElementById('mr-caja-total').textContent = fmt(efectivoCaja);
-    document.getElementById('mr-caja-total').style.color = efectivoCaja >= 0 ? 'white' : '#fca5a5';
-    secIng.style.display = listaIng.length ? 'block' : 'none';
-    document.getElementById('mr-count-ingresos').textContent = listaIng.length;
-    document.getElementById('mr-lista-ingresos').innerHTML = listaIng.map(v=>`
-      <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #15803d;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
-            <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
-          </div>
-          <div style="font-weight:800;color:#15803d;font-size:14px;">+${fmt(v.valor)}</div>
-        </div>
-      </div>
-    `).join('');
-
-  } catch(e) {
-    console.error('Error en cargarMisRegistros:', e);
-    document.getElementById('mr-loading').style.display = 'none';
-    // Solo mostrar error si el contenido no cargó nada
-    const contenido = document.getElementById('mr-contenido');
-    if(contenido && contenido.style.display === 'none') {
-      contenido.style.display = 'block';
-      const sinReg = document.getElementById('mr-sin-registros');
-      if(sinReg) { sinReg.style.display = 'block'; sinReg.textContent = '❌ Error al cargar. Verifica conexión.'; }
-    }
+  // Si los datos ya están en memoria, solo renderizar
+  if(MR_DATOS) {
+    renderMisRegistros(local, fecha);
+    return;
   }
+  // Si no, cargar todo
+  await iniciarMisRegistros();
 }
+
+function renderMisRegistros(local, fecha) {
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  if(!MR_DATOS) return;
+
+  document.getElementById('mr-sin-filtro').style.display = 'none';
+
+  const listaCred = MR_DATOS.creditos.filter(v => v.local===local && v.fecha===fecha && v.estado!=='ANULADO');
+  const listaCont = MR_DATOS.contado.filter(v => v.local===local && v.fecha===fecha);
+  const listaAcc = MR_DATOS.accesorios.filter(v => v.local===local && v.fecha===fecha);
+  const listaGas = MR_DATOS.gastos.filter(v => v.local===local && v.fecha===fecha);
+  const listaIng = MR_DATOS.ingresos.filter(v => v.local===local && v.fecha===fecha);
+  const listaRet = MR_DATOS.retiros.filter(v => v.local===local && v.fecha===fecha);
+  const saldoApertura = MR_DATOS.aperturas.filter(v => v.local===local && v.fecha===fecha).reduce((s,v)=>s+v.saldo,0);
+
+  const totalVentas = listaCred.length + listaCont.length + listaAcc.length;
+  const totalEfectivoEntrado =
+    listaCred.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.cuota:i.pago==='MIXTO'?i.efectivo:0),0) +
+    listaCont.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.precio:i.pago==='MIXTO'?i.efectivo:0),0) +
+    listaAcc.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.total:i.pago==='MIXTO'?i.efectivo:0),0) +
+    listaIng.reduce((s,i)=>s+i.valor,0);
+  const totalGastosEfectivo = listaGas.reduce((s,i)=>s+i.valor,0);
+  const totalRetiros = listaRet.reduce((s,i)=>s+i.valor,0);
+  const efectivoCaja = saldoApertura + totalEfectivoEntrado - totalGastosEfectivo - totalRetiros;
+  const totalIngresos = listaCred.reduce((s,i)=>s+i.cuota,0) + listaCont.reduce((s,i)=>s+i.precio,0) + listaAcc.reduce((s,i)=>s+i.total,0) + listaIng.reduce((s,i)=>s+i.valor,0);
+
+  document.getElementById('mr-count-ventas').textContent = totalVentas;
+  document.getElementById('mr-total-ingresos').textContent = fmt(totalIngresos);
+
+  const hayAlgo = totalVentas > 0 || listaGas.length > 0 || listaIng.length > 0;
+  document.getElementById('mr-sin-registros').style.display = hayAlgo ? 'none' : 'block';
+  document.getElementById('mr-contenido').style.display = 'block';
+
+  // Crédito
+  document.getElementById('mr-sec-credito').style.display = listaCred.length ? 'block' : 'none';
+  document.getElementById('mr-count-credito').textContent = listaCred.length;
+  document.getElementById('mr-lista-credito').innerHTML = listaCred.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #2563eb;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.ref}</div>
+          <div style="font-size:11px;color:#64748b;">${v.imei} · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-weight:700;">${v.tipo.replace('_',' ')}</span></div>
+          <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?` · Efectivo: $${v.efectivo.toLocaleString('es-CO')}`:''}</div>
+        </div>
+        <div style="font-weight:800;color:#2563eb;font-size:14px;">${fmt(v.cuota)}</div>
+      </div>
 
 // =============================================
 // PRÉSTAMOS
