@@ -4393,26 +4393,47 @@ let liqCompletadas = [];
 async function cargarLiquidaciones() {
   document.getElementById('liq-loading').style.display = 'block';
   document.getElementById('liq-lista').innerHTML = '';
-  try {
-    // Cargar ventas de crédito que requieren liquidación
-    const tipos = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
-    const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`);
-    const liqSheet = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
 
-    // IMEIs ya liquidados — normalizar como string numérico
+  const fetchConReintento = async (hoja) => {
+    for(let i=0;i<3;i++) {
+      const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+      if(d && d.values) return d;
+      await new Promise(r=>setTimeout(r,800));
+    }
+    return null;
+  };
+
+  try {
+    const tipos = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
+
+    // Cargar ambas hojas en paralelo con reintentos
+    const [ventas, liqSheet] = await Promise.all([
+      fetchConReintento('VENTAS_CREDITOS'),
+      fetchConReintento('LIQUIDACIONES')
+    ]);
+
+    if(!ventas) {
+      document.getElementById('liq-loading').style.display = 'none';
+      document.getElementById('liq-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ No se pudieron cargar las ventas. Toca atrás y vuelve a intentar.</div>';
+      return;
+    }
+
+    // Normalizar IMEI
+    const normImei = v => {
+      let s = v ? v.toString().trim() : '';
+      if(s.includes('E+') || s.includes('e+')) s = Math.round(parseFloat(s)).toString();
+      return s;
+    };
+
+    // IMEIs ya liquidados
     const liquidados = {};
-    if(liqSheet && liqSheet.values && liqSheet.values.length > 1) {
+    if(liqSheet?.values?.length > 1) {
       for(let i=1; i<liqSheet.values.length; i++) {
         const r = liqSheet.values[i];
         if(r[0]) {
-          // Normalizar IMEI — puede ser número o string
-          let imeiKey = r[0].toString().trim();
-          // Si es notación científica convertir a entero
-          if(imeiKey.includes('E+') || imeiKey.includes('e+')) {
-            imeiKey = Math.round(parseFloat(imeiKey)).toString();
-          }
-          liquidados[imeiKey] = {
-            imei: imeiKey, ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
+          const key = normImei(r[0]);
+          liquidados[key] = {
+            imei: key, ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
             fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
             costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
           };
@@ -4422,21 +4443,16 @@ async function cargarLiquidaciones() {
     liqCompletadas = Object.values(liquidados);
 
     window.LIQ_PENDIENTES = [];
-    if(ventas && ventas.values && ventas.values.length > 1) {
+    if(ventas?.values?.length > 1) {
       for(let i=1; i<ventas.values.length; i++) {
         const r = ventas.values[i];
         const tipo = r[2] ? r[2].toString() : '';
         const estado = r[13] ? r[13].toString() : '';
         if(!tipos.includes(tipo)) continue;
         if(estado === 'ANULADO') continue;
-        // Normalizar IMEI de ventas también
-        let imei = r[4] ? r[4].toString().trim() : '';
-        if(imei.includes('E+') || imei.includes('e+')) {
-          imei = Math.round(parseFloat(imei)).toString();
-        }
+        const imei = normImei(r[4]);
         if(!imei) continue;
-        if(liquidados[imei]) continue; // ya liquidado
-        // Buscar costo en inventario
+        if(liquidados[imei]) continue;
         const costo = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei)?.costo || 0;
         const cuotaFinal = parseFloat(r[8]) || 0;
         const cuotaSug = parseFloat(r[6]) || 0;
@@ -4446,13 +4462,17 @@ async function cargarLiquidaciones() {
         });
       }
     }
+
     document.getElementById('liq-loading').style.display = 'none';
     renderLiquidaciones();
+
   } catch(e) {
     document.getElementById('liq-loading').style.display = 'none';
-    document.getElementById('liq-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Verifica conexión.</div>';
+    document.getElementById('liq-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Toca atrás y vuelve a intentar.</div>';
+    console.error('Error cargarLiquidaciones:', e);
   }
 }
+
 
 function tabLiquidaciones(tab) {
   liqTabActual = tab;
