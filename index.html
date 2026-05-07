@@ -645,6 +645,11 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="ab-pago" onchange="manejarPago('ab')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="ab-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('ab')"></div><div class="field"><label>Transferencia</label><input type="text" id="ab-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('ab')"></div></div>
     <div id="ab-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor del abono</div>
+    <div class="field"><label>Local <span style="color:#94a3b8;font-weight:400;">(opcional — dejar vacío si es deuda general)</span></label>
+      <div class="select-wrap"><select id="ab-local">
+        <option value="">GENERAL</option>
+      </select></div>
+    </div>
     <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(22,163,74,.35)" onclick="enviarForm('abono-deuda')">Registrar Abono ✓</button>
   </div>
 </div>
@@ -742,18 +747,18 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
 <!-- REPORTES MENU -->
 <div class="screen" id="screen-reportes">
-  <div class="form-header" style="background:linear-gradient(135deg,#0f4c81,#1d6fa4)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Reportes</div><div class="form-header-sub">Análisis del negocio</div></div></div>
+  <div class="form-header" style="background:linear-gradient(135deg,#0f4c81,#1d6fa4)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Reportes</div><div class="form-header-sub">Rentabilidad del negocio</div></div></div>
   <div class="form-body">
     <!-- Selector de período -->
     <div style="background:#eff6ff;border-radius:14px;padding:14px;margin-bottom:16px;">
       <div style="font-size:12px;font-weight:800;color:#1e40af;text-transform:uppercase;margin-bottom:8px;">📅 Período</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="setPeriodo('hoy')" id="per-hoy" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:#1d6fa4;color:white;font-weight:700;cursor:pointer;font-size:12px;">Hoy</button>
-        <button onclick="setPeriodo('semana')" id="per-semana" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Esta semana</button>
+        <button onclick="setPeriodo('semana')" id="per-semana" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Semana</button>
         <button onclick="setPeriodo('mes')" id="per-mes" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Este mes</button>
-        <button onclick="setPeriodo('custom')" id="per-custom" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Personalizado</button>
+        <button onclick="setPeriodo('custom')" id="per-custom" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">📅</button>
       </div>
-      <div id="per-custom-fields" style="display:none;margin-top:10px;display:none;">
+      <div id="per-custom-fields" style="display:none;margin-top:10px;">
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="date" id="per-desde" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;">
           <span style="color:#64748b;font-weight:700;">al</span>
@@ -765,51 +770,30 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando reportes...</div>
 
-    <!-- RESUMEN DEL DÍA -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">📋 Resumen General</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div class="rep-card verde"><div class="rep-card-label">Ingresos</div><div class="rep-card-valor" id="rep-ingresos-total">$0</div></div>
-        <div class="rep-card rojo"><div class="rep-card-label">Gastos</div><div class="rep-card-valor" id="rep-gastos-total">$0</div></div>
-        <div class="rep-card azul"><div class="rep-card-label">Utilidad Bruta</div><div class="rep-card-valor" id="rep-utilidad-bruta">$0</div></div>
-        <div class="rep-card naranja"><div class="rep-card-label">Ventas Totales</div><div class="rep-card-valor" id="rep-ventas-count">0</div></div>
-      </div>
+    <!-- RESULTADO TOTAL -->
+    <div class="rep-seccion" id="rep-sec-total" style="display:none;">
+      <div class="rep-titulo">🏆 Resultado Total del Negocio</div>
+      <div id="rep-total-contenido"></div>
     </div>
 
-    <!-- VENTAS POR TIPO -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">📱 Ventas por Tipo</div>
-      <div id="rep-por-tipo"></div>
+    <!-- RENTABILIDAD POR LOCAL -->
+    <div class="rep-seccion" id="rep-sec-locales" style="display:none;">
+      <div class="rep-titulo">🏪 Rentabilidad por Local</div>
+      <div id="rep-locales-contenido"></div>
     </div>
 
-    <!-- UTILIDADES POR TIPO -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">💰 Utilidades por Tipo de Venta</div>
-      <div id="rep-utilidades-tipo"></div>
-    </div>
-
-    <!-- POR LOCAL -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">🏪 Rendimiento por Local</div>
-      <div id="rep-por-local"></div>
-    </div>
-
-    <!-- FLUJO DE CAJA -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">💵 Flujo de Caja</div>
-      <div id="rep-flujo-caja"></div>
-    </div>
-
-    <!-- INVENTARIO -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">📦 Estado del Inventario</div>
-      <div id="rep-inventario"></div>
+    <!-- EGRESOS GENERALES -->
+    <div class="rep-seccion" id="rep-sec-generales" style="display:none;">
+      <div class="rep-titulo">📤 Egresos Generales</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Gastos sin local asignado — carga del negocio en general</div>
+      <div id="rep-generales-contenido"></div>
     </div>
 
     <!-- LIQUIDACIONES PENDIENTES -->
-    <div class="rep-seccion">
-      <div class="rep-titulo">⏳ Liquidaciones Pendientes</div>
-      <div id="rep-liq-pendientes"></div>
+    <div class="rep-seccion" id="rep-sec-liq" style="display:none;">
+      <div class="rep-titulo">⚠️ Ventas sin Liquidar</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Estas ventas no tienen utilidad calculada aún</div>
+      <div id="rep-liq-contenido"></div>
     </div>
 
   </div>
@@ -1318,6 +1302,15 @@ function irA(s){
       sel.innerHTML = '<option value="">Seleccionar...</option>';
       (window.CONFIG_LISTAS?.responsables||['CARO','ADISSON','JOHANETH','DIANA']).forEach(r => {
         sel.innerHTML += `<option value="${r}">${r}</option>`;
+      });
+    }
+  }
+  if(s === 'abono-deuda') {
+    const sel = document.getElementById('ab-local');
+    if(sel) {
+      sel.innerHTML = '<option value="">GENERAL</option>';
+      (window.CONFIG_LISTAS?.locales||['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA']).forEach(l => {
+        sel.innerHTML += `<option value="${l}">${l}</option>`;
       });
     }
   }
@@ -2276,7 +2269,7 @@ async function enviarForm(tipo) {
     const idx = document.getElementById('ab-acreedor').value;
     const deuda = idx !== '' ? deudasActivas[parseInt(idx)] : null;
     hoja = 'ABONOS_DEUDAS';
-    fila = [getVal('ab-fecha')||fecha, deuda ? deuda.acreedor : '', getVal('ab-concepto'), getNumero('ab-valor'), getVal('ab-pago'), getNumero('ab-efectivo'), getNumero('ab-transfer')];
+    fila = [getVal('ab-fecha')||fecha, deuda ? deuda.acreedor : '', getVal('ab-concepto'), getNumero('ab-valor'), getVal('ab-pago'), getNumero('ab-efectivo'), getNumero('ab-transfer'), getVal('ab-local')];
 
   } else if(tipo === 'ingresos-local') {
     hoja = 'INGRESOS_LOCAL';
@@ -4727,271 +4720,287 @@ function enPeriodo(fechaStr, desde, hasta) {
 
 async function cargarReportes() {
   document.getElementById('rep-loading').style.display = 'block';
+  ['rep-sec-total','rep-sec-locales','rep-sec-generales','rep-sec-liq'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+
   const { desde, hasta } = getFechasPeriodo();
   if(!desde || !hasta) { document.getElementById('rep-loading').style.display='none'; return; }
 
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const fmtColor = n => `<span style="font-weight:800;color:${n>=0?'#16a34a':'#dc2626'}">${n>=0?'+':''}${fmt(n)}</span>`;
+
+  const fetchConReintento = async (hoja) => {
+    for(let i=0;i<3;i++) {
+      const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+      if(d && d.values) return d;
+      await new Promise(r=>setTimeout(r,800));
+    }
+    return null;
+  };
+
   try {
-    // Cargar todas las hojas necesarias
-    const [creditos, contado, accesorios, gastos, egresosGer, ingresosLoc, ingresosGer, invTel, invAcc, liqSheet] = await Promise.all([
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CONTADO/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/GASTOS_DIARIOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/EGRESOS_GERENCIA/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INGRESOS_LOCAL/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INGRESOS_GERENCIA/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`),
-      graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`)
+    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet] = await Promise.all([
+      fetchConReintento('CONTROL'),
+      fetchConReintento('VENTAS_CONTADO'),
+      fetchConReintento('VENTAS_ACCESORIOS'),
+      fetchConReintento('GASTOS_DIARIOS'),
+      fetchConReintento('EGRESOS_GERENCIA'),
+      fetchConReintento('INGRESOS_LOCAL'),
+      fetchConReintento('ABONOS_DEUDAS'),
+      fetchConReintento('LIQUIDACIONES')
     ]);
 
-    // Mapa de liquidaciones por IMEI
+    const fmtFecha = f => {
+      if(!f) return '';
+      if(typeof f === 'number') {
+        const d = new Date(Math.round((f-25569)*86400*1000));
+        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+      }
+      return f.toString().substring(0,10);
+    };
+
+    const enRango = f => { const s = fmtFecha(f); return s >= desde && s <= hasta; };
+
+    // IMEIs liquidados
     const liqMap = {};
-    if(liqSheet && liqSheet.values && liqSheet.values.length > 1) {
+    if(liqSheet?.values?.length > 1) {
       for(let i=1;i<liqSheet.values.length;i++) {
         const r = liqSheet.values[i];
-        if(r[0]) liqMap[r[0].toString().trim()] = parseFloat(r[6]) || 0;
+        if(r[0]) liqMap[r[0].toString().trim()] = parseFloat(r[6])||0;
       }
     }
 
-    // ---- VENTAS CRÉDITO ----
-    const tiposCredito = {};
-    const localesData = {};
-    let totalIngresosCredito = 0;
-    let countCredito = 0;
-    let liqPendientesRep = [];
+    const LOCALES = ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'];
+    const datos = {};
+    LOCALES.forEach(l => datos[l] = {
+      utilCredito:0, utilContado:0, utilAccesorios:0, ingresosAdicionales:0,
+      gastosDiarios:0, egresosOperativos:0, abonosDeudas:0,
+      ventasCredito:0, ventasContado:0, ventasAccesorios:0,
+      sinLiquidar:[]
+    });
 
-    const tiposLiquidables = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
-
-    if(creditos && creditos.values && creditos.values.length > 1) {
-      for(let i=1;i<creditos.values.length;i++) {
-        const r = creditos.values[i];
-        if(!enPeriodo(r[0], desde, hasta)) continue;
+    // CONTROL → utilidad crédito por local
+    // Columnas: A=FECHA(0), B=LOCAL(1), ... T=UTILIDAD(19), N=ESTADO(13)
+    if(control?.values?.length > 1) {
+      for(let i=1;i<control.values.length;i++) {
+        const r = control.values[i];
+        if(!enRango(r[0])) continue;
         if(r[13]==='ANULADO') continue;
-        const tipo = r[2]||'';
-        const local = r[1]||'';
-        const cuotaFinal = parseFloat(r[8]) || 0;
-        totalIngresosCredito += cuotaFinal;
-        countCredito++;
-        if(!tiposCredito[tipo]) tiposCredito[tipo] = { count:0, ingresos:0, utilidad:0 };
-        tiposCredito[tipo].count++;
-        tiposCredito[tipo].ingresos += cuotaFinal;
-        if(!localesData[local]) localesData[local] = { ventas:0, ingresos:0, gastos:0 };
-        localesData[local].ventas++;
-        localesData[local].ingresos += cuotaFinal;
-
-        // Utilidad según tipo
-        const imei = r[4]?r[4].toString().trim():'';
-        const porc = parseFloat(r[5]) || 0;
-        const descuento = parseFloat(r[7]) || 0;
-        const costo = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei)?.costo || 0;
-
-        if(tipo==='OFICINA'||tipo==='RECOMPRA'||tipo==='ALO_CREDIT'||tipo==='RUTA') {
-          // Comisión $80.000 base, OFICINA suma $30k adicional
-          const comision = tipo==='OFICINA' ? 110000 : 80000;
-          const utilidad = comision - descuento;
-          tiposCredito[tipo].utilidad += utilidad;
-        } else if(tipo==='ET_OFICINA') {
-          const pagoMov = (() => {
-            const tabla = PRECIOS_DINAMICOS['ET_OFICINA'] || PRECIOS['ET_OFICINA'];
-            const ref = r[3]?r[3].toString():'';
-            const key = porc.toFixed(2);
-            return tabla && tabla[ref] && tabla[ref][key] ? tabla[ref][key] : 0;
-          })();
-          tiposCredito[tipo].utilidad += cuotaFinal + pagoMov + 30000 - costo;
-        } else if(tiposLiquidables.includes(tipo)) {
-          const pagoLiq = liqMap[imei] || 0;
-          if(!pagoLiq) {
-            liqPendientesRep.push({ ref: r[3], imei, tipo, fecha: r[0] });
+        const local = r[1]?.toString()||'';
+        if(!datos[local]) continue;
+        const util = parseFloat(r[19])||0;
+        // Verificar si la utilidad está calculada (no es 0 ni vacía)
+        if(util !== 0) {
+          datos[local].utilCredito += util;
+          datos[local].ventasCredito++;
+        } else {
+          // Puede ser venta sin liquidar
+          const imei = r[4]?.toString().trim()||'';
+          const tipo = r[2]?.toString()||'';
+          const tiposLiquidables = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
+          if(tiposLiquidables.includes(tipo) && !liqMap[imei]) {
+            datos[local].sinLiquidar.push({ ref:r[3]||'', imei, tipo, fecha:fmtFecha(r[0]) });
           } else {
-            const util = tipo==='ALO_CREDIT' ? (110000-(cuotaFinal-pagoLiq)) : (cuotaFinal + pagoLiq - costo);
-            tiposCredito[tipo].utilidad += util;
+            datos[local].utilCredito += util;
+            datos[local].ventasCredito++;
           }
         }
       }
     }
 
-    // ---- VENTAS CONTADO ----
-    let totalContado = 0; let utilContado = 0; let countContado = 0;
-    if(contado && contado.values && contado.values.length > 1) {
+    // VENTAS_CONTADO → utilidad contado
+    if(contado?.values?.length > 1) {
       for(let i=1;i<contado.values.length;i++) {
         const r = contado.values[i];
-        if(!enPeriodo(r[0],desde,hasta)) continue;
-        const precio = parseFloat(r[4])||0;
-        const costo = parseFloat(r[5])||0;
-        const util = parseFloat(r[6])||0;
-        totalContado += precio; utilContado += util; countContado++;
-        const local = r[1]||'';
-        if(!localesData[local]) localesData[local]={ventas:0,ingresos:0,gastos:0};
-        localesData[local].ventas++; localesData[local].ingresos+=precio;
+        if(!enRango(r[0])) continue;
+        const local = r[1]?.toString()||'';
+        if(!datos[local]) continue;
+        datos[local].utilContado += parseFloat(r[6])||0;
+        datos[local].ventasContado++;
       }
     }
 
-    // ---- ACCESORIOS ----
-    let totalAcc = 0; let utilAcc = 0; let countAcc = 0;
-    if(accesorios && accesorios.values && accesorios.values.length > 1) {
+    // VENTAS_ACCESORIOS → utilidad accesorios
+    if(accesorios?.values?.length > 1) {
       for(let i=1;i<accesorios.values.length;i++) {
         const r = accesorios.values[i];
-        if(!enPeriodo(r[0],desde,hasta)) continue;
-        const total = parseFloat(r[6])||0;
-        const util = parseFloat(r[12])||0;
-        totalAcc += total; utilAcc += util; countAcc++;
-        const local = r[1]||'';
-        if(!localesData[local]) localesData[local]={ventas:0,ingresos:0,gastos:0};
-        localesData[local].ventas++; localesData[local].ingresos+=total;
+        if(!enRango(r[0])) continue;
+        const local = r[1]?.toString()||'';
+        if(!datos[local]) continue;
+        datos[local].utilAccesorios += parseFloat(r[12])||0;
+        datos[local].ventasAccesorios++;
       }
     }
 
-    // ---- GASTOS DIARIOS ----
-    let totalGastos = 0;
-    if(gastos && gastos.values && gastos.values.length > 1) {
-      for(let i=1;i<gastos.values.length;i++) {
-        const r = gastos.values[i];
-        if(!enPeriodo(r[0],desde,hasta)) continue;
-        const val = parseFloat(r[4])||0;
-        totalGastos += val;
-        const local = r[1]||'';
-        if(!localesData[local]) localesData[local]={ventas:0,ingresos:0,gastos:0};
-        localesData[local].gastos += val;
-      }
-    }
-
-    // ---- EGRESOS GERENCIA ----
-    let totalEgresosGer = 0;
-    if(egresosGer && egresosGer.values && egresosGer.values.length > 1) {
-      for(let i=1;i<egresosGer.values.length;i++) {
-        const r = egresosGer.values[i];
-        if(!enPeriodo(r[0],desde,hasta)) continue;
-        totalEgresosGer += parseFloat(r[5])||0;
-      }
-    }
-
-    // ---- INGRESOS LOCAL ----
-    let totalIngLocal = 0;
-    if(ingresosLoc && ingresosLoc.values && ingresosLoc.values.length > 1) {
+    // INGRESOS_LOCAL → ingresos adicionales
+    if(ingresosLoc?.values?.length > 1) {
       for(let i=1;i<ingresosLoc.values.length;i++) {
         const r = ingresosLoc.values[i];
-        if(!enPeriodo(r[0],desde,hasta)) continue;
-        totalIngLocal += parseFloat(r[4])||0;
+        if(!enRango(r[0])) continue;
+        const local = r[1]?.toString()||'';
+        if(!datos[local]) continue;
+        datos[local].ingresosAdicionales += parseFloat(r[4])||0;
       }
     }
 
-    // ---- INVENTARIO ----
-    let telDisponibles=0; let telVendidos=0; let valorInvTel=0;
-    if(invTel && invTel.values && invTel.values.length > 1) {
-      for(let i=1;i<invTel.values.length;i++) {
-        const r = invTel.values[i];
-        const estado = r[6]?r[6].toString().toUpperCase():'';
-        const costo = parseFloat(r[2])||0;
-        if(estado==='DISPONIBLE') { telDisponibles++; valorInvTel+=costo; }
-        else if(estado==='VENDIDO') telVendidos++;
-      }
-    }
-    let accItems=0; let valorInvAcc=0;
-    if(invAcc && invAcc.values && invAcc.values.length > 1) {
-      for(let i=1;i<invAcc.values.length;i++) {
-        const r = invAcc.values[i];
-        const stock = parseInt(r[6])||parseInt(r[3])||0;
-        const costo = parseFloat(r[4])||0;
-        if(stock>0) { accItems++; valorInvAcc += stock*costo; }
+    // GASTOS_DIARIOS → gastos por local
+    if(gastos?.values?.length > 1) {
+      for(let i=1;i<gastos.values.length;i++) {
+        const r = gastos.values[i];
+        if(!enRango(r[0])) continue;
+        const local = r[1]?.toString()||'';
+        if(!datos[local]) continue;
+        datos[local].gastosDiarios += parseFloat(r[4])||0;
       }
     }
 
-    // ---- TOTALES ----
-    const totalIngresos = totalIngresosCredito + totalContado + totalAcc + totalIngLocal;
-    const totalGastosAll = totalGastos + totalEgresosGer;
-    const utilidadCredito = Object.values(tiposCredito).reduce((s,t)=>s+t.utilidad,0);
-    const utilidadBruta = utilidadCredito + utilContado + utilAcc;
-    const countTotal = countCredito + countContado + countAcc;
+    // EGRESOS_GERENCIA → solo OPERATIVO con local asignado
+    let egresosGeneral = 0;
+    let abonosGeneral = 0;
+    const detalleEgresosGeneral = [];
+
+    if(egresos?.values?.length > 1) {
+      for(let i=1;i<egresos.values.length;i++) {
+        const r = egresos.values[i];
+        if(!enRango(r[0])) continue;
+        const tipo = r[1]?.toString()||'';
+        if(tipo !== 'OPERATIVO') continue; // Solo operativos
+        const local = r[4]?.toString()||'';
+        const valor = parseFloat(r[5])||0;
+        if(local && datos[local]) {
+          datos[local].egresosOperativos += valor;
+        } else {
+          egresosGeneral += valor;
+          detalleEgresosGeneral.push({ fecha:fmtFecha(r[0]), cat:r[2]||'', desc:r[3]||'', valor });
+        }
+      }
+    }
+
+    // ABONOS_DEUDAS → por local o general
+    if(abonosDeudas?.values?.length > 1) {
+      for(let i=1;i<abonosDeudas.values.length;i++) {
+        const r = abonosDeudas.values[i];
+        if(!enRango(r[0])) continue;
+        const local = r[7]?.toString()||'';
+        const valor = parseFloat(r[3])||0;
+        if(local && datos[local]) {
+          datos[local].abonosDeudas += valor;
+        } else {
+          abonosGeneral += valor;
+          detalleEgresosGeneral.push({ fecha:fmtFecha(r[0]), cat:'ABONO DEUDA', desc:r[2]||r[1]||'', valor });
+        }
+      }
+    }
 
     // ---- RENDER ----
-    const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
-    const fmtColor = n => `<span class="rep-fila-val ${n>=0?'verde':'rojo'}">${fmt(n)}</span>`;
-
-    document.getElementById('rep-ingresos-total').textContent = fmt(totalIngresos);
-    document.getElementById('rep-gastos-total').textContent = fmt(totalGastosAll);
-    document.getElementById('rep-utilidad-bruta').textContent = fmt(utilidadBruta);
-    document.getElementById('rep-ventas-count').textContent = countTotal;
-
-    // Por tipo de crédito
-    const tiposOrden = ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','ALO_CREDIT','ADDI','PAYJOY','RUTA'];
-    document.getElementById('rep-por-tipo').innerHTML = `
-      <div class="rep-fila"><span class="rep-fila-label">Contado</span><span class="rep-fila-val">${countContado} ventas · ${fmt(totalContado)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">Accesorios</span><span class="rep-fila-val">${countAcc} ventas · ${fmt(totalAcc)}</span></div>
-      ${tiposOrden.filter(t=>tiposCredito[t]).map(t=>`
-        <div class="rep-fila"><span class="rep-fila-label">${t.replace('_',' ')}</span><span class="rep-fila-val">${tiposCredito[t].count} ventas · ${fmt(tiposCredito[t].ingresos)}</span></div>
-      `).join('')}
-    `;
-
-    // Utilidades por tipo
-    const maxUtil = Math.max(...tiposOrden.filter(t=>tiposCredito[t]).map(t=>tiposCredito[t].utilidad), utilContado, utilAcc, 1);
-    document.getElementById('rep-utilidades-tipo').innerHTML = `
-      <div class="rep-fila"><span class="rep-fila-label">Contado</span>${fmtColor(utilContado)}</div>
-      <div class="rep-fila"><span class="rep-fila-label">Accesorios</span>${fmtColor(utilAcc)}</div>
-      ${tiposOrden.filter(t=>tiposCredito[t]).map(t=>`
-        <div class="rep-fila">
-          <span class="rep-fila-label">${t.replace('_',' ')}</span>
-          ${fmtColor(tiposCredito[t].utilidad)}
-        </div>
-        <div class="rep-bar-wrap"><div class="rep-bar" style="width:${Math.max(0,tiposCredito[t].utilidad/maxUtil*100)}%"></div></div>
-      `).join('')}
-      <div class="rep-fila" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:10px;">
-        <span class="rep-fila-label" style="font-size:14px;">TOTAL UTILIDAD</span>
-        ${fmtColor(utilidadBruta)}
-      </div>
-    `;
-
-    // Por local
-    document.getElementById('rep-por-local').innerHTML = Object.entries(localesData).map(([local, d]) => `
-      <div class="rep-fila">
-        <div><div class="rep-fila-label">🏪 ${local}</div><div style="font-size:11px;color:#94a3b8;">${d.ventas} ventas · Gastos: ${fmt(d.gastos)}</div></div>
-        <span class="rep-fila-val verde">${fmt(d.ingresos)}</span>
-      </div>
-    `).join('') || '<div style="color:#64748b;text-align:center;padding:12px;">Sin datos</div>';
-
-    // Flujo de caja
-    const flujoNeto = totalIngresos - totalGastosAll;
-    document.getElementById('rep-flujo-caja').innerHTML = `
-      <div class="rep-fila"><span class="rep-fila-label">📥 Ventas crédito</span><span class="rep-fila-val verde">${fmt(totalIngresosCredito)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">📥 Ventas contado</span><span class="rep-fila-val verde">${fmt(totalContado)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">📥 Ventas accesorios</span><span class="rep-fila-val verde">${fmt(totalAcc)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">📥 Otros ingresos</span><span class="rep-fila-val verde">${fmt(totalIngLocal)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">📤 Gastos diarios</span><span class="rep-fila-val rojo">-${fmt(totalGastos)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">📤 Egresos gerencia</span><span class="rep-fila-val rojo">-${fmt(totalEgresosGer)}</span></div>
-      <div class="rep-fila" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:10px;">
-        <span class="rep-fila-label" style="font-size:14px;">FLUJO NETO</span>
-        ${fmtColor(flujoNeto)}
-      </div>
-    `;
-
-    // Inventario
-    document.getElementById('rep-inventario').innerHTML = `
-      <div class="rep-fila"><span class="rep-fila-label">📱 Teléfonos disponibles</span><span class="rep-fila-val">${telDisponibles} und</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">📱 Teléfonos vendidos</span><span class="rep-fila-val">${telVendidos} und</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">💰 Valor inventario teléfonos</span><span class="rep-fila-val naranja">${fmt(valorInvTel)}</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">🎧 Accesorios con stock</span><span class="rep-fila-val">${accItems} productos</span></div>
-      <div class="rep-fila"><span class="rep-fila-label">💰 Valor inventario accesorios</span><span class="rep-fila-val naranja">${fmt(valorInvAcc)}</span></div>
-      <div class="rep-fila" style="border-top:2px solid #e2e8f0;margin-top:4px;padding-top:10px;">
-        <span class="rep-fila-label" style="font-size:14px;">TOTAL INVENTARIO</span>
-        <span class="rep-fila-val naranja">${fmt(valorInvTel+valorInvAcc)}</span>
-      </div>
-    `;
-
-    // Liquidaciones pendientes en reporte
-    document.getElementById('rep-liq-pendientes').innerHTML = liqPendientesRep.length === 0
-      ? '<div style="color:#16a34a;text-align:center;padding:12px;font-weight:700;">✅ Todas las ventas están liquidadas</div>'
-      : liqPendientesRep.map(v=>`
-          <div style="background:#fff7ed;border-radius:10px;padding:10px 12px;margin-bottom:8px;border-left:3px solid #d97706;font-size:13px;">
-            <b>${v.ref||v.imei}</b> · <span style="color:#d97706;font-weight:700;">${v.tipo.replace('_',' ')}</span>
-            <div style="color:#78350f;font-size:12px;">${v.fecha}</div>
-          </div>
-        `).join('');
-
     document.getElementById('rep-loading').style.display = 'none';
+
+    // RENTABILIDAD POR LOCAL
+    let sumaLocales = 0;
+    const totalEgresosGenerales = egresosGeneral + abonosGeneral;
+
+    const htmlLocales = LOCALES.map(local => {
+      const d = datos[local];
+      const totalIngresos = d.utilCredito + d.utilContado + d.utilAccesorios + d.ingresosAdicionales;
+      const totalEgresos = d.gastosDiarios + d.egresosOperativos + d.abonosDeudas;
+      const resultado = totalIngresos - totalEgresos;
+      sumaLocales += resultado;
+
+      const colorRes = resultado >= 0 ? '#16a34a' : '#dc2626';
+      const bgRes = resultado >= 0 ? '#f0fdf4' : '#fee2e2';
+      const totalVentas = d.ventasCredito + d.ventasContado + d.ventasAccesorios;
+
+      if(totalIngresos === 0 && totalEgresos === 0) return '';
+
+      return `
+        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;border:2px solid ${colorRes}20;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:800;font-size:15px;">🏪 ${local}</div>
+            <div style="background:${bgRes};color:${colorRes};font-weight:900;font-size:16px;padding:6px 12px;border-radius:10px;">${fmtColor(resultado)}</div>
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${totalVentas} ventas en el período</div>
+          <div style="background:#f8fafc;border-radius:10px;padding:10px;font-size:13px;">
+            <div style="font-weight:700;color:#16a34a;margin-bottom:6px;">📥 INGRESOS</div>
+            ${d.utilCredito ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad crédito (${d.ventasCredito})</span><span style="font-weight:700;">${fmt(d.utilCredito)}</span></div>` : ''}
+            ${d.utilContado ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad contado (${d.ventasContado})</span><span style="font-weight:700;">${fmt(d.utilContado)}</span></div>` : ''}
+            ${d.utilAccesorios ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad accesorios (${d.ventasAccesorios})</span><span style="font-weight:700;">${fmt(d.utilAccesorios)}</span></div>` : ''}
+            ${d.ingresosAdicionales ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Ingresos adicionales</span><span style="font-weight:700;">${fmt(d.ingresosAdicionales)}</span></div>` : ''}
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid #e2e8f0;margin-top:4px;font-weight:800;"><span>Total ingresos</span><span style="color:#16a34a;">${fmt(totalIngresos)}</span></div>
+          </div>
+          ${totalEgresos > 0 ? `
+          <div style="background:#f8fafc;border-radius:10px;padding:10px;font-size:13px;margin-top:8px;">
+            <div style="font-weight:700;color:#dc2626;margin-bottom:6px;">📤 EGRESOS</div>
+            ${d.gastosDiarios ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Gastos diarios</span><span style="font-weight:700;">-${fmt(d.gastosDiarios)}</span></div>` : ''}
+            ${d.egresosOperativos ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Egresos operativos</span><span style="font-weight:700;">-${fmt(d.egresosOperativos)}</span></div>` : ''}
+            ${d.abonosDeudas ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Abonos deudas</span><span style="font-weight:700;">-${fmt(d.abonosDeudas)}</span></div>` : ''}
+            <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid #e2e8f0;margin-top:4px;font-weight:800;"><span>Total egresos</span><span style="color:#dc2626;">-${fmt(totalEgresos)}</span></div>
+          </div>` : ''}
+        </div>`;
+    }).join('');
+
+    document.getElementById('rep-locales-contenido').innerHTML = htmlLocales || '<div style="text-align:center;padding:20px;color:#64748b;">Sin datos en este período</div>';
+    document.getElementById('rep-sec-locales').style.display = 'block';
+
+    // EGRESOS GENERALES
+    if(totalEgresosGenerales > 0) {
+      document.getElementById('rep-generales-contenido').innerHTML = `
+        ${detalleEgresosGeneral.map(e=>`
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <div><div style="font-weight:700;">${e.desc||e.cat}</div><div style="font-size:11px;color:#94a3b8;">${e.cat} · ${e.fecha}</div></div>
+            <span style="font-weight:800;color:#dc2626;">-${fmt(e.valor)}</span>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:15px;font-weight:900;border-top:2px solid #e2e8f0;margin-top:4px;">
+          <span>TOTAL EGRESOS GENERALES</span>
+          <span style="color:#dc2626;">-${fmt(totalEgresosGenerales)}</span>
+        </div>`;
+      document.getElementById('rep-sec-generales').style.display = 'block';
+    }
+
+    // RESULTADO TOTAL
+    const resultadoNeto = sumaLocales - totalEgresosGenerales;
+    const colorNeto = resultadoNeto >= 0 ? '#16a34a' : '#dc2626';
+    const bgNeto = resultadoNeto >= 0 ? '#f0fdf4' : '#fee2e2';
+
+    document.getElementById('rep-total-contenido').innerHTML = `
+      <div style="font-size:13px;line-height:2.2;">
+        ${LOCALES.filter(l => {
+          const d = datos[l];
+          const ti = d.utilCredito+d.utilContado+d.utilAccesorios+d.ingresosAdicionales;
+          const te = d.gastosDiarios+d.egresosOperativos+d.abonosDeudas;
+          return ti > 0 || te > 0;
+        }).map(l => {
+          const d = datos[l];
+          const ti = d.utilCredito+d.utilContado+d.utilAccesorios+d.ingresosAdicionales;
+          const te = d.gastosDiarios+d.egresosOperativos+d.abonosDeudas;
+          const res = ti - te;
+          return `<div style="display:flex;justify-content:space-between;"><span style="color:#64748b;">🏪 ${l}</span>${fmtColor(res)}</div>`;
+        }).join('')}
+        ${totalEgresosGenerales > 0 ? `<div style="display:flex;justify-content:space-between;"><span style="color:#64748b;">📤 Egresos generales</span><span style="font-weight:800;color:#dc2626;">-${fmt(totalEgresosGenerales)}</span></div>` : ''}
+        <div style="background:${bgNeto};border-radius:12px;padding:14px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:800;font-size:15px;color:${colorNeto};">RESULTADO NETO</span>
+          <span style="font-weight:900;font-size:22px;color:${colorNeto};">${resultadoNeto>=0?'+':''}${fmt(resultadoNeto)}</span>
+        </div>
+      </div>`;
+    document.getElementById('rep-sec-total').style.display = 'block';
+
+    // LIQUIDACIONES PENDIENTES
+    const sinLiquidar = LOCALES.flatMap(l => datos[l].sinLiquidar);
+    if(sinLiquidar.length > 0) {
+      document.getElementById('rep-liq-contenido').innerHTML = sinLiquidar.map(v=>`
+        <div style="background:#fff7ed;border-radius:10px;padding:10px;margin-bottom:8px;border-left:3px solid #d97706;font-size:13px;">
+          <b>${v.ref||v.imei}</b> · <span style="color:#d97706;font-weight:700;">${v.tipo.replace('_',' ')}</span>
+          <div style="color:#92400e;font-size:12px;">${v.fecha} · 🏪 Local pendiente</div>
+        </div>`).join('');
+      document.getElementById('rep-sec-liq').style.display = 'block';
+    }
+
   } catch(e) {
     document.getElementById('rep-loading').style.display = 'none';
     console.error('Error reportes:', e);
-    alert('❌ Error al cargar reportes. Verifica conexión.');
+    alert('Error al cargar reportes: ' + e.message);
   }
 }
 
