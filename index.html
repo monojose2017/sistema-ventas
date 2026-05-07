@@ -4399,16 +4399,24 @@ async function cargarLiquidaciones() {
     const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`);
     const liqSheet = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
 
-    // IMEIs ya liquidados
+    // IMEIs ya liquidados — normalizar como string numérico
     const liquidados = {};
     if(liqSheet && liqSheet.values && liqSheet.values.length > 1) {
       for(let i=1; i<liqSheet.values.length; i++) {
         const r = liqSheet.values[i];
-        if(r[0]) liquidados[r[0].toString().trim()] = {
-          imei: r[0], ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
-          fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
-          costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
-        };
+        if(r[0]) {
+          // Normalizar IMEI — puede ser número o string
+          let imeiKey = r[0].toString().trim();
+          // Si es notación científica convertir a entero
+          if(imeiKey.includes('E+') || imeiKey.includes('e+')) {
+            imeiKey = Math.round(parseFloat(imeiKey)).toString();
+          }
+          liquidados[imeiKey] = {
+            imei: imeiKey, ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
+            fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
+            costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
+          };
+        }
       }
     }
     liqCompletadas = Object.values(liquidados);
@@ -4421,7 +4429,12 @@ async function cargarLiquidaciones() {
         const estado = r[13] ? r[13].toString() : '';
         if(!tipos.includes(tipo)) continue;
         if(estado === 'ANULADO') continue;
-        const imei = r[4] ? r[4].toString().trim() : '';
+        // Normalizar IMEI de ventas también
+        let imei = r[4] ? r[4].toString().trim() : '';
+        if(imei.includes('E+') || imei.includes('e+')) {
+          imei = Math.round(parseFloat(imei)).toString();
+        }
+        if(!imei) continue;
         if(liquidados[imei]) continue; // ya liquidado
         // Buscar costo en inventario
         const costo = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei)?.costo || 0;
