@@ -1856,9 +1856,26 @@ window.onload = async function() {
 
 async function cargarTodo() {
   if (!msAccount) return;
+
+  // Función helper para reintentar una llamada hasta 3 veces
+  const fetchConReintento = async (endpoint) => {
+    for(let i=0; i<3; i++) {
+      const data = await graphGet(endpoint);
+      if(data) return data;
+      if(i<2) await new Promise(r => setTimeout(r, 800));
+    }
+    return null;
+  };
+
   try {
-    // Cargar IMEIs disponibles
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+    // Cargar las 3 fuentes en paralelo
+    const [inv, acc, cfg] = await Promise.all([
+      fetchConReintento(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`),
+      fetchConReintento(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`),
+      fetchConReintento(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/usedRange`)
+    ]);
+
+    // Procesar inventario teléfonos
     if (inv && inv.values) {
       const imeis = [];
       for (let i = 1; i < inv.values.length; i++) {
@@ -1868,12 +1885,18 @@ async function cargarTodo() {
         const estado = row[6] ? row[6].toString().toUpperCase() : '';
         const ubicacion = row[9] ? row[9].toString() : '';
         const proveedor = row[4] ? row[4].toString() : '';
+        const origen = row[5] ? row[5].toString() : '';
+        const tipoVenta = row[7] ? row[7].toString() : '';
         if (imei) {
-          imeis.push({ imei: imei.toString(), ref: ref ? ref.toString() : '', costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, estado, ubicacion, proveedor, rowIndex: i+1 });
+          imeis.push({ 
+            imei: imei.toString(), ref: ref ? ref.toString() : '', 
+            costo: parseFloat(row[2]) || 0, precioVenta: parseFloat(row[10]) || 0, 
+            estado, ubicacion, proveedor, origen, tipoVenta, rowIndex: i+1 
+          });
         }
       }
       window.IMEIS_TODOS_CON_ESTADO = imeis;
-      window.IMEIS_TODOS = imeis.filter(i => i.estado !== 'VENDIDO');
+      window.IMEIS_TODOS = imeis.filter(i => i.estado !== 'VENDIDO' && i.estado !== 'PRESTADO' && i.estado !== 'EN GARANTIA');
       ['c-imei','ct-imei'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
@@ -1884,7 +1907,7 @@ async function cargarTodo() {
       });
     }
 
-    const acc = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
+    // Procesar accesorios
     if (acc && acc.values) {
       window.ACCESORIOS_EXCEL = [];
       for (let i = 1; i < acc.values.length; i++) {
@@ -1902,8 +1925,7 @@ async function cargarTodo() {
       }
     }
 
-    // Cargar CONFIG
-    const cfg = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/usedRange`);
+    // Procesar CONFIG
     if(cfg && cfg.values) {
       window.CONFIG_DATA = {
         locales: [], ubicaciones: [], proveedores: [], referencias: [],
@@ -1920,7 +1942,15 @@ async function cargarTodo() {
         if(row[13]) window.CONFIG_DATA.proveedores.push(row[13].toString());
         if(row[15]) window.CONFIG_DATA.referencias.push(row[15].toString());
       }
+      window.CONFIG_LISTAS = window.CONFIG_DATA;
       llenarSelectsDesdeConfig();
+    }
+
+    // Actualizar botón de conexión
+    const btnConectar = document.getElementById('btn-conectar');
+    if(btnConectar) {
+      btnConectar.textContent = '✅ Todo cargado desde OneDrive';
+      btnConectar.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
     }
     console.log('Todo cargado desde OneDrive ✅');
   } catch(e) {
@@ -2023,22 +2053,51 @@ async function escribirFormulasInventario(imei) {
 }
 
 async function marcarVendidoExcel(imei, tipoVenta) {
-  if (!imei) return;
-  try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    if (!inv || !inv.values) return;
-    for (let i = 1; i < inv.values.length; i++) {
-      if (inv.values[i][0] && inv.values[i][0].toString().trim() === imei.toString().trim()) {
-        const fila = i + 1;
-        await graphPatch(
-          `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
-          { values: [['VENDIDO', tipoVenta]] }
-        );
-        break;
+  if (!imei) return true;
+  for(let intento = 1; intento <= 3; intento++) {
+    try {
+      const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
+      if (!inv || !inv.values) {
+        if(intento < 3) await new Promise(r => setTimeout(r, 1000));
+        continue;
       }
+      for (let i = 1; i < inv.values.length; i++) {
+        if (inv.values[i][0] && inv.values[i][0].toString().trim() === imei.toString().trim()) {
+          const fila = i + 1;
+          const result = await graphPatch(
+            `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
+            { values: [['VENDIDO', tipoVenta]] }
+          );
+          if(result) return true;
+          break;
+        }
+      }
+    } catch(e) {
+      console.error(`marcarVendido intento ${intento}:`, e);
+    }
+    if(intento < 3) await new Promise(r => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+async function eliminarUltimaFilaVenta(hoja) {
+  try {
+    const tablaMap = {
+      'VENTAS_CREDITOS': 'TBL_VENTAS_CREDITOS',
+      'VENTAS_CONTADO': 'TBL_VENTAS_CONTADO'
+    };
+    const tabla = tablaMap[hoja];
+    if(!tabla) return;
+    // Obtener filas de la tabla
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/tables/${tabla}/rows`);
+    if(!data || !data.value || !data.value.length) return;
+    const ultimaFila = data.value[data.value.length - 1];
+    if(ultimaFila && ultimaFila.index !== undefined) {
+      await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/${tabla}/rows/itemAt(index=${ultimaFila.index})`);
+      console.log('Última fila eliminada de', tabla);
     }
   } catch(e) {
-    console.error('Error marcando vendido:', e);
+    console.error('Error eliminando última fila:', e);
   }
 }
 
@@ -2089,6 +2148,7 @@ async function enviarForm(tipo) {
     const porcFinal = tipoVenta === 'PAYJOY' ? 0 : parseFloat(getVal('c-porc'))||0;
     const cuotaFinal = tipoVenta === 'PAYJOY' ? cuotaSug : cuota;
     hoja = 'VENTAS_CREDITOS';
+    window._tipoVentaGuardado = tipoVenta; // Guardar antes de que se limpie el formulario
     fila = [getVal('c-fecha')||fecha, getVal('c-local'), tipoVenta, getVal('c-ref'), imei, porcFinal, cuotaFinal, descuento, cuotaFinal-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO'];
 
   } else if(tipo === 'contado') {
@@ -2129,9 +2189,9 @@ async function enviarForm(tipo) {
       }
     }
     const repuesto = getVal('it-repuesto');
-    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO(vacío), TIPO_VENTA(vacío), ALERTA, UBICACION, PRECIO_VENTA
-    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, '', '', '', getVal('it-local'), getNumero('it-precio-venta')];
-    window._pendingFormulaIMEI = imeiNuevo;
+    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, PRECIO_VENTA
+    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta')];
+    window._pendingFormulaIMEI = null;
 
   } else if(tipo === 'ingreso-accesorio') {
     hoja = 'INVENTARIO_ACCESORIOS';
@@ -2204,7 +2264,15 @@ async function enviarForm(tipo) {
   const ok = await agregarFilaExcel(hoja, fila);
 
   if(ok && imei && (tipo === 'credito' || tipo === 'contado')) {
-    await marcarVendidoExcel(imei, tipo === 'contado' ? 'CONTADO' : getVal('c-tipo'));
+    const marcado = await marcarVendidoExcel(imei, tipo === 'contado' ? 'CONTADO' : getVal('c-tipo') || window._tipoVentaGuardado || '');
+    if(!marcado) {
+      // Falló marcar como vendido — eliminar la venta recién registrada
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      alert('❌ Error al actualizar el inventario. La venta NO fue registrada. Verifica tu conexión e intenta de nuevo.');
+      // Eliminar última fila de la tabla de ventas
+      await eliminarUltimaFilaVenta(hoja);
+      return;
+    }
     await cargarTodo();
   }
   if(ok && tipo === 'accesorios') {
@@ -3861,8 +3929,8 @@ async function cargarMisRegistros() {
       for(let i=1;i<creditos.values.length;i++) {
         const r = creditos.values[i];
         if(fmtFecha(r[0])===fecha && r[1]?.toString()===local && r[13]!=='ANULADO') {
-          listaCred.push({ tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'', efectivo:parseFloat(r[10])||0 });
-        }
+          // CREDITO: FECHA(0),LOCAL(1),TIPO(2),REF(3),IMEI(4),PORC(5),CUOTA_INI(6),DESC(7),CUOTA_FINAL(8),TIPO_PAGO(9),EFECTIVO(10),TRANSFER(11)
+          listaCred.push({ tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'', efectivo:parseFloat(r[10])||0 });        }
       }
     }
 
@@ -4060,9 +4128,13 @@ async function cargarMisRegistros() {
   } catch(e) {
     console.error('Error en cargarMisRegistros:', e);
     document.getElementById('mr-loading').style.display = 'none';
-    document.getElementById('mr-contenido').style.display = 'block';
-    document.getElementById('mr-sin-registros').style.display = 'block';
-    document.getElementById('mr-sin-registros').textContent = '❌ Error: ' + e.message;
+    // Solo mostrar error si el contenido no cargó nada
+    const contenido = document.getElementById('mr-contenido');
+    if(contenido && contenido.style.display === 'none') {
+      contenido.style.display = 'block';
+      const sinReg = document.getElementById('mr-sin-registros');
+      if(sinReg) { sinReg.style.display = 'block'; sinReg.textContent = '❌ Error al cargar. Verifica conexión.'; }
+    }
   }
 }
 
