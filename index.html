@@ -1960,6 +1960,28 @@ async function reintentarCarga() {
   await cargarTodo();
 }
 
+// Renovar token automáticamente cada 45 minutos en segundo plano
+function iniciarRenovacionToken() {
+  setInterval(async () => {
+    if(!msAccount) return;
+    try {
+      const resp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
+      if(resp) {
+        msAccount = resp.account;
+        console.log('Token renovado automáticamente ✅');
+      }
+    } catch(e) {
+      console.log('Renovación silenciosa falló, intentando popup...');
+      try {
+        const resp = await msalApp.acquireTokenPopup({ scopes: MS_SCOPES, account: msAccount });
+        msAccount = resp.account;
+      } catch(e2) {
+        console.error('No se pudo renovar token:', e2);
+      }
+    }
+  }, 45 * 60 * 1000); // 45 minutos
+}
+
 async function cargarTodo() {
   if (!msAccount) return;
   setEstadoCarga('cargando');
@@ -2061,6 +2083,11 @@ async function cargarTodo() {
 
     setEstadoCarga('ok');
     console.log('Todo cargado desde OneDrive ✅');
+    // Iniciar renovación automática de token (solo la primera vez)
+    if(!window._tokenRenovacionIniciada) {
+      window._tokenRenovacionIniciada = true;
+      iniciarRenovacionToken();
+    }
   } catch(e) {
     console.error('Error cargando datos:', e);
     setEstadoCarga('error');
