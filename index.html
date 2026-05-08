@@ -1791,7 +1791,6 @@ async function getToken() {
     return resp.accessToken;
   } catch(e) {
     try {
-      // Intenta popup en lugar de redirect para no perder la sesión
       const resp = await msalApp.acquireTokenPopup({ scopes: MS_SCOPES, account: msAccount });
       msAccount = resp.account;
       return resp.accessToken;
@@ -1802,50 +1801,112 @@ async function getToken() {
   }
 }
 
+// Clasificar el tipo de error de Graph API
+function clasificarError(status, body) {
+  if(status === 401) return 'TOKEN_EXPIRADO';
+  if(status === 403) return 'SIN_PERMISOS';
+  if(status === 404) return 'NO_ENCONTRADO';
+  if(status === 429) return 'DEMASIADAS_PETICIONES';
+  if(status === 500 || status === 501) return 'ERROR_SERVIDOR';
+  if(status === 0 || status === undefined) return 'SIN_CONEXION';
+  return 'ERROR_DESCONOCIDO';
+}
+
+function mensajeError(tipo) {
+  const mensajes = {
+    'TOKEN_EXPIRADO': '🔑 Sesión expirada. Recarga la app.',
+    'SIN_PERMISOS': '🔒 Sin permisos para acceder al archivo.',
+    'NO_ENCONTRADO': '🔍 Archivo no encontrado en OneDrive.',
+    'DEMASIADAS_PETICIONES': '⏱️ Demasiadas peticiones. Espera un momento.',
+    'ERROR_SERVIDOR': '🖥️ Error en el servidor de Microsoft.',
+    'SIN_CONEXION': '📶 Sin conexión a internet.'
+  };
+  return mensajes[tipo] || '❌ Error desconocido.';
+}
+
 async function graphGet(endpoint) {
-  const token = await getToken();
-  if (!token) return null;
-  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  if (r.ok) return await r.json();
+  for(let i=0; i<2; i++) {
+    const token = await getToken();
+    if(!token) {
+      setEstadoCarga('error');
+      return null;
+    }
+    try {
+      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(r.ok) return await r.json();
+      const tipo = clasificarError(r.status);
+      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue; // reintentar con token nuevo
+      console.error(`graphGet error ${r.status} (${tipo}):`, endpoint);
+      return null;
+    } catch(e) {
+      console.error('graphGet sin conexión:', e);
+      if(i === 0) await new Promise(r=>setTimeout(r,1000));
+    }
+  }
   return null;
 }
 
 async function graphPost(endpoint, body) {
-  const token = await getToken();
-  if (!token) return null;
-  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (r.ok) return await r.json();
-  const err = await r.text();
-  console.error('Graph error:', err);
+  for(let i=0; i<2; i++) {
+    const token = await getToken();
+    if(!token) return null;
+    try {
+      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if(r.ok) return await r.json();
+      const tipo = clasificarError(r.status);
+      const err = await r.text();
+      console.error(`graphPost ${r.status} (${tipo}):`, err);
+      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
+      // Mostrar error específico al usuario
+      throw new Error(mensajeError(tipo));
+    } catch(e) {
+      if(i === 1 || e.message.includes('🔑') || e.message.includes('🔒') || e.message.includes('🔍') || e.message.includes('🖥️')) throw e;
+      await new Promise(r=>setTimeout(r,1000));
+    }
+  }
   return null;
 }
 
 async function graphPatch(endpoint, body) {
-  const token = await getToken();
-  if (!token) return null;
-  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-    method: 'PATCH',
-    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-  if (r.ok) return await r.json();
+  for(let i=0; i<2; i++) {
+    const token = await getToken();
+    if(!token) return null;
+    try {
+      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if(r.ok) return await r.json();
+      const tipo = clasificarError(r.status);
+      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
+      throw new Error(mensajeError(tipo));
+    } catch(e) {
+      if(i === 1 || e.message.includes('🔑') || e.message.includes('🔒') || e.message.includes('🖥️')) throw e;
+      await new Promise(r=>setTimeout(r,1000));
+    }
+  }
   return null;
 }
 
 async function graphDelete(endpoint) {
   const token = await getToken();
-  if (!token) return false;
-  const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  return r.ok;
+  if(!token) return false;
+  try {
+    const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    return r.ok;
+  } catch(e) {
+    return false;
+  }
 }
 
 window.onload = async function() {
@@ -2307,46 +2368,48 @@ async function enviarForm(tipo) {
   const btn = document.querySelector(`#screen-${tipo} .submit-btn`);
   if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
 
-  const ok = await agregarFilaExcel(hoja, fila);
+  let ok = false;
+  let errorMsg = '';
+  try {
+    ok = await agregarFilaExcel(hoja, fila);
 
-  if(ok && imei && (tipo === 'credito' || tipo === 'contado')) {
-    const marcado = await marcarVendidoExcel(imei, tipo === 'contado' ? 'CONTADO' : getVal('c-tipo') || window._tipoVentaGuardado || '');
-    if(!marcado) {
-      // Falló marcar como vendido — eliminar la venta recién registrada
-      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
-      alert('❌ Error al actualizar el inventario. La venta NO fue registrada. Verifica tu conexión e intenta de nuevo.');
-      // Eliminar última fila de la tabla de ventas
-      await eliminarUltimaFilaVenta(hoja);
-      return;
+    if(ok && imei && (tipo === 'credito' || tipo === 'contado')) {
+      const marcado = await marcarVendidoExcel(imei, tipo === 'contado' ? 'CONTADO' : getVal('c-tipo') || window._tipoVentaGuardado || '');
+      if(!marcado) {
+        if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+        alert('❌ No se pudo actualizar el inventario. La venta NO fue registrada. Verifica tu conexión e intenta de nuevo.');
+        await eliminarUltimaFilaVenta(hoja);
+        return;
+      }
+      await cargarTodo();
     }
-    await cargarTodo();
-  }
-  if(ok && tipo === 'accesorios') {
-    await cargarTodo();
-  }
-  if(ok && tipo === 'abono-deuda') {
-    const idx = document.getElementById('ab-acreedor').value;
-    if(idx !== '') {
-      const deuda = deudasActivas[parseInt(idx)];
-      const abono = getNumero('ab-valor');
-      const nuevoSaldo = deuda.saldo - abono;
-      await actualizarSaldoDeuda(deuda.acreedor, nuevoSaldo);
-      await cargarDeudas();
+    if(ok && tipo === 'accesorios') await cargarTodo();
+    if(ok && tipo === 'abono-deuda') {
+      const idx = document.getElementById('ab-acreedor').value;
+      if(idx !== '') {
+        const deuda = deudasActivas[parseInt(idx)];
+        const abono = getNumero('ab-valor');
+        const nuevoSaldo = deuda.saldo - abono;
+        await actualizarSaldoDeuda(deuda.acreedor, nuevoSaldo);
+        await cargarDeudas();
+      }
     }
+  } catch(e) {
+    ok = false;
+    errorMsg = e.message || 'Error al enviar';
+    console.error('enviarForm error:', e);
   }
 
   if(btn){ btn.textContent = ok ? 'Registrar ✓' : 'Reintentar ⚠️'; btn.disabled = false; }
   if(ok) {
     limpiarFormulario(tipo);
     if(tipo === 'ingreso-telefono') {
-      // Escribir fórmulas de ESTADO y TIPO_VENTA en la fila recién agregada
       if(window._pendingFormulaIMEI) {
         await escribirFormulasInventario(window._pendingFormulaIMEI);
         window._pendingFormulaIMEI = null;
       }
       mostrarExito('inventario');
     } else if(tipo === 'ingreso-accesorio') {
-      mostrarExito('inventario');
       mostrarExito('inventario');
     } else if(tipo === 'nueva-deuda' || tipo === 'abono-deuda') {
       await cargarDeudas();
@@ -2357,7 +2420,7 @@ async function enviarForm(tipo) {
       irA('success');
     }
   } else {
-    alert('⚠️ Error al enviar. Verifica tu conexión e intenta de nuevo.');
+    alert('⚠️ ' + (errorMsg || 'Error al enviar. Verifica tu conexión e intenta de nuevo.'));
   }
 }
 
