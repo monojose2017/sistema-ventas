@@ -783,6 +783,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando reportes...</div>
 
+    <!-- VENTAS POR LOCAL Y TIPO -->
+    <div class="rep-seccion" id="rep-sec-ventas" style="display:none;">
+      <div class="rep-titulo">📊 Ventas por Local y Tipo</div>
+      <div id="rep-ventas-contenido"></div>
+    </div>
+
     <!-- RESULTADO TOTAL -->
     <div class="rep-seccion" id="rep-sec-total" style="display:none;">
       <div class="rep-titulo">🏆 Resultado Total del Negocio</div>
@@ -3829,7 +3835,7 @@ function getRegFechas() {
     return { desde: fmt(ayer), hasta: fmt(ayer) };
   }
   if(regPeriodo === 'semana') {
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
+    const diaSemana = hoy.getDay() === 0 ? 7 : hoy.getDay(); const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSemana + 1);
     return { desde: fmt(lunes), hasta: fmt(hoy) };
   }
   if(regPeriodo === 'mes') {
@@ -4882,7 +4888,7 @@ function getFechasPeriodo() {
   const fmt = d => d.toISOString().split('T')[0];
   if(repPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
   if(repPeriodo === 'semana') {
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - hoy.getDay() + 1);
+    const diaSemana = hoy.getDay() === 0 ? 7 : hoy.getDay(); const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSemana + 1);
     return { desde: fmt(lunes), hasta: fmt(hoy) };
   }
   if(repPeriodo === 'mes') {
@@ -4929,7 +4935,7 @@ async function cargarReportes() {
   };
 
   try {
-    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet] = await Promise.all([
+    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet, creditos] = await Promise.all([
       fetchConReintento('CONTROL'),
       fetchConReintento('VENTAS_CONTADO'),
       fetchConReintento('VENTAS_ACCESORIOS'),
@@ -4937,7 +4943,8 @@ async function cargarReportes() {
       fetchConReintento('EGRESOS_GERENCIA'),
       fetchConReintento('INGRESOS_LOCAL'),
       fetchConReintento('ABONOS_DEUDAS'),
-      fetchConReintento('LIQUIDACIONES')
+      fetchConReintento('LIQUIDACIONES'),
+      fetchConReintento('VENTAS_CREDITOS')
     ]);
 
     const fmtFecha = f => {
@@ -5082,6 +5089,87 @@ async function cargarReportes() {
         }
       }
     }
+
+    // ---- VENTAS POR LOCAL Y TIPO ----
+    const ventasLocales = {};
+    LOCALES.forEach(l => ventasLocales[l] = { credito:{}, contado:0 });
+
+    // Créditos por tipo
+    if(creditos?.values?.length > 1) {
+      for(let i=1;i<creditos.values.length;i++) {
+        const r = creditos.values[i];
+        if(!enRango(r[0])) continue;
+        if(r[13]==='ANULADO') continue;
+        const local = r[1]?.toString()||'';
+        const tipo = r[2]?.toString()||'';
+        if(!ventasLocales[local]) continue;
+        ventasLocales[local].credito[tipo] = (ventasLocales[local].credito[tipo]||0) + 1;
+      }
+    }
+
+    // Contado por local
+    if(contado?.values?.length > 1) {
+      for(let i=1;i<contado.values.length;i++) {
+        const r = contado.values[i];
+        if(!enRango(r[0])) continue;
+        const local = r[1]?.toString()||'';
+        if(!ventasLocales[local]) continue;
+        ventasLocales[local].contado++;
+      }
+    }
+
+    // Render ventas por local
+    const tiposOrden = ['OFICINA','RECOMPRA','ALO_CREDIT','ET_OFICINA','ET_CLARO','PAYJOY','ADDI'];
+    const htmlVentas = LOCALES.map(local => {
+      const d = ventasLocales[local];
+      const totalCred = Object.values(d.credito).reduce((s,v)=>s+v,0);
+      const totalVentas = totalCred + d.contado;
+      if(totalVentas === 0) return '';
+      return `
+        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-weight:800;font-size:15px;">🏪 ${local}</div>
+            <div style="background:#dbeafe;color:#1d4ed8;font-weight:900;font-size:15px;padding:4px 12px;border-radius:10px;">${totalVentas} ventas</div>
+          </div>
+          <div style="font-size:13px;">
+            ${totalCred > 0 ? `
+              <div style="font-weight:700;color:#64748b;margin-bottom:6px;">📋 Crédito (${totalCred})</div>
+              ${tiposOrden.filter(t=>d.credito[t]).map(t=>`
+                <div style="display:flex;justify-content:space-between;padding:4px 8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;">
+                  <span style="color:#475569;">${t.replace('_',' ')}</span>
+                  <span style="font-weight:800;color:#1d4ed8;">${d.credito[t]}</span>
+                </div>`).join('')}
+            ` : ''}
+            ${d.contado > 0 ? `
+              <div style="display:flex;justify-content:space-between;padding:4px 8px;background:#f0fdf4;border-radius:8px;margin-top:6px;">
+                <span style="font-weight:700;color:#15803d;">💵 Contado</span>
+                <span style="font-weight:800;color:#15803d;">${d.contado}</span>
+              </div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+
+    // Total general de ventas
+    const totalCredGeneral = LOCALES.reduce((s,l)=>s+Object.values(ventasLocales[l].credito).reduce((a,b)=>a+b,0),0);
+    const totalContGeneral = LOCALES.reduce((s,l)=>s+ventasLocales[l].contado,0);
+
+    document.getElementById('rep-ventas-contenido').innerHTML = `
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <div style="flex:1;background:#dbeafe;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">CRÉDITO</div>
+          <div style="font-size:22px;font-weight:900;color:#1d4ed8;">${totalCredGeneral}</div>
+        </div>
+        <div style="flex:1;background:#dcfce7;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">CONTADO</div>
+          <div style="font-size:22px;font-weight:900;color:#16a34a;">${totalContGeneral}</div>
+        </div>
+        <div style="flex:1;background:#f1f5f9;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">TOTAL</div>
+          <div style="font-size:22px;font-weight:900;color:#1e293b;">${totalCredGeneral+totalContGeneral}</div>
+        </div>
+      </div>
+      ${htmlVentas || '<div style="text-align:center;padding:20px;color:#64748b;">Sin ventas en este período</div>'}`;
+    document.getElementById('rep-sec-ventas').style.display = 'block';
 
     // ---- RENDER ----
     document.getElementById('rep-loading').style.display = 'none';
