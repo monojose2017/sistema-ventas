@@ -5096,11 +5096,23 @@ let provSemanaDesde = '';
 let provSemanaHasta = '';
 
 function getLunesDomingo(fecha) {
-  const d = new Date(fecha);
+  // Crear fecha en hora local para evitar desplazamiento UTC
+  let d;
+  if(typeof fecha === 'string') {
+    const [y,m,dy] = fecha.split('-').map(Number);
+    d = new Date(y, m-1, dy);
+  } else {
+    d = new Date(fecha);
+  }
   const dia = d.getDay() === 0 ? 7 : d.getDay();
   const lunes = new Date(d); lunes.setDate(d.getDate() - dia + 1);
   const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
-  const fmt = x => x.toISOString().split('T')[0];
+  const fmt = x => {
+    const yy = x.getFullYear();
+    const mm = String(x.getMonth()+1).padStart(2,'0');
+    const dd = String(x.getDate()).padStart(2,'0');
+    return `${yy}-${mm}-${dd}`;
+  };
   return { desde: fmt(lunes), hasta: fmt(domingo) };
 }
 
