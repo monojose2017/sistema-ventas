@@ -2002,6 +2002,29 @@ async function cargarTodo() {
   if (!msAccount) return;
   setEstadoCarga('cargando');
 
+  // Cerrar sesiones activas del workbook que puedan estar bloqueando
+  try {
+    const token = await getToken();
+    if(token) {
+      const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(sesiones.ok) {
+        const data = await sesiones.json();
+        if(data.value && data.value.length > 0) {
+          for(const ses of data.value) {
+            await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+          }
+        }
+      }
+    }
+  } catch(e) {
+    console.log('No se pudieron cerrar sesiones:', e);
+  }
+
   // Función helper para reintentar una llamada hasta 3 veces
   const fetchConReintento = async (endpoint) => {
     for(let i=0; i<3; i++) {
