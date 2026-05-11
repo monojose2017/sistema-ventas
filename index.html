@@ -628,6 +628,19 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <button type="button" id="nd-recibido-si" onclick="selRecibido(true)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;font-weight:700;cursor:pointer;">✅ SÍ</button>
         <button type="button" id="nd-recibido-no" onclick="selRecibido(false)" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;font-weight:700;cursor:pointer;">❌ NO</button>
       </div>
+      <div id="nd-pago-fields" style="display:none;margin-top:12px;">
+        <div class="field"><label>Método de Pago</label>
+          <div class="select-wrap"><select id="nd-pago" onchange="manejarPago('nd')">
+            <option value="EFECTIVO">EFECTIVO</option>
+            <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+            <option value="MIXTO">MIXTO</option>
+          </select></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Efectivo</label><input type="text" id="nd-efectivo" placeholder="$0" oninput="formatMoney(this)"></div>
+          <div class="field"><label>Transferencia</label><input type="text" id="nd-transfer" placeholder="$0" oninput="formatMoney(this)"></div>
+        </div>
+      </div>
     </div>
     <button class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 4px 12px rgba(180,83,9,.35)" onclick="enviarForm('nueva-deuda')">Registrar Deuda ✓</button>
   </div>
@@ -2354,7 +2367,10 @@ async function enviarForm(tipo) {
     hoja = 'DEUDAS';
     fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), '', localDeuda];
     if(ndRecibido) {
-      await agregarFilaExcel('INGRESOS_GERENCIA', [getVal('nd-fecha')||fecha, 'PRESTAMO RECIBIDO', '', 'Prestamo de '+getVal('nd-acreedor'), localDeuda, monto, 'EFECTIVO', monto, 0]);
+      const ndPago = getVal('nd-pago') || 'EFECTIVO';
+      const ndEfectivo = getNumero('nd-efectivo') || (ndPago === 'EFECTIVO' ? monto : 0);
+      const ndTransfer = getNumero('nd-transfer') || (ndPago === 'TRANSFERENCIA' ? monto : 0);
+      await agregarFilaExcel('INGRESOS_GERENCIA', [getVal('nd-fecha')||fecha, 'PRESTAMO RECIBIDO', '', 'Prestamo de '+getVal('nd-acreedor'), localDeuda, monto, ndPago, ndEfectivo, ndTransfer]);
     }
 
   } else if(tipo === 'abono-deuda') {
@@ -3489,6 +3505,16 @@ function selRecibido(val) {
   document.getElementById('nd-recibido-si').style.color = val ? 'white' : 'black';
   document.getElementById('nd-recibido-no').style.background = !val ? '#d97706' : 'white';
   document.getElementById('nd-recibido-no').style.color = !val ? 'white' : 'black';
+  // Mostrar/ocultar campos de pago
+  document.getElementById('nd-pago-fields').style.display = val ? 'block' : 'none';
+  if(val) {
+    // Prellenar efectivo con el monto total
+    const monto = getNumero('nd-monto');
+    if(monto) {
+      document.getElementById('nd-efectivo').value = '$'+monto.toLocaleString('es-CO');
+      document.getElementById('nd-transfer').value = '$0';
+    }
+  }
 }
 
 let deudasActivas = [];
@@ -4097,7 +4123,7 @@ async function iniciarMisRegistros() {
       for(let i=1;i<gastos.values.length;i++) {
         const r = gastos.values[i];
         if(!r[0]) continue;
-        MR_DATOS.gastos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
+        MR_DATOS.gastos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0, metodo:r[5]?.toString()||'EFECTIVO' });
       }
     }
     if(ingresos?.values?.length > 1) {
@@ -4134,9 +4160,9 @@ async function iniciarMisRegistros() {
   } catch(e) {
     console.error('Error cargando Mis Registros:', e);
     document.getElementById('mr-loading').style.display = 'none';
-    MR_CARGANDO = false;
-    document.getElementById('mr-sin-filtro').style.display = 'block';
-    document.getElementById('mr-sin-filtro').textContent = '❌ Error al cargar. Verifica conexión.';
+    MR_CARGANDO = false; // Siempre resetear aunque haya error
+    const sinFiltro = document.getElementById('mr-sin-filtro');
+    if(sinFiltro) { sinFiltro.style.display = 'block'; sinFiltro.textContent = '❌ Error al cargar. Toca Recargar.'; }
   }
 }
 
@@ -4177,7 +4203,7 @@ function renderMisRegistros(local, fecha) {
     listaCont.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.precio:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaAcc.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.total:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaIng.reduce((s,i)=>s+i.valor,0);
-  const totalGastosEfectivo = listaGas.reduce((s,i)=>s+i.valor,0);
+  const totalGastosEfectivo = listaGas.reduce((s,i) => s + (i.metodo==='TRANSFERENCIA' ? 0 : i.valor), 0);
   const totalRetiros = listaRet.reduce((s,i)=>s+i.valor,0);
   const efectivoCaja = saldoApertura + totalEfectivoEntrado - totalGastosEfectivo - totalRetiros;
   const totalIngresos = listaCred.reduce((s,i)=>s+i.cuota,0) + listaCont.reduce((s,i)=>s+i.precio,0) + listaAcc.reduce((s,i)=>s+i.total,0) + listaIng.reduce((s,i)=>s+i.valor,0);
@@ -4241,7 +4267,7 @@ function renderMisRegistros(local, fecha) {
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
           <div style="font-weight:700;font-size:13px;">${v.desc||v.tipo}</div>
-          <div style="font-size:11px;color:#64748b;">${v.tipo}</div>
+          <div style="font-size:11px;color:#64748b;">${v.tipo} · 💳 ${v.metodo||'EFECTIVO'}</div>
         </div>
         <div style="font-weight:800;color:#dc2626;font-size:14px;">-${fmt(v.valor)}</div>
       </div>
@@ -4777,16 +4803,7 @@ async function guardarLiquidacion() {
       // IMEI como texto con apóstrofe para evitar conversión a número
       // IMEI, REFERENCIA, TIPO_VENTA, PORCENTAJE, COSTO, FECHA, PAGO_FINANCIERA, OBSERVACION, FECHA_ACTUALIZACION, COSTO_CLARO, VALOR_SISTEMA
       const fila = [v.imei.toString(), v.ref, v.tipo, v.porc, v.costo, v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy, costoClaro, valorSistema];
-      const result = await agregarFilaExcel('LIQUIDACIONES', fila);
-      // Forzar formato texto en la celda del IMEI para evitar notación científica
-      if(result) {
-        const liqData = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
-        if(liqData && liqData.values) {
-          const filaNum = liqData.values.length + 1;
-          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/range(address='A${filaNum}')`,
-            { numberFormat: [['@']], values: [[v.imei.toString()]] });
-        }
-      }
+      await agregarFilaExcel('LIQUIDACIONES', fila);
     }
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     mostrarToastVerde('✅ Liquidación guardada correctamente');
