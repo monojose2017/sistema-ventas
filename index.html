@@ -760,7 +760,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
 <!-- REPORTES MENU -->
 <div class="screen" id="screen-reportes">
-  <div class="form-header" style="background:linear-gradient(135deg,#0f4c81,#1d6fa4)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Reportes</div><div class="form-header-sub">Rentabilidad del negocio</div></div></div>
+  <div class="form-header" style="background:linear-gradient(135deg,#0f4c81,#1d6fa4)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Reportes</div><div class="form-header-sub">Análisis del negocio</div></div></div>
   <div class="form-body">
     <!-- Selector de período -->
     <div style="background:#eff6ff;border-radius:14px;padding:14px;margin-bottom:16px;">
@@ -783,36 +783,64 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando reportes...</div>
 
-    <!-- VENTAS POR LOCAL Y TIPO -->
-    <div class="rep-seccion" id="rep-sec-ventas" style="display:none;">
-      <div class="rep-titulo">📊 Ventas por Local y Tipo</div>
-      <div id="rep-ventas-contenido"></div>
+    <!-- SEPARADOR VENTAS -->
+    <div id="rep-bloque-ventas" style="display:none;">
+      <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">📊</span>
+        <div>
+          <div style="font-weight:900;color:white;font-size:15px;">Ventas</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.75);">Conteo por local y tipo</div>
+        </div>
+      </div>
+
+      <!-- VENTAS GENERALES POR TIPO -->
+      <div class="rep-seccion">
+        <div class="rep-titulo">🌐 Resumen General</div>
+        <div id="rep-ventas-general"></div>
+      </div>
+
+      <!-- VENTAS POR LOCAL Y TIPO -->
+      <div class="rep-seccion">
+        <div class="rep-titulo">🏪 Por Local</div>
+        <div id="rep-ventas-contenido"></div>
+      </div>
     </div>
 
-    <!-- RESULTADO TOTAL -->
-    <div class="rep-seccion" id="rep-sec-total" style="display:none;">
-      <div class="rep-titulo">🏆 Resultado Total del Negocio</div>
-      <div id="rep-total-contenido"></div>
-    </div>
+    <!-- SEPARADOR RENTABILIDAD -->
+    <div id="rep-bloque-rentabilidad" style="display:none;">
+      <div style="background:linear-gradient(135deg,#15803d,#16a34a);border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">💰</span>
+        <div>
+          <div style="font-weight:900;color:white;font-size:15px;">Rentabilidad</div>
+          <div style="font-size:12px;color:rgba(255,255,255,.75);">Utilidades y resultado neto</div>
+        </div>
+      </div>
 
-    <!-- RENTABILIDAD POR LOCAL -->
-    <div class="rep-seccion" id="rep-sec-locales" style="display:none;">
-      <div class="rep-titulo">🏪 Rentabilidad por Local</div>
-      <div id="rep-locales-contenido"></div>
-    </div>
+      <!-- RESULTADO TOTAL -->
+      <div class="rep-seccion" id="rep-sec-total">
+        <div class="rep-titulo">🏆 Resultado Total del Negocio</div>
+        <div id="rep-total-contenido"></div>
+      </div>
 
-    <!-- EGRESOS GENERALES -->
-    <div class="rep-seccion" id="rep-sec-generales" style="display:none;">
-      <div class="rep-titulo">📤 Egresos Generales</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Gastos sin local asignado — carga del negocio en general</div>
-      <div id="rep-generales-contenido"></div>
-    </div>
+      <!-- RENTABILIDAD POR LOCAL -->
+      <div class="rep-seccion" id="rep-sec-locales">
+        <div class="rep-titulo">🏪 Por Local</div>
+        <div id="rep-locales-contenido"></div>
+      </div>
 
-    <!-- LIQUIDACIONES PENDIENTES -->
-    <div class="rep-seccion" id="rep-sec-liq" style="display:none;">
-      <div class="rep-titulo">⚠️ Ventas sin Liquidar</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Estas ventas no tienen utilidad calculada aún</div>
-      <div id="rep-liq-contenido"></div>
+      <!-- EGRESOS GENERALES -->
+      <div class="rep-seccion" id="rep-sec-generales" style="display:none;">
+        <div class="rep-titulo">📤 Egresos Generales</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Gastos sin local asignado</div>
+        <div id="rep-generales-contenido"></div>
+      </div>
+
+      <!-- LIQUIDACIONES PENDIENTES -->
+      <div class="rep-seccion" id="rep-sec-liq" style="display:none;">
+        <div class="rep-titulo">⚠️ Ventas sin Liquidar</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Estas ventas no tienen utilidad calculada aún</div>
+        <div id="rep-liq-contenido"></div>
+      </div>
     </div>
 
   </div>
@@ -5119,7 +5147,48 @@ async function cargarReportes() {
     }
 
     // Render ventas por local
+    // Total general de ventas
+    const totalCredGeneral = LOCALES.reduce((s,l)=>s+Object.values(ventasLocales[l].credito).reduce((a,b)=>a+b,0),0);
+    const totalContGeneral = LOCALES.reduce((s,l)=>s+ventasLocales[l].contado,0);
+
+    // Resumen general por tipo (todos los locales)
+    const totalPorTipo = {};
+    LOCALES.forEach(l => {
+      Object.entries(ventasLocales[l].credito).forEach(([tipo, count]) => {
+        totalPorTipo[tipo] = (totalPorTipo[tipo]||0) + count;
+      });
+    });
+
     const tiposOrden = ['OFICINA','RECOMPRA','ALO_CREDIT','ET_OFICINA','ET_CLARO','PAYJOY','ADDI'];
+    const htmlGeneral = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;background:#dbeafe;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">CRÉDITO</div>
+          <div style="font-size:24px;font-weight:900;color:#1d4ed8;">${totalCredGeneral}</div>
+        </div>
+        <div style="flex:1;background:#dcfce7;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">CONTADO</div>
+          <div style="font-size:24px;font-weight:900;color:#16a34a;">${totalContGeneral}</div>
+        </div>
+        <div style="flex:1;background:#f1f5f9;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">TOTAL</div>
+          <div style="font-size:24px;font-weight:900;color:#1e293b;">${totalCredGeneral+totalContGeneral}</div>
+        </div>
+      </div>
+      ${tiposOrden.filter(t=>totalPorTipo[t]).map(t=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8fafc;border-radius:10px;margin-bottom:6px;">
+          <span style="font-weight:700;color:#475569;">${t.replace('_',' ')}</span>
+          <span style="font-weight:900;color:#1d4ed8;font-size:16px;">${totalPorTipo[t]}</span>
+        </div>`).join('')}
+      ${totalContGeneral > 0 ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f0fdf4;border-radius:10px;margin-bottom:6px;">
+          <span style="font-weight:700;color:#15803d;">💵 CONTADO</span>
+          <span style="font-weight:900;color:#15803d;font-size:16px;">${totalContGeneral}</span>
+        </div>` : ''}`;
+
+    document.getElementById('rep-ventas-general').innerHTML = htmlGeneral;
+
+    // Render por local
     const htmlVentas = LOCALES.map(local => {
       const d = ventasLocales[local];
       const totalCred = Object.values(d.credito).reduce((s,v)=>s+v,0);
@@ -5129,7 +5198,7 @@ async function cargarReportes() {
         <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
             <div style="font-weight:800;font-size:15px;">🏪 ${local}</div>
-            <div style="background:#dbeafe;color:#1d4ed8;font-weight:900;font-size:15px;padding:4px 12px;border-radius:10px;">${totalVentas} ventas</div>
+            <div style="background:#dbeafe;color:#1d4ed8;font-weight:900;font-size:15px;padding:4px 12px;border-radius:10px;">${totalVentas}</div>
           </div>
           <div style="font-size:13px;">
             ${totalCred > 0 ? `
@@ -5149,27 +5218,9 @@ async function cargarReportes() {
         </div>`;
     }).join('');
 
-    // Total general de ventas
-    const totalCredGeneral = LOCALES.reduce((s,l)=>s+Object.values(ventasLocales[l].credito).reduce((a,b)=>a+b,0),0);
-    const totalContGeneral = LOCALES.reduce((s,l)=>s+ventasLocales[l].contado,0);
-
-    document.getElementById('rep-ventas-contenido').innerHTML = `
-      <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <div style="flex:1;background:#dbeafe;border-radius:12px;padding:12px;text-align:center;">
-          <div style="font-size:11px;font-weight:800;color:#64748b;">CRÉDITO</div>
-          <div style="font-size:22px;font-weight:900;color:#1d4ed8;">${totalCredGeneral}</div>
-        </div>
-        <div style="flex:1;background:#dcfce7;border-radius:12px;padding:12px;text-align:center;">
-          <div style="font-size:11px;font-weight:800;color:#64748b;">CONTADO</div>
-          <div style="font-size:22px;font-weight:900;color:#16a34a;">${totalContGeneral}</div>
-        </div>
-        <div style="flex:1;background:#f1f5f9;border-radius:12px;padding:12px;text-align:center;">
-          <div style="font-size:11px;font-weight:800;color:#64748b;">TOTAL</div>
-          <div style="font-size:22px;font-weight:900;color:#1e293b;">${totalCredGeneral+totalContGeneral}</div>
-        </div>
-      </div>
-      ${htmlVentas || '<div style="text-align:center;padding:20px;color:#64748b;">Sin ventas en este período</div>'}`;
-    document.getElementById('rep-sec-ventas').style.display = 'block';
+    document.getElementById('rep-ventas-contenido').innerHTML = htmlVentas || '<div style="text-align:center;padding:20px;color:#64748b;">Sin ventas en este período</div>';
+    document.getElementById('rep-bloque-ventas').style.display = 'block';
+    document.getElementById('rep-bloque-rentabilidad').style.display = 'block';
 
     // ---- RENDER ----
     document.getElementById('rep-loading').style.display = 'none';
