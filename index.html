@@ -800,6 +800,24 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="mostrarSeccionReporte('rentabilidad')" id="rep-btn-rent" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #15803d;background:white;color:#15803d;font-weight:800;font-size:13px;cursor:pointer;">💰 Rentabilidad</button>
       <button onclick="mostrarSeccionReporte('inventario')" id="rep-btn-inv" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #d97706;background:white;color:#d97706;font-weight:800;font-size:13px;cursor:pointer;">📦 Inventario</button>
       <button onclick="mostrarSeccionReporte('proveedores')" id="rep-btn-prov" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:800;font-size:13px;cursor:pointer;">🏦 Proveedores</button>
+      <button onclick="mostrarSeccionReporte('proyeccion')" id="rep-btn-proy" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #0891b2;background:white;color:#0891b2;font-weight:800;font-size:13px;cursor:pointer;">📈 Proyección</button>
+    </div>
+
+    <!-- PROYECCION -->
+    <div id="rep-bloque-proyeccion" style="display:none;">
+      <!-- Filtro local -->
+      <div style="background:#ecfeff;border-radius:14px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:800;color:#164e63;margin-bottom:8px;">🏪 Ver por</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;" id="proy-locales-btns"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">📋 Créditos</div>
+        <div id="rep-proy-credito"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">💵 Contado</div>
+        <div id="rep-proy-contado"></div>
+      </div>
     </div>
 
     <!-- VENTAS -->
@@ -4932,43 +4950,195 @@ let repHasta = null;
 
 function mostrarSeccionReporte(seccion) {
   const btns = {
-    ventas: { id:'rep-btn-ventas', color:'#1d4ed8' },
-    rentabilidad: { id:'rep-btn-rent', color:'#15803d' },
-    inventario: { id:'rep-btn-inv', color:'#d97706' },
-    proveedores: { id:'rep-btn-prov', color:'#7c3aed' }
+    ventas:      { id:'rep-btn-ventas', color:'#1d4ed8' },
+    rentabilidad:{ id:'rep-btn-rent',   color:'#15803d' },
+    inventario:  { id:'rep-btn-inv',    color:'#d97706' },
+    proveedores: { id:'rep-btn-prov',   color:'#7c3aed' },
+    proyeccion:  { id:'rep-btn-proy',   color:'#0891b2' }
   };
-  Object.entries(btns).forEach(([s, b]) => {
+  Object.entries(btns).forEach(([s,b]) => {
     const btn = document.getElementById(b.id);
     if(!btn) return;
-    const activo = s === seccion;
-    btn.style.background = activo ? b.color : 'white';
-    btn.style.color = activo ? 'white' : b.color;
+    btn.style.background = s===seccion ? b.color : 'white';
+    btn.style.color      = s===seccion ? 'white' : b.color;
     btn.style.borderColor = b.color;
   });
-  ['ventas','rentabilidad','inventario','proveedores'].forEach(s => {
+  ['ventas','rentabilidad','inventario','proveedores','proyeccion'].forEach(s => {
     const el = document.getElementById('rep-bloque-'+s);
     if(el) el.style.display = s===seccion ? 'block' : 'none';
   });
-  // Mostrar filtro correcto
   const filtroPeriodo = document.getElementById('rep-filtro-periodo');
-  const filtroSemana = document.getElementById('rep-filtro-semana');
+  const filtroSemana  = document.getElementById('rep-filtro-semana');
   if(seccion === 'proveedores') {
     if(filtroPeriodo) filtroPeriodo.style.display = 'none';
-    if(filtroSemana) filtroSemana.style.display = 'block';
+    if(filtroSemana)  filtroSemana.style.display  = 'block';
     cargarReporteProveedores();
   } else if(seccion === 'inventario') {
     if(filtroPeriodo) filtroPeriodo.style.display = 'none';
-    if(filtroSemana) filtroSemana.style.display = 'none';
+    if(filtroSemana)  filtroSemana.style.display  = 'none';
     cargarReporteInventario();
+  } else if(seccion === 'proyeccion') {
+    if(filtroPeriodo) filtroPeriodo.style.display = 'none';
+    if(filtroSemana)  filtroSemana.style.display  = 'none';
+    cargarReporteProyeccion();
   } else {
     if(filtroPeriodo) filtroPeriodo.style.display = 'block';
-    if(filtroSemana) filtroSemana.style.display = 'none';
+    if(filtroSemana)  filtroSemana.style.display  = 'none';
   }
 }
 
 // =============================================
-// REPORTE INVENTARIO
+// REPORTE PROYECCIÓN MENSUAL
 // =============================================
+let proyLocalActual = 'GENERAL';
+
+async function cargarReporteProyeccion() {
+  const loading = document.getElementById('rep-loading');
+  if(loading) loading.style.display = 'block';
+
+  try {
+    const fetchR = async (hoja) => {
+      for(let i=0;i<3;i++) {
+        const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+        if(d && d.values) return d;
+        await new Promise(r=>setTimeout(r,800));
+      }
+      return null;
+    };
+    const [control, contado] = await Promise.all([fetchR('CONTROL'), fetchR('VENTAS_CONTADO')]);
+    if(loading) loading.style.display = 'none';
+
+    // Construir botones de locales
+    const LOCALES_PROY = ['GENERAL', 'PALMAR DE VARELA', 'SABANALARGA', 'PUERTO COLOMBIA', 'RUTA'];
+    const btnsEl = document.getElementById('proy-locales-btns');
+    if(btnsEl) {
+      btnsEl.innerHTML = LOCALES_PROY.map(l => `
+        <button onclick="setLocalProyeccion('${l}')" id="proy-btn-${l.replace(/ /g,'_')}"
+          style="padding:8px 12px;border-radius:8px;border:2px solid #0891b2;
+          background:${l===proyLocalActual?'#0891b2':'white'};
+          color:${l===proyLocalActual?'white':'#0891b2'};
+          font-weight:700;cursor:pointer;font-size:12px;">${l==='GENERAL'?'🌐 General':l}</button>
+      `).join('');
+    }
+
+    window._proyData = { control, contado };
+    renderProyeccion();
+
+  } catch(e) {
+    if(loading) loading.style.display = 'none';
+    console.error('Error proyeccion:', e);
+  }
+}
+
+function setLocalProyeccion(local) {
+  proyLocalActual = local;
+  // Actualizar botones
+  ['GENERAL','PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'].forEach(l => {
+    const btn = document.getElementById('proy-btn-'+l.replace(/ /g,'_'));
+    if(!btn) return;
+    btn.style.background = l===local ? '#0891b2' : 'white';
+    btn.style.color = l===local ? 'white' : '#0891b2';
+  });
+  renderProyeccion();
+}
+
+function renderProyeccion() {
+  if(!window._proyData) return;
+  const { control, contado } = window._proyData;
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+
+  // Fechas del mes actual
+  const hoy = new Date();
+  const diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
+  const diaActual = hoy.getDate();
+  const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
+  const hoyStr = hoy.toISOString().split('T')[0];
+
+  const fmtFecha = f => {
+    if(!f) return '';
+    if(typeof f === 'number') {
+      const d = new Date(Math.round((f-25569)*86400*1000));
+      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+      return d.toISOString().split('T')[0];
+    }
+    return f.toString().substring(0,10);
+  };
+
+  const enMes = f => { const s=fmtFecha(f); return s>=inicioMes && s<=hoyStr; };
+  const filtroLocal = r => proyLocalActual==='GENERAL' || r?.toString()===proyLocalActual;
+
+  // CRÉDITOS — de CONTROL
+  let utilCredito=0, ventasCredito=0;
+  if(control?.values?.length > 1) {
+    for(let i=1;i<control.values.length;i++) {
+      const r = control.values[i];
+      if(!enMes(r[0])) continue;
+      if(r[13]==='ANULADO') continue;
+      if(!filtroLocal(r[1])) continue;
+      const util = parseFloat(r[19])||0;
+      if(util !== 0) { utilCredito+=util; ventasCredito++; }
+    }
+  }
+
+  // CONTADO
+  let utilContado=0, ventasContado=0;
+  if(contado?.values?.length > 1) {
+    for(let i=1;i<contado.values.length;i++) {
+      const r = contado.values[i];
+      if(!enMes(r[0])) continue;
+      if(!filtroLocal(r[1])) continue;
+      utilContado += parseFloat(r[6])||0;
+      ventasContado++;
+    }
+  }
+
+  const porcMes = Math.round(diaActual/diasMes*100);
+  const barras = Math.round(porcMes/5);
+  const barra = '█'.repeat(barras) + '░'.repeat(20-barras);
+
+  const renderSeccion = (label, utilAcum, ventasAcum, color, bgColor) => {
+    const ritmoUtil = diaActual > 0 ? utilAcum/diaActual : 0;
+    const proyUtil = Math.round(ritmoUtil * diasMes);
+    const ritmoVentas = diaActual > 0 ? ventasAcum/diaActual : 0;
+    const proyVentas = Math.round(ritmoVentas * diasMes);
+    const diasRestantes = diasMes - diaActual;
+    const utilRestante = Math.round(ritmoUtil * diasRestantes);
+
+    return `
+      <div style="background:#f0f9ff;border-radius:12px;padding:12px;margin-bottom:10px;">
+        <div style="font-family:monospace;font-size:12px;color:#0891b2;margin-bottom:10px;">
+          <div>${hoy.toLocaleString('es-CO',{month:'long',year:'numeric'}).toUpperCase()}</div>
+          <div>Día ${diaActual} de ${diasMes} · ${diasRestantes} días restantes</div>
+          <div style="margin-top:4px;">${barra} ${porcMes}%</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div style="background:${bgColor};border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:10px;font-weight:800;color:#64748b;">ACUMULADO</div>
+            <div style="font-size:15px;font-weight:900;color:${color};">${fmt(utilAcum)}</div>
+            <div style="font-size:11px;color:#64748b;">${ventasAcum} ventas</div>
+          </div>
+          <div style="background:${bgColor};border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:10px;font-weight:800;color:#64748b;">PROYECCIÓN</div>
+            <div style="font-size:15px;font-weight:900;color:${color};">${fmt(proyUtil)}</div>
+            <div style="font-size:11px;color:#64748b;">~${proyVentas} ventas</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px;background:white;border-radius:10px;font-size:13px;">
+          <span style="color:#64748b;">📈 Ritmo diario</span>
+          <span style="font-weight:800;">${fmt(ritmoUtil)}/día</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:10px;background:white;border-radius:10px;font-size:13px;margin-top:6px;">
+          <span style="color:#64748b;">🎯 Falta por generar</span>
+          <span style="font-weight:800;color:${color};">${fmt(utilRestante)}</span>
+        </div>
+      </div>`;
+  };
+
+  document.getElementById('rep-proy-credito').innerHTML = renderSeccion('Créditos', utilCredito, ventasCredito, '#1d4ed8', '#dbeafe');
+  document.getElementById('rep-proy-contado').innerHTML = renderSeccion('Contado', utilContado, ventasContado, '#15803d', '#dcfce7');
+}
+
+
 async function cargarReporteInventario() {
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
   const loading = document.getElementById('rep-loading');
