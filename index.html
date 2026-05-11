@@ -762,8 +762,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-reportes">
   <div class="form-header" style="background:linear-gradient(135deg,#0f4c81,#1d6fa4)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Reportes</div><div class="form-header-sub">Análisis del negocio</div></div></div>
   <div class="form-body">
-    <!-- Selector de período -->
-    <div style="background:#eff6ff;border-radius:14px;padding:14px;margin-bottom:16px;">
+    <!-- Selector de período (para Ventas y Rentabilidad) -->
+    <div id="rep-filtro-periodo" style="background:#eff6ff;border-radius:14px;padding:14px;margin-bottom:16px;">
       <div style="font-size:12px;font-weight:800;color:#1e40af;text-transform:uppercase;margin-bottom:8px;">📅 Período</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="setPeriodo('hoy')" id="per-hoy" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:#1d6fa4;color:white;font-weight:700;cursor:pointer;font-size:12px;">Hoy</button>
@@ -781,12 +781,25 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </div>
     </div>
 
-    <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando reportes...</div>
+    <!-- Selector de semana (para Proveedores) -->
+    <div id="rep-filtro-semana" style="display:none;background:#fff7ed;border-radius:14px;padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:800;color:#92400e;text-transform:uppercase;margin-bottom:8px;">📅 Semana de liquidación</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button onclick="setSemanaProv('actual')" id="prov-sem-actual" style="flex:1;padding:8px;border-radius:8px;border:2px solid #d97706;background:#d97706;color:white;font-weight:700;cursor:pointer;font-size:12px;">Esta semana</button>
+        <button onclick="setSemanaProv('anterior')" id="prov-sem-ant" style="flex:1;padding:8px;border-radius:8px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:12px;">Semana anterior</button>
+      </div>
+      <input type="date" id="prov-fecha-ref" onchange="setSemanaProv('custom')" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;" placeholder="O selecciona cualquier día de la semana">
+      <div id="prov-rango-label" style="font-size:12px;color:#92400e;font-weight:700;margin-top:8px;text-align:center;"></div>
+    </div>
+
+    <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando...</div>
 
     <!-- BOTONES DE SELECCIÓN -->
-    <div id="rep-botones" style="display:none;display:flex;gap:10px;margin-bottom:16px;">
-      <button onclick="mostrarSeccionReporte('ventas')" id="rep-btn-ventas" style="flex:1;padding:14px;border-radius:14px;border:2px solid #1d4ed8;background:#1d4ed8;color:white;font-weight:800;font-size:14px;cursor:pointer;">📊 Ventas</button>
-      <button onclick="mostrarSeccionReporte('rentabilidad')" id="rep-btn-rent" style="flex:1;padding:14px;border-radius:14px;border:2px solid #15803d;background:white;color:#15803d;font-weight:800;font-size:14px;cursor:pointer;">💰 Rentabilidad</button>
+    <div id="rep-botones" style="display:none;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button onclick="mostrarSeccionReporte('ventas')" id="rep-btn-ventas" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #1d4ed8;background:#1d4ed8;color:white;font-weight:800;font-size:13px;cursor:pointer;">📊 Ventas</button>
+      <button onclick="mostrarSeccionReporte('rentabilidad')" id="rep-btn-rent" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #15803d;background:white;color:#15803d;font-weight:800;font-size:13px;cursor:pointer;">💰 Rentabilidad</button>
+      <button onclick="mostrarSeccionReporte('inventario')" id="rep-btn-inv" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #d97706;background:white;color:#d97706;font-weight:800;font-size:13px;cursor:pointer;">📦 Inventario</button>
+      <button onclick="mostrarSeccionReporte('proveedores')" id="rep-btn-prov" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:800;font-size:13px;cursor:pointer;">🏦 Proveedores</button>
     </div>
 
     <!-- VENTAS -->
@@ -794,6 +807,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="rep-seccion">
         <div class="rep-titulo">🌐 Resumen General</div>
         <div id="rep-ventas-general"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">📦 Referencias Vendidas</div>
+        <div id="rep-referencias"></div>
       </div>
       <div class="rep-seccion">
         <div class="rep-titulo">🏪 Por Local</div>
@@ -816,10 +833,43 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Gastos sin local asignado</div>
         <div id="rep-generales-contenido"></div>
       </div>
+      <div class="rep-seccion" id="rep-sec-inversiones" style="display:none;">
+        <div class="rep-titulo">🏗️ Inversiones del Período</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:10px;">No afectan el resultado operativo</div>
+        <div id="rep-inversiones-contenido"></div>
+      </div>
       <div class="rep-seccion" id="rep-sec-liq" style="display:none;">
         <div class="rep-titulo">⚠️ Ventas sin Liquidar</div>
         <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Estas ventas no tienen utilidad calculada aún</div>
         <div id="rep-liq-contenido"></div>
+      </div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="rep-bloque-inventario" style="display:none;">
+      <div class="rep-seccion">
+        <div class="rep-titulo">📱 Inventario Teléfonos</div>
+        <div id="rep-inv-telefono"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">🎧 Inventario Accesorios</div>
+        <div id="rep-inv-accesorios"></div>
+      </div>
+    </div>
+
+    <!-- PROVEEDORES -->
+    <div id="rep-bloque-proveedores" style="display:none;">
+      <div class="rep-seccion">
+        <div class="rep-titulo">🏦 COMTEL — ET Claro</div>
+        <div id="rep-prov-comtel"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">📡 MOVISIM — ET Oficina</div>
+        <div id="rep-prov-movisim-et"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">📋 MOVISIM — Oficina / Recompra / Alo Credit</div>
+        <div id="rep-prov-movisim-of"></div>
       </div>
     </div>
 
@@ -4881,14 +4931,337 @@ let repDesde = null;
 let repHasta = null;
 
 function mostrarSeccionReporte(seccion) {
-  const esVentas = seccion === 'ventas';
-  document.getElementById('rep-btn-ventas').style.background = esVentas ? '#1d4ed8' : 'white';
-  document.getElementById('rep-btn-ventas').style.color = esVentas ? 'white' : '#1d4ed8';
-  document.getElementById('rep-btn-rent').style.background = !esVentas ? '#15803d' : 'white';
-  document.getElementById('rep-btn-rent').style.color = !esVentas ? 'white' : '#15803d';
-  document.getElementById('rep-bloque-ventas').style.display = esVentas ? 'block' : 'none';
-  document.getElementById('rep-bloque-rentabilidad').style.display = !esVentas ? 'block' : 'none';
+  const btns = {
+    ventas: { id:'rep-btn-ventas', color:'#1d4ed8' },
+    rentabilidad: { id:'rep-btn-rent', color:'#15803d' },
+    inventario: { id:'rep-btn-inv', color:'#d97706' },
+    proveedores: { id:'rep-btn-prov', color:'#7c3aed' }
+  };
+  Object.entries(btns).forEach(([s, b]) => {
+    const btn = document.getElementById(b.id);
+    if(!btn) return;
+    const activo = s === seccion;
+    btn.style.background = activo ? b.color : 'white';
+    btn.style.color = activo ? 'white' : b.color;
+    btn.style.borderColor = b.color;
+  });
+  ['ventas','rentabilidad','inventario','proveedores'].forEach(s => {
+    const el = document.getElementById('rep-bloque-'+s);
+    if(el) el.style.display = s===seccion ? 'block' : 'none';
+  });
+  // Mostrar filtro correcto
+  const filtroPeriodo = document.getElementById('rep-filtro-periodo');
+  const filtroSemana = document.getElementById('rep-filtro-semana');
+  if(seccion === 'proveedores') {
+    if(filtroPeriodo) filtroPeriodo.style.display = 'none';
+    if(filtroSemana) filtroSemana.style.display = 'block';
+    cargarReporteProveedores();
+  } else if(seccion === 'inventario') {
+    if(filtroPeriodo) filtroPeriodo.style.display = 'none';
+    if(filtroSemana) filtroSemana.style.display = 'none';
+    cargarReporteInventario();
+  } else {
+    if(filtroPeriodo) filtroPeriodo.style.display = 'block';
+    if(filtroSemana) filtroSemana.style.display = 'none';
+  }
 }
+
+// =============================================
+// REPORTE INVENTARIO
+// =============================================
+async function cargarReporteInventario() {
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const loading = document.getElementById('rep-loading');
+  if(loading) loading.style.display = 'block';
+  try {
+    const fetchR = async (hoja) => {
+      for(let i=0;i<3;i++) {
+        const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+        if(d && d.values) return d;
+        await new Promise(r=>setTimeout(r,800));
+      }
+      return null;
+    };
+    const [invTel, invAcc] = await Promise.all([fetchR('INVENTARIO_TELEFONO'), fetchR('INVENTARIO_ACCESORIOS')]);
+    if(loading) loading.style.display = 'none';
+
+    // Teléfonos
+    let telDisp=0, costoTel=0, pvpTel=0;
+    let telGar=0, telPrest=0, telVend=0;
+    if(invTel?.values?.length > 1) {
+      for(let i=1;i<invTel.values.length;i++) {
+        const r = invTel.values[i];
+        if(!r[0]) continue;
+        const estado = (r[6]?.toString()||'').toUpperCase();
+        const costo = parseFloat(r[2])||0;
+        const pvp = parseFloat(r[10])||0;
+        if(estado === 'DISPONIBLE') { telDisp++; costoTel+=costo; pvpTel+=pvp; }
+        else if(estado === 'EN GARANTIA') telGar++;
+        else if(estado === 'PRESTADO') telPrest++;
+        else if(estado === 'VENDIDO') telVend++;
+      }
+    }
+
+    document.getElementById('rep-inv-telefono').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div style="background:#dbeafe;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">DISPONIBLES</div>
+          <div style="font-size:24px;font-weight:900;color:#1d4ed8;">${telDisp}</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">VENDIDOS</div>
+          <div style="font-size:24px;font-weight:900;color:#16a34a;">${telVend}</div>
+        </div>
+        <div style="background:#fee2e2;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">GARANTÍA</div>
+          <div style="font-size:24px;font-weight:900;color:#dc2626;">${telGar}</div>
+        </div>
+        <div style="background:#fff7ed;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">PRESTADOS</div>
+          <div style="font-size:24px;font-weight:900;color:#d97706;">${telPrest}</div>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#64748b;margin-bottom:8px;">Valorización (disponibles):</div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:10px;margin-bottom:6px;">
+        <span style="color:#475569;">💰 A costo</span>
+        <span style="font-weight:900;color:#1e293b;">${fmt(costoTel)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:#f0fdf4;border-radius:10px;">
+        <span style="color:#475569;">💵 A precio venta</span>
+        <span style="font-weight:900;color:#16a34a;">${fmt(pvpTel)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:#eff6ff;border-radius:10px;margin-top:6px;">
+        <span style="color:#475569;font-weight:700;">📈 Margen potencial</span>
+        <span style="font-weight:900;color:#2563eb;">${fmt(pvpTel-costoTel)}</span>
+      </div>`;
+
+    // Accesorios
+    let accItems=0, costoAcc=0, pvpAcc=0;
+    const porCategoria = {};
+    if(invAcc?.values?.length > 1) {
+      for(let i=1;i<invAcc.values.length;i++) {
+        const r = invAcc.values[i];
+        if(!r[0]||!r[2]) continue;
+        const stock = parseInt(r[6])||parseInt(r[3])||0;
+        if(stock <= 0) continue;
+        const costo = parseFloat(r[4])||0;
+        const pvp = parseFloat(r[5])||0;
+        const cat = r[1]?.toString()||'Sin categoría';
+        accItems += stock;
+        costoAcc += stock*costo;
+        pvpAcc += stock*pvp;
+        if(!porCategoria[cat]) porCategoria[cat] = { unidades:0, costo:0, pvp:0 };
+        porCategoria[cat].unidades += stock;
+        porCategoria[cat].costo += stock*costo;
+        porCategoria[cat].pvp += stock*pvp;
+      }
+    }
+
+    document.getElementById('rep-inv-accesorios').innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:10px;margin-bottom:6px;">
+        <span style="color:#475569;">📦 Total unidades</span>
+        <span style="font-weight:900;color:#1e293b;">${accItems}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:10px;margin-bottom:6px;">
+        <span style="color:#475569;">💰 A costo</span>
+        <span style="font-weight:900;color:#1e293b;">${fmt(costoAcc)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:#f0fdf4;border-radius:10px;margin-bottom:12px;">
+        <span style="color:#475569;">💵 A precio venta</span>
+        <span style="font-weight:900;color:#16a34a;">${fmt(pvpAcc)}</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#64748b;margin-bottom:8px;">Por categoría:</div>
+      ${Object.entries(porCategoria).sort((a,b)=>b[1].costo-a[1].costo).map(([cat,d])=>`
+        <div style="background:#f8fafc;border-radius:10px;padding:10px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-weight:700;font-size:13px;">${cat}</span>
+            <span style="font-weight:800;color:#64748b;">${d.unidades} und</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;">
+            <span>Costo: ${fmt(d.costo)}</span>
+            <span>PVP: ${fmt(d.pvp)}</span>
+          </div>
+        </div>`).join('')}`;
+
+  } catch(e) {
+    if(loading) loading.style.display = 'none';
+    console.error('Error inventario:', e);
+  }
+}
+
+// =============================================
+// REPORTE PROVEEDORES
+// =============================================
+let provSemanaDesde = '';
+let provSemanaHasta = '';
+
+function getLunesDomingo(fecha) {
+  const d = new Date(fecha);
+  const dia = d.getDay() === 0 ? 7 : d.getDay();
+  const lunes = new Date(d); lunes.setDate(d.getDate() - dia + 1);
+  const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+  const fmt = x => x.toISOString().split('T')[0];
+  return { desde: fmt(lunes), hasta: fmt(domingo) };
+}
+
+function setSemanaProv(tipo) {
+  const hoy = new Date();
+  let ref = hoy;
+  if(tipo === 'anterior') { ref = new Date(hoy); ref.setDate(hoy.getDate()-7); }
+  else if(tipo === 'custom') { ref = new Date(document.getElementById('prov-fecha-ref').value); }
+  const { desde, hasta } = getLunesDomingo(ref);
+  provSemanaDesde = desde;
+  provSemanaHasta = hasta;
+  // Actualizar labels de botones
+  ['actual','anterior'].forEach(t => {
+    const btn = document.getElementById('prov-sem-'+t);
+    if(btn) {
+      btn.style.background = tipo===t ? '#d97706' : 'white';
+      btn.style.color = tipo===t ? 'white' : '#d97706';
+    }
+  });
+  // Mostrar rango
+  const label = document.getElementById('prov-rango-label');
+  if(label) {
+    const fmtDate = s => new Date(s+'T12:00:00').toLocaleDateString('es-CO', {day:'numeric',month:'long'});
+    label.textContent = `Semana: ${fmtDate(desde)} — ${fmtDate(hasta)}`;
+  }
+  cargarReporteProveedores();
+}
+
+async function cargarReporteProveedores() {
+  if(!provSemanaDesde) { setSemanaProv('actual'); return; }
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const fmtColor = n => `<span style="font-weight:800;color:${n>0?'#dc2626':n<0?'#16a34a':'#64748b'}">${n>0?'+':''}${fmt(n)}</span>`;
+  const loading = document.getElementById('rep-loading');
+  if(loading) loading.style.display = 'block';
+
+  const fmtFecha = f => {
+    if(!f) return '';
+    if(typeof f === 'number') {
+      const d = new Date(Math.round((f-25569)*86400*1000));
+      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+      return d.toISOString().split('T')[0];
+    }
+    return f.toString().substring(0,10);
+  };
+
+  try {
+    const fetchR = async (hoja) => {
+      for(let i=0;i<3;i++) {
+        const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+        if(d && d.values) return d;
+        await new Promise(r=>setTimeout(r,800));
+      }
+      return null;
+    };
+    const [liqSheet, control] = await Promise.all([fetchR('LIQUIDACIONES'), fetchR('CONTROL')]);
+    if(loading) loading.style.display = 'none';
+
+    const enSemana = f => { const s=fmtFecha(f); return s>=provSemanaDesde && s<=provSemanaHasta; };
+
+    // COMTEL — ET_CLARO
+    let comtelTotal=0, comtelVentas=[];
+    if(liqSheet?.values?.length > 1) {
+      for(let i=1;i<liqSheet.values.length;i++) {
+        const r = liqSheet.values[i];
+        if(!enSemana(r[8]||r[5])) continue; // fecha actualizacion o fecha
+        if(r[2]?.toString()==='ET_CLARO') {
+          const pago = parseFloat(r[6])||0;
+          comtelTotal += pago;
+          comtelVentas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+        }
+      }
+    }
+
+    document.getElementById('rep-prov-comtel').innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:12px;background:#dbeafe;border-radius:12px;margin-bottom:10px;">
+        <span style="font-weight:800;font-size:14px;">Total COMTEL paga</span>
+        <span style="font-weight:900;font-size:16px;color:#1d4ed8;">${fmt(comtelTotal)}</span>
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${comtelVentas.length} liquidaciones en la semana</div>
+      ${comtelVentas.map(v=>`
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
+          <span style="color:#475569;">${v.ref||v.imei}</span>
+          <span style="font-weight:800;">${fmt(v.pago)}</span>
+        </div>`).join('')}
+      ${comtelVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
+
+    // MOVISIM ET_OFICINA
+    let movisimEtTotal=0, movisimEtVentas=[];
+    if(liqSheet?.values?.length > 1) {
+      for(let i=1;i<liqSheet.values.length;i++) {
+        const r = liqSheet.values[i];
+        if(!enSemana(r[8]||r[5])) continue;
+        if(r[2]?.toString()==='ET_OFICINA') {
+          const pago = parseFloat(r[6])||0;
+          movisimEtTotal += pago;
+          movisimEtVentas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+        }
+      }
+    }
+
+    document.getElementById('rep-prov-movisim-et').innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:12px;background:#f0fdf4;border-radius:12px;margin-bottom:10px;">
+        <span style="font-weight:800;font-size:14px;">Total MOVISIM ET paga</span>
+        <span style="font-weight:900;font-size:16px;color:#16a34a;">${fmt(movisimEtTotal)}</span>
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${movisimEtVentas.length} liquidaciones en la semana</div>
+      ${movisimEtVentas.map(v=>`
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
+          <span style="color:#475569;">${v.ref||v.imei}</span>
+          <span style="font-weight:800;">${fmt(v.pago)}</span>
+        </div>`).join('')}
+      ${movisimEtVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
+
+    // MOVISIM OFICINA/RECOMPRA/ALO_CREDIT — diferencia de CONTROL columna O (índice 14)
+    const tiposMovisim = ['OFICINA','RECOMPRA','ALO_CREDIT'];
+    let difPositiva=0, difNegativa=0, movisimOfVentas=[];
+    if(control?.values?.length > 1) {
+      for(let i=1;i<control.values.length;i++) {
+        const r = control.values[i];
+        if(!enSemana(r[0])) continue;
+        if(r[13]==='ANULADO') continue;
+        const tipo = r[2]?.toString()||'';
+        if(!tiposMovisim.includes(tipo)) continue;
+        const dif = parseFloat(r[14])||0; // Columna O = índice 14
+        if(dif > 0) difPositiva += dif;
+        else if(dif < 0) difNegativa += dif;
+        movisimOfVentas.push({ ref:r[3]||'', tipo, dif });
+      }
+    }
+    const saldoMovisim = difNegativa + difPositiva; // negativa = te pagan, positiva = pagas
+
+    document.getElementById('rep-prov-movisim-of').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div style="background:#fee2e2;border-radius:12px;padding:10px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">TÚ PAGAS</div>
+          <div style="font-size:16px;font-weight:900;color:#dc2626;">${fmt(difPositiva)}</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:12px;padding:10px;text-align:center;">
+          <div style="font-size:11px;font-weight:800;color:#64748b;">TE PAGAN</div>
+          <div style="font-size:16px;font-weight:900;color:#16a34a;">${fmt(Math.abs(difNegativa))}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:12px;background:${saldoMovisim>0?'#fee2e2':'#dcfce7'};border-radius:12px;margin-bottom:10px;">
+        <span style="font-weight:800;font-size:14px;">Saldo neto con MOVISIM</span>
+        ${fmtColor(saldoMovisim)}
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${movisimOfVentas.length} ventas en la semana</div>
+      ${movisimOfVentas.map(v=>`
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
+          <span style="color:#475569;">${v.ref} <span style="font-size:11px;color:#94a3b8;">${v.tipo}</span></span>
+          ${fmtColor(v.dif)}
+        </div>`).join('')}
+      ${movisimOfVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin ventas esta semana</div>':''}`;
+
+  } catch(e) {
+    if(loading) loading.style.display = 'none';
+    console.error('Error proveedores:', e);
+  }
+}
+
+
 
 function setPeriodo(p) {
   repPeriodo = p;
@@ -5211,6 +5584,61 @@ async function cargarReportes() {
     document.getElementById('rep-ventas-contenido').innerHTML = htmlVentas || '<div style="text-align:center;padding:20px;color:#64748b;">Sin ventas en este período</div>';
     document.getElementById('rep-botones').style.display = 'flex';
     mostrarSeccionReporte('ventas');
+    // REFERENCIAS VENDIDAS
+    const referencias = {};
+    if(creditos?.values?.length > 1) {
+      for(let i=1;i<creditos.values.length;i++) {
+        const r = creditos.values[i];
+        if(!enRango(r[0])) continue;
+        if(r[13]==='ANULADO') continue;
+        const ref = r[3]?.toString()||'Sin referencia';
+        referencias[ref] = (referencias[ref]||0)+1;
+      }
+    }
+    if(contado?.values?.length > 1) {
+      for(let i=1;i<contado.values.length;i++) {
+        const r = contado.values[i];
+        if(!enRango(r[0])) continue;
+        const ref = r[3]?.toString()||'Sin referencia';
+        referencias[ref] = (referencias[ref]||0)+1;
+      }
+    }
+    const refOrdenadas = Object.entries(referencias).sort((a,b)=>b[1]-a[1]);
+    document.getElementById('rep-referencias').innerHTML = refOrdenadas.length > 0
+      ? refOrdenadas.map(([ref,cnt])=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f8fafc;border-radius:10px;margin-bottom:6px;">
+            <span style="font-weight:600;font-size:13px;color:#475569;">${ref}</span>
+            <span style="font-weight:900;font-size:16px;color:#1d4ed8;">${cnt}</span>
+          </div>`).join('')
+      : '<div style="text-align:center;color:#94a3b8;padding:12px;">Sin ventas en este período</div>';
+
+    // INVERSIONES
+    let totalInversiones = 0;
+    const detalleInversiones = [];
+    if(egresos?.values?.length > 1) {
+      for(let i=1;i<egresos.values.length;i++) {
+        const r = egresos.values[i];
+        if(!enRango(r[0])) continue;
+        if(r[1]?.toString() !== 'INVERSION') continue;
+        const valor = parseFloat(r[5])||0;
+        totalInversiones += valor;
+        detalleInversiones.push({ fecha:fmtFecha(r[0]), cat:r[2]||'', desc:r[3]||'', local:r[4]||'', valor });
+      }
+    }
+    const secInv = document.getElementById('rep-sec-inversiones');
+    if(secInv) secInv.style.display = totalInversiones > 0 ? 'block' : 'none';
+    if(totalInversiones > 0) {
+      document.getElementById('rep-inversiones-contenido').innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:12px;background:#ede9fe;border-radius:12px;margin-bottom:10px;">
+          <span style="font-weight:800;">Total invertido</span>
+          <span style="font-weight:900;color:#7c3aed;font-size:16px;">${fmt(totalInversiones)}</span>
+        </div>
+        ${detalleInversiones.map(e=>`
+          <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
+            <div><div style="font-weight:700;">${e.desc||e.cat}</div><div style="font-size:11px;color:#94a3b8;">${e.cat} · ${e.local||'General'} · ${e.fecha}</div></div>
+            <span style="font-weight:800;color:#7c3aed;">-${fmt(e.valor)}</span>
+          </div>`).join('')}`;
+    }
 
     // ---- RENDER ----
     document.getElementById('rep-loading').style.display = 'none';
