@@ -783,59 +783,39 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando reportes...</div>
 
-    <!-- SEPARADOR VENTAS -->
-    <div id="rep-bloque-ventas" style="display:none;">
-      <div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:20px;">📊</span>
-        <div>
-          <div style="font-weight:900;color:white;font-size:15px;">Ventas</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.75);">Conteo por local y tipo</div>
-        </div>
-      </div>
+    <!-- BOTONES DE SELECCIÓN -->
+    <div id="rep-botones" style="display:none;display:flex;gap:10px;margin-bottom:16px;">
+      <button onclick="mostrarSeccionReporte('ventas')" id="rep-btn-ventas" style="flex:1;padding:14px;border-radius:14px;border:2px solid #1d4ed8;background:#1d4ed8;color:white;font-weight:800;font-size:14px;cursor:pointer;">📊 Ventas</button>
+      <button onclick="mostrarSeccionReporte('rentabilidad')" id="rep-btn-rent" style="flex:1;padding:14px;border-radius:14px;border:2px solid #15803d;background:white;color:#15803d;font-weight:800;font-size:14px;cursor:pointer;">💰 Rentabilidad</button>
+    </div>
 
-      <!-- VENTAS GENERALES POR TIPO -->
+    <!-- VENTAS -->
+    <div id="rep-bloque-ventas" style="display:none;">
       <div class="rep-seccion">
         <div class="rep-titulo">🌐 Resumen General</div>
         <div id="rep-ventas-general"></div>
       </div>
-
-      <!-- VENTAS POR LOCAL Y TIPO -->
       <div class="rep-seccion">
         <div class="rep-titulo">🏪 Por Local</div>
         <div id="rep-ventas-contenido"></div>
       </div>
     </div>
 
-    <!-- SEPARADOR RENTABILIDAD -->
+    <!-- RENTABILIDAD -->
     <div id="rep-bloque-rentabilidad" style="display:none;">
-      <div style="background:linear-gradient(135deg,#15803d,#16a34a);border-radius:14px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:20px;">💰</span>
-        <div>
-          <div style="font-weight:900;color:white;font-size:15px;">Rentabilidad</div>
-          <div style="font-size:12px;color:rgba(255,255,255,.75);">Utilidades y resultado neto</div>
-        </div>
-      </div>
-
-      <!-- RESULTADO TOTAL -->
       <div class="rep-seccion" id="rep-sec-total">
         <div class="rep-titulo">🏆 Resultado Total del Negocio</div>
         <div id="rep-total-contenido"></div>
       </div>
-
-      <!-- RENTABILIDAD POR LOCAL -->
       <div class="rep-seccion" id="rep-sec-locales">
         <div class="rep-titulo">🏪 Por Local</div>
         <div id="rep-locales-contenido"></div>
       </div>
-
-      <!-- EGRESOS GENERALES -->
       <div class="rep-seccion" id="rep-sec-generales" style="display:none;">
         <div class="rep-titulo">📤 Egresos Generales</div>
         <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Gastos sin local asignado</div>
         <div id="rep-generales-contenido"></div>
       </div>
-
-      <!-- LIQUIDACIONES PENDIENTES -->
       <div class="rep-seccion" id="rep-sec-liq" style="display:none;">
         <div class="rep-titulo">⚠️ Ventas sin Liquidar</div>
         <div style="font-size:12px;color:#64748b;margin-bottom:10px;">Estas ventas no tienen utilidad calculada aún</div>
@@ -4900,6 +4880,16 @@ let repPeriodo = 'hoy';
 let repDesde = null;
 let repHasta = null;
 
+function mostrarSeccionReporte(seccion) {
+  const esVentas = seccion === 'ventas';
+  document.getElementById('rep-btn-ventas').style.background = esVentas ? '#1d4ed8' : 'white';
+  document.getElementById('rep-btn-ventas').style.color = esVentas ? 'white' : '#1d4ed8';
+  document.getElementById('rep-btn-rent').style.background = !esVentas ? '#15803d' : 'white';
+  document.getElementById('rep-btn-rent').style.color = !esVentas ? 'white' : '#15803d';
+  document.getElementById('rep-bloque-ventas').style.display = esVentas ? 'block' : 'none';
+  document.getElementById('rep-bloque-rentabilidad').style.display = !esVentas ? 'block' : 'none';
+}
+
 function setPeriodo(p) {
   repPeriodo = p;
   ['hoy','semana','mes','custom'].forEach(x => {
@@ -5219,8 +5209,8 @@ async function cargarReportes() {
     }).join('');
 
     document.getElementById('rep-ventas-contenido').innerHTML = htmlVentas || '<div style="text-align:center;padding:20px;color:#64748b;">Sin ventas en este período</div>';
-    document.getElementById('rep-bloque-ventas').style.display = 'block';
-    document.getElementById('rep-bloque-rentabilidad').style.display = 'block';
+    document.getElementById('rep-botones').style.display = 'flex';
+    mostrarSeccionReporte('ventas');
 
     // ---- RENDER ----
     document.getElementById('rep-loading').style.display = 'none';
