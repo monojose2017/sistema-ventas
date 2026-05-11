@@ -5009,7 +5009,7 @@ async function cargarReporteProyeccion() {
     if(loading) loading.style.display = 'none';
 
     // Construir botones de locales
-    const LOCALES_PROY = ['GENERAL', 'PALMAR DE VARELA', 'SABANALARGA', 'PUERTO COLOMBIA', 'RUTA'];
+    const LOCALES_PROY = ['GENERAL', ...(window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'])];
     const btnsEl = document.getElementById('proy-locales-btns');
     if(btnsEl) {
       btnsEl.innerHTML = LOCALES_PROY.map(l => `
@@ -5033,7 +5033,7 @@ async function cargarReporteProyeccion() {
 function setLocalProyeccion(local) {
   proyLocalActual = local;
   // Actualizar botones
-  ['GENERAL','PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'].forEach(l => {
+  ['GENERAL',...(window.CONFIG_LISTAS?.locales||['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'])].forEach(l => {
     const btn = document.getElementById('proy-btn-'+l.replace(/ /g,'_'));
     if(!btn) return;
     btn.style.background = l===local ? '#0891b2' : 'white';
@@ -5541,7 +5541,7 @@ async function cargarReportes() {
       }
     }
 
-    const LOCALES = ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'];
+    const LOCALES = window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'];
     const datos = {};
     LOCALES.forEach(l => datos[l] = {
       utilCredito:0, utilContado:0, utilAccesorios:0, ingresosAdicionales:0,
