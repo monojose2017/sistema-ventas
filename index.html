@@ -445,8 +445,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div id="inv-estado-wrap" class="select-wrap" style="margin-bottom:8px;">
       <select id="inv-estado-filter" onchange="renderInventario()">
         <option value="">Todos</option>
-        <option value="DISPONIBLE">Solo Disponibles</option>
-        <option value="VENDIDO">Solo Vendidos</option>
+        <option value="DISPONIBLE">✅ Disponibles</option>
+        <option value="VENDIDO">🔴 Vendidos</option>
+        <option value="PRESTADO">🤝 Prestados</option>
+        <option value="EN GARANTIA">🔧 En Garantía</option>
       </select>
     </div>
     <!-- Filtro proveedor (solo telefonos) -->
