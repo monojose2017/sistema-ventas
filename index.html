@@ -2466,7 +2466,7 @@ async function enviarForm(tipo) {
     }
     const repuesto = getVal('it-repuesto');
     // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, PRECIO_VENTA
-    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta')];
+    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta'), '', ''];
     window._pendingFormulaIMEI = null;
 
   } else if(tipo === 'ingreso-accesorio') {
@@ -4482,7 +4482,7 @@ async function registrarPrestamoEntrante() {
   if(!imei||!ref||!quien||!costo||!ubicacion){alert('⚠️ Completa todos los campos obligatorios');return;}
   const hoy=new Date().toISOString().split('T')[0];
   const observacion=`PRESTADO DE: ${quien}${obs?' — '+obs:''}`;
-  const fila=[imei,ref,costo,hoy,quien,observacion,'DISPONIBLE','PRESTADO','',ubicacion,0];
+  const fila=[imei,ref,costo,hoy,quien,observacion,'DISPONIBLE','PRESTADO','',ubicacion,0,'','PRESTADO'];
   try {
     await agregarFilaExcel('INVENTARIO_TELEFONO',fila);
     await cargarTodo();
@@ -4616,7 +4616,7 @@ async function ejecutarCambioImei() {
       }
     }
     const obsNuevo=`CAMBIO DE IMEI — reemplaza: ${imeiMalo} | ${motivo}`;
-    const filaNueva=[imeiNuevo,cambioImeiFila.ref,cambioImeiFila.costo,hoy,cambioImeiFila.proveedor,obsNuevo,'VENDIDO','CAMBIO IMEI','',cambioImeiFila.ubicacion,cambioImeiFila.precioVenta||0];
+    const filaNueva=[imeiNuevo,cambioImeiFila.ref,cambioImeiFila.costo,hoy,cambioImeiFila.proveedor,obsNuevo,'VENDIDO','CAMBIO IMEI','',cambioImeiFila.ubicacion,cambioImeiFila.precioVenta||0,'',''];
     await agregarFilaExcel('INVENTARIO_TELEFONO',filaNueva);
     await cargarTodo();
     mostrarToastVerde('✅ Cambio de IMEI registrado correctamente');
