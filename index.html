@@ -888,8 +888,20 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div id="rep-prov-movisim-et"></div>
       </div>
       <div class="rep-seccion">
-        <div class="rep-titulo">📋 MOVISIM — Oficina / Recompra / Alo Credit</div>
-        <div id="rep-prov-movisim-of"></div>
+        <div class="rep-titulo">📋 MOVISIM — Oficina</div>
+        <div id="rep-prov-oficina"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">🔄 MOVISIM — Recompra</div>
+        <div id="rep-prov-recompra"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">💳 Alo Credit</div>
+        <div id="rep-prov-alocredit"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">📱 PayJoy</div>
+        <div id="rep-prov-payjoy"></div>
       </div>
     </div>
 
@@ -5399,48 +5411,89 @@ async function cargarReporteProveedores() {
         </div>`).join('')}
       ${movisimEtVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
 
-    // MOVISIM OFICINA/RECOMPRA/ALO_CREDIT — diferencia de CONTROL columna O (índice 14)
-    const tiposMovisim = ['OFICINA','RECOMPRA','ALO_CREDIT'];
-    let difPositiva=0, difNegativa=0, movisimOfVentas=[];
+    // MOVISIM OFICINA, RECOMPRA — diferencia col O (índice 14)
+    // ALO_CREDIT, PAYJOY — de LIQUIDACIONES
+    const tiposMovisimDif = ['OFICINA','RECOMPRA'];
+    const tiposLiqProv = ['ALO_CREDIT','PAYJOY'];
+
+    const movData = {
+      OFICINA:    { dif:0, ventas:[] },
+      RECOMPRA:   { dif:0, ventas:[] }
+    };
     if(control?.values?.length > 1) {
       for(let i=1;i<control.values.length;i++) {
         const r = control.values[i];
         if(!enSemana(r[0])) continue;
         if(r[13]==='ANULADO') continue;
         const tipo = r[2]?.toString()||'';
-        if(!tiposMovisim.includes(tipo)) continue;
-        const dif = parseFloat(r[14])||0; // Columna O = índice 14
-        if(dif > 0) difPositiva += dif;
-        else if(dif < 0) difNegativa += dif;
-        movisimOfVentas.push({ ref:r[3]||'', tipo, dif });
+        if(!tiposMovisimDif.includes(tipo)) continue;
+        const dif = parseFloat(r[14])||0;
+        movData[tipo].dif += dif;
+        movData[tipo].ventas.push({ ref:r[3]||'', tipo, dif });
       }
     }
-    const saldoMovisim = difNegativa + difPositiva; // negativa = te pagan, positiva = pagas
 
-    document.getElementById('rep-prov-movisim-of').innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-        <div style="background:#fee2e2;border-radius:12px;padding:10px;text-align:center;">
-          <div style="font-size:11px;font-weight:800;color:#64748b;">TÚ PAGAS</div>
-          <div style="font-size:16px;font-weight:900;color:#dc2626;">${fmt(difPositiva)}</div>
-        </div>
-        <div style="background:#dcfce7;border-radius:12px;padding:10px;text-align:center;">
-          <div style="font-size:11px;font-weight:800;color:#64748b;">TE PAGAN</div>
-          <div style="font-size:16px;font-weight:900;color:#16a34a;">${fmt(Math.abs(difNegativa))}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:12px;background:${saldoMovisim>0?'#fee2e2':'#dcfce7'};border-radius:12px;margin-bottom:10px;">
-        <span style="font-weight:800;font-size:14px;">Saldo neto con MOVISIM</span>
-        ${fmtColor(saldoMovisim)}
-      </div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${movisimOfVentas.length} ventas en la semana</div>
-      ${movisimOfVentas.map(v=>`
-        <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
-          <span style="color:#475569;">${v.ref} <span style="font-size:11px;color:#94a3b8;">${v.tipo}</span></span>
-          ${fmtColor(v.dif)}
-        </div>`).join('')}
-      ${movisimOfVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin ventas esta semana</div>':''}`;
+    // ALO_CREDIT y PAYJOY de LIQUIDACIONES
+    const liqData = { ALO_CREDIT:{ total:0, ventas:[] }, PAYJOY:{ total:0, ventas:[] } };
+    if(liqSheet?.values?.length > 1) {
+      for(let i=1;i<liqSheet.values.length;i++) {
+        const r = liqSheet.values[i];
+        if(!enSemana(r[5])) continue;
+        const tipo = r[2]?.toString()||'';
+        if(!tiposLiqProv.includes(tipo)) continue;
+        const pago = parseFloat(r[6])||0;
+        liqData[tipo].total += pago;
+        liqData[tipo].ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+      }
+    }
 
-  } catch(e) {
+    // Render helper para diferencia MOVISIM
+    const renderMovisimDif = (tipo, data, containerId) => {
+      const saldo = data.dif;
+      document.getElementById(containerId).innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div style="background:#fee2e2;border-radius:12px;padding:10px;text-align:center;">
+            <div style="font-size:10px;font-weight:800;color:#64748b;">TÚ PAGAS</div>
+            <div style="font-size:16px;font-weight:900;color:#dc2626;">${fmt(Math.max(0,saldo))}</div>
+          </div>
+          <div style="background:#dcfce7;border-radius:12px;padding:10px;text-align:center;">
+            <div style="font-size:10px;font-weight:800;color:#64748b;">TE PAGAN</div>
+            <div style="font-size:16px;font-weight:900;color:#16a34a;">${fmt(Math.abs(Math.min(0,saldo)))}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px;background:${saldo>0?'#fee2e2':'#dcfce7'};border-radius:12px;margin-bottom:10px;">
+          <span style="font-weight:800;">Saldo neto</span>
+          ${fmtColor(saldo)}
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${data.ventas.length} ventas en la semana</div>
+        ${data.ventas.map(v=>`
+          <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
+            <span style="color:#475569;">${v.ref}</span>
+            ${fmtColor(v.dif)}
+          </div>`).join('')}
+        ${data.ventas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin ventas esta semana</div>':''}`;
+    };
+
+    // Render helper para liquidaciones
+    const renderLiqProv = (data, containerId, color, bg) => {
+      document.getElementById(containerId).innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:12px;background:${bg};border-radius:12px;margin-bottom:10px;">
+          <span style="font-weight:800;font-size:14px;">Total pagado</span>
+          <span style="font-weight:900;font-size:16px;color:${color};">${fmt(data.total)}</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${data.ventas.length} liquidaciones en la semana</div>
+        ${data.ventas.map(v=>`
+          <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
+            <span style="color:#475569;">${v.ref||v.imei}</span>
+            <span style="font-weight:800;">${fmt(v.pago)}</span>
+          </div>`).join('')}
+        ${data.ventas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
+    };
+
+    renderMovisimDif('OFICINA',  movData.OFICINA,  'rep-prov-oficina');
+    renderMovisimDif('RECOMPRA', movData.RECOMPRA, 'rep-prov-recompra');
+    renderLiqProv(liqData.ALO_CREDIT, 'rep-prov-alocredit', '#7c3aed', '#ede9fe');
+    renderLiqProv(liqData.PAYJOY,     'rep-prov-payjoy',    '#0891b2', '#ecfeff');  } catch(e) {
     if(loading) loading.style.display = 'none';
     console.error('Error proveedores:', e);
   }
