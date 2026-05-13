@@ -888,15 +888,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div id="rep-prov-movisim-et"></div>
       </div>
       <div class="rep-seccion">
-        <div class="rep-titulo">📋 MOVISIM — Oficina</div>
+        <div class="rep-titulo">📋 MOVISIM — Oficina <span style="font-size:11px;color:#94a3b8;font-weight:400;">(mes actual)</span></div>
         <div id="rep-prov-oficina"></div>
       </div>
       <div class="rep-seccion">
-        <div class="rep-titulo">🔄 MOVISIM — Recompra</div>
+        <div class="rep-titulo">🔄 MOVISIM — Recompra <span style="font-size:11px;color:#94a3b8;font-weight:400;">(mes actual)</span></div>
         <div id="rep-prov-recompra"></div>
       </div>
       <div class="rep-seccion">
-        <div class="rep-titulo">💳 Alo Credit</div>
+        <div class="rep-titulo">💳 Alo Credit <span style="font-size:11px;color:#94a3b8;font-weight:400;">(mes actual)</span></div>
         <div id="rep-prov-alocredit"></div>
       </div>
       <div class="rep-seccion">
@@ -5416,6 +5416,12 @@ async function cargarReporteProveedores() {
     const tiposMovisimDif = ['OFICINA','RECOMPRA','ALO_CREDIT'];
     const tiposLiqProv = ['PAYJOY'];
 
+    // OFICINA, RECOMPRA, ALO_CREDIT — diferencia col O, filtro MENSUAL
+    const hoyProv = new Date();
+    const inicioMesProv = `${hoyProv.getFullYear()}-${String(hoyProv.getMonth()+1).padStart(2,'0')}-01`;
+    const finMesProv = `${hoyProv.getFullYear()}-${String(hoyProv.getMonth()+1).padStart(2,'0')}-${String(new Date(hoyProv.getFullYear(), hoyProv.getMonth()+1, 0).getDate()).padStart(2,'0')}`;
+    const enMesProv = f => { const s=fmtFecha(f); return s>=inicioMesProv && s<=finMesProv; };
+
     const movData = {
       OFICINA:    { dif:0, ventas:[] },
       RECOMPRA:   { dif:0, ventas:[] },
@@ -5424,7 +5430,7 @@ async function cargarReporteProveedores() {
     if(control?.values?.length > 1) {
       for(let i=1;i<control.values.length;i++) {
         const r = control.values[i];
-        if(!enSemana(r[0])) continue;
+        if(!enMesProv(r[0])) continue; // filtro mensual
         if(r[13]==='ANULADO') continue;
         const tipo = r[2]?.toString()||'';
         if(!tiposMovisimDif.includes(tipo)) continue;
