@@ -2132,7 +2132,9 @@ async function cargarTodo() {
         const row = inv.values[i];
         const imei = row[0];
         const ref = row[1];
-        const estado = row[6] ? row[6].toString().toUpperCase() : '';
+        const estadoG = row[6] ? row[6].toString().toUpperCase() : '';
+        const estadoM = row[12] ? row[12].toString().toUpperCase() : ''; // ESTADO_ESPECIAL columna M
+        const estado = estadoM || estadoG; // M tiene prioridad sobre G
         const ubicacion = row[9] ? row[9].toString() : '';
         const proveedor = row[4] ? row[4].toString() : '';
         const origen = row[5] ? row[5].toString() : '';
@@ -5159,7 +5161,9 @@ async function cargarReporteInventario() {
       for(let i=1;i<invTel.values.length;i++) {
         const r = invTel.values[i];
         if(!r[0]) continue;
-        const estado = (r[6]?.toString()||'').toUpperCase();
+        const estadoG = (r[6]?.toString()||'').toUpperCase();
+        const estadoM = (r[12]?.toString()||'').toUpperCase();
+        const estado = estadoM || estadoG;
         const costo = parseFloat(r[2])||0;
         const pvp = parseFloat(r[10])||0;
         if(estado === 'DISPONIBLE') { telDisp++; costoTel+=costo; pvpTel+=pvp; }
