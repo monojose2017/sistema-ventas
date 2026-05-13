@@ -5413,12 +5413,13 @@ async function cargarReporteProveedores() {
 
     // MOVISIM OFICINA, RECOMPRA — diferencia col O (índice 14)
     // ALO_CREDIT, PAYJOY — de LIQUIDACIONES
-    const tiposMovisimDif = ['OFICINA','RECOMPRA'];
-    const tiposLiqProv = ['ALO_CREDIT','PAYJOY'];
+    const tiposMovisimDif = ['OFICINA','RECOMPRA','ALO_CREDIT'];
+    const tiposLiqProv = ['PAYJOY'];
 
     const movData = {
       OFICINA:    { dif:0, ventas:[] },
-      RECOMPRA:   { dif:0, ventas:[] }
+      RECOMPRA:   { dif:0, ventas:[] },
+      ALO_CREDIT: { dif:0, ventas:[] }
     };
     if(control?.values?.length > 1) {
       for(let i=1;i<control.values.length;i++) {
@@ -5433,17 +5434,17 @@ async function cargarReporteProveedores() {
       }
     }
 
-    // ALO_CREDIT y PAYJOY de LIQUIDACIONES
-    const liqData = { ALO_CREDIT:{ total:0, ventas:[] }, PAYJOY:{ total:0, ventas:[] } };
+    // ALO_CREDIT de LIQUIDACIONES ya no aplica — se usa col O
+    const liqData = { PAYJOY:{ total:0, ventas:[] } };
     if(liqSheet?.values?.length > 1) {
       for(let i=1;i<liqSheet.values.length;i++) {
         const r = liqSheet.values[i];
         if(!enSemana(r[5])) continue;
         const tipo = r[2]?.toString()||'';
-        if(!tiposLiqProv.includes(tipo)) continue;
+        if(tipo !== 'PAYJOY') continue;
         const pago = parseFloat(r[6])||0;
-        liqData[tipo].total += pago;
-        liqData[tipo].ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+        liqData.PAYJOY.total += pago;
+        liqData.PAYJOY.ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
       }
     }
 
@@ -5490,10 +5491,10 @@ async function cargarReporteProveedores() {
         ${data.ventas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
     };
 
-    renderMovisimDif('OFICINA',  movData.OFICINA,  'rep-prov-oficina');
-    renderMovisimDif('RECOMPRA', movData.RECOMPRA, 'rep-prov-recompra');
-    renderLiqProv(liqData.ALO_CREDIT, 'rep-prov-alocredit', '#7c3aed', '#ede9fe');
-    renderLiqProv(liqData.PAYJOY,     'rep-prov-payjoy',    '#0891b2', '#ecfeff');  } catch(e) {
+    renderMovisimDif('OFICINA',    movData.OFICINA,    'rep-prov-oficina');
+    renderMovisimDif('RECOMPRA',   movData.RECOMPRA,   'rep-prov-recompra');
+    renderMovisimDif('ALO_CREDIT', movData.ALO_CREDIT, 'rep-prov-alocredit');
+    renderLiqProv(liqData.PAYJOY, 'rep-prov-payjoy', '#0891b2', '#ecfeff');  } catch(e) {
     if(loading) loading.style.display = 'none';
     console.error('Error proveedores:', e);
   }
