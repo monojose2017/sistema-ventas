@@ -2288,7 +2288,7 @@ async function escribirFormulasInventario(imei) {
       const r = inv.values[i];
       if(r[0] && r[0].toString().trim() === imei.toString().trim()) {
         const filaNum = i + 1;
-        const formulaEstado = `=SI(A${filaNum}="";"";SI(O(H${filaNum}="PRESTADO";H${filaNum}="EN GARANTIA";H${filaNum}="ANULADO");H${filaNum};SI(O(CONTAR.SI(VENTAS_CREDITOS!$E:$E;ESPACIOS(A${filaNum}))>0;CONTAR.SI(VENTAS_CONTADO!$C:$C;ESPACIOS(A${filaNum}))>0);"VENDIDO";"DISPONIBLE")))`;
+        const formulaEstado = `=SI(A${filaNum}="";"";SI(M${filaNum}<>"";M${filaNum};SI(O(CONTAR.SI(VENTAS_CREDITOS!$E:$E;ESPACIOS(A${filaNum}))>0;CONTAR.SI(VENTAS_CONTADO!$C:$C;ESPACIOS(A${filaNum}))>0);"VENDIDO";"DISPONIBLE")))`;
         const formulaTipo = `=SI.ERROR(INDICE(VENTAS_CREDITOS!$C:$C;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CREDITOS!$E:$E;0));SI.ERROR(INDICE(VENTAS_CONTADO!$L:$L;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CONTADO!$C:$C;0));""))`;
         // Usar values con = para que Graph API lo interprete como fórmula
         await graphPatch(
@@ -2321,8 +2321,8 @@ async function marcarVendidoExcel(imei, tipoVenta) {
         if (inv.values[i][0] && inv.values[i][0].toString().trim() === imei.toString().trim()) {
           const fila = i + 1;
           const result = await graphPatch(
-            `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
-            { values: [['VENDIDO', tipoVenta]] }
+            `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${fila}')`,
+            { values: [['']] }
           );
           if(result) return true;
           break;
@@ -3836,11 +3836,8 @@ async function anularCredito() {
     }
 
     if(filaImei > 0) {
-      console.log('Liberando IMEI en G'+filaImei);
-      const r1 = await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
-      console.log('Respuesta G:', JSON.stringify(r1));
-      const r2 = await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='H${filaImei}')`, { values: [['']] });
-      console.log('Respuesta H:', JSON.stringify(r2));
+      // Limpiar ESTADO_ESPECIAL (M) — la fórmula en G calculará DISPONIBLE automáticamente
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${filaImei}')`, { values: [['']] });
     }
 
     await cargarTodo();
@@ -4443,7 +4440,7 @@ async function registrarPrestamoSaliente() {
     for(let i=1;i<inv.values.length;i++){
       const r=inv.values[i];
       if(r[0]&&r[0].toString().trim()===imei){
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['PRESTADO',observacion]]});
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['PRESTADO']]});
         break;
       }
     }
@@ -4506,7 +4503,7 @@ async function enviarGarantia() {
     for(let i=1;i<inv.values.length;i++){
       const r=inv.values[i];
       if(r[0]&&r[0].toString().trim()===imei){
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['EN GARANTIA',observacion]]});
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['EN GARANTIA']]});
         break;
       }
     }
@@ -4554,7 +4551,7 @@ async function recuperarGarantia() {
       if(r[0]&&r[0].toString().trim()===imei){
         const obsActual=r[7]?r[7].toString():'';
         const nuevaObs=obs?`${obsActual} | RECUPERADO: ${obs}`:`${obsActual} | RECUPERADO`;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['DISPONIBLE',nuevaObs]]});
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['']]});
         break;
       }
     }
@@ -4594,7 +4591,7 @@ async function ejecutarCambioImei() {
       const r=inv.values[i];
       if(r[0]&&r[0].toString().trim()===imeiMalo){
         const obsGarantia=`CAMBIO IMEI: ${motivo}${obs?' — '+obs:''} | IMEI nuevo: ${imeiNuevo}`;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${i+1}:H${i+1}')`,{values:[['EN GARANTIA',obsGarantia]]});
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['EN GARANTIA']]});
         break;
       }
     }
@@ -5369,7 +5366,7 @@ async function cargarReporteProveedores() {
         </div>`).join('')}
       ${comtelVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
 
-    // MOVISIM ET_OFICINA — columna Q de CONTROL (índice 16)
+    // MOVISIM ET_OFICINA — columna Q de CONTROL (índice 16) + $30.000 comisión por venta
     let movisimEtTotal=0, movisimEtVentas=[];
     if(control?.values?.length > 1) {
       for(let i=1;i<control.values.length;i++) {
@@ -5377,7 +5374,7 @@ async function cargarReporteProveedores() {
         if(!enSemana(r[0])) continue;
         if(r[13]==='ANULADO') continue;
         if(r[2]?.toString() !== 'ET_OFICINA') continue;
-        const pago = parseFloat(r[16])||0; // Columna Q = índice 16
+        const pago = (parseFloat(r[16])||0) + 30000; // Q + $30.000 comisión
         movisimEtTotal += pago;
         movisimEtVentas.push({ ref:r[3]||'', imei:r[4]||'', pago });
       }
