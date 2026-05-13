@@ -820,6 +820,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div class="rep-titulo">💵 Contado</div>
         <div id="rep-proy-contado"></div>
       </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">🎧 Accesorios</div>
+        <div id="rep-proy-accesorios"></div>
+      </div>
     </div>
 
     <!-- VENTAS -->
@@ -5018,7 +5022,7 @@ async function cargarReporteProyeccion() {
       }
       return null;
     };
-    const [control, contado] = await Promise.all([fetchR('CONTROL'), fetchR('VENTAS_CONTADO')]);
+    const [control, contado, accesorios] = await Promise.all([fetchR('CONTROL'), fetchR('VENTAS_CONTADO'), fetchR('VENTAS_ACCESORIOS')]);
     if(loading) loading.style.display = 'none';
 
     // Construir botones de locales
@@ -5034,7 +5038,7 @@ async function cargarReporteProyeccion() {
       `).join('');
     }
 
-    window._proyData = { control, contado };
+    window._proyData = { control, contado, accesorios };
     renderProyeccion();
 
   } catch(e) {
@@ -5057,7 +5061,7 @@ function setLocalProyeccion(local) {
 
 function renderProyeccion() {
   if(!window._proyData) return;
-  const { control, contado } = window._proyData;
+  const { control, contado, accesorios } = window._proyData;
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
 
   // Fechas del mes actual
@@ -5147,8 +5151,21 @@ function renderProyeccion() {
       </div>`;
   };
 
+  // ACCESORIOS
+  let utilAccesorios=0, ventasAccesorios=0;
+  if(accesorios?.values?.length > 1) {
+    for(let i=1;i<accesorios.values.length;i++) {
+      const r = accesorios.values[i];
+      if(!enMes(r[0])) continue;
+      if(!filtroLocal(r[1])) continue;
+      utilAccesorios += parseFloat(r[12])||0;
+      ventasAccesorios++;
+    }
+  }
+
   document.getElementById('rep-proy-credito').innerHTML = renderSeccion('Créditos', utilCredito, ventasCredito, '#1d4ed8', '#dbeafe');
   document.getElementById('rep-proy-contado').innerHTML = renderSeccion('Contado', utilContado, ventasContado, '#15803d', '#dcfce7');
+  document.getElementById('rep-proy-accesorios').innerHTML = renderSeccion('Accesorios', utilAccesorios, ventasAccesorios, '#d97706', '#fff7ed');
 }
 
 
