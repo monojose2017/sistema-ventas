@@ -5350,7 +5350,7 @@ async function cargarReporteProveedores() {
     if(liqSheet?.values?.length > 1) {
       for(let i=1;i<liqSheet.values.length;i++) {
         const r = liqSheet.values[i];
-        if(!enSemana(r[8]||r[5])) continue; // fecha actualizacion o fecha
+        if(!enSemana(r[5])) continue; // fecha de la venta
         if(r[2]?.toString()==='ET_CLARO') {
           const pago = parseFloat(r[6])||0;
           comtelTotal += pago;
