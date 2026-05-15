@@ -287,6 +287,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
           <option value="">Seleccionar...</option>
           <option value="proveedores">Proveedores</option>
           <option value="referencias">Referencias</option>
+          <option value="proveedoresPago">Proveedores de Pago (PayJoy, Addi...)</option>
           <option value="ubicaciones">Ubicaciones</option>
           <option value="locales">Locales</option>
           <option value="responsables">Responsables</option>
@@ -617,6 +618,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Acreedor</label><input type="text" id="nd-acreedor" placeholder="¿A quién le debes?"></div>
     <div class="field"><label>Concepto</label><input type="text" id="nd-concepto" placeholder="¿Para qué es la deuda?"></div>
     <div class="field"><label>Tipo</label><div class="select-wrap"><select id="nd-tipo"><option value="">Seleccionar...</option><option>SIMPLE</option><option>CON INTERES</option></select></div></div>
+    <div class="field"><label>Propósito</label><div class="select-wrap"><select id="nd-proposito"><option value="OPERATIVA">OPERATIVA — préstamo para gastos del negocio</option><option value="INVENTARIO">INVENTARIO — cupo para comprar teléfonos</option></select></div></div>
     <div class="field"><label>Monto Total</label><input type="text" id="nd-monto" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Fecha Próximo Pago</label><input type="date" id="nd-vence"></div>
     <div class="field"><label>Local <span style="color:#94a3b8;font-weight:400;">(opcional — dejar vacío si es deuda general)</span></label>
@@ -786,9 +788,11 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <!-- Selector de semana (para Proveedores) -->
     <div id="rep-filtro-semana" style="display:none;background:#fff7ed;border-radius:14px;padding:14px;margin-bottom:16px;">
       <div style="font-size:12px;font-weight:800;color:#92400e;text-transform:uppercase;margin-bottom:8px;">📅 Semana de liquidación</div>
-      <div style="display:flex;gap:6px;margin-bottom:10px;">
-        <button onclick="setSemanaProv('actual')" id="prov-sem-actual" style="flex:1;padding:8px;border-radius:8px;border:2px solid #d97706;background:#d97706;color:white;font-weight:700;cursor:pointer;font-size:12px;">Esta semana</button>
-        <button onclick="setSemanaProv('anterior')" id="prov-sem-ant" style="flex:1;padding:8px;border-radius:8px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:12px;">Semana anterior</button>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+        <button onclick="setSemanaProv('actual')" id="prov-sem-actual" style="flex:1;padding:8px;border-radius:8px;border:2px solid #d97706;background:#d97706;color:white;font-weight:700;cursor:pointer;font-size:11px;">Esta semana<br><span style="font-size:10px;opacity:.8;">Lun-Dom</span></button>
+        <button onclick="setSemanaProv('anterior')" id="prov-sem-ant" style="flex:1;padding:8px;border-radius:8px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:11px;">Semana ant.<br><span style="font-size:10px;opacity:.8;">Lun-Dom</span></button>
+        <button onclick="setSemanaProv('actual-payjoy')" id="prov-sem-pj" style="flex:1;padding:8px;border-radius:8px;border:2px solid #0891b2;background:white;color:#0891b2;font-weight:700;cursor:pointer;font-size:11px;">Esta semana<br><span style="font-size:10px;opacity:.8;">Mar-Lun</span></button>
+        <button onclick="setSemanaProv('anterior-payjoy')" id="prov-sem-pjant" style="flex:1;padding:8px;border-radius:8px;border:2px solid #0891b2;background:white;color:#0891b2;font-weight:700;cursor:pointer;font-size:11px;">Semana ant.<br><span style="font-size:10px;opacity:.8;">Mar-Lun</span></button>
       </div>
       <input type="date" id="prov-fecha-ref" onchange="setSemanaProv('custom')" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;" placeholder="O selecciona cualquier día de la semana">
       <div id="prov-rango-label" style="font-size:12px;color:#92400e;font-weight:700;margin-top:8px;text-align:center;"></div>
@@ -906,6 +910,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="rep-seccion">
         <div class="rep-titulo">📱 PayJoy</div>
         <div id="rep-prov-payjoy"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">💳 Addi</div>
+        <div id="rep-prov-addi"></div>
       </div>
     </div>
 
@@ -1774,24 +1782,26 @@ function manejarPago(prefijo) {
   const errorEl = document.getElementById(`${prefijo}-mixto-error`);
   
   if (!pago || !efectivoEl || !transferEl) return;
-  
-  const total = getValorTotal(prefijo);
+
+  // Para nueva deuda (nd) los campos siempre son editables
+  const sinTotal = prefijo === 'nd';
+  const total = sinTotal ? 0 : getValorTotal(prefijo);
   
   if (pago === 'EFECTIVO') {
-    efectivoEl.value = total ? formatearMonto(total) : '';
-    efectivoEl.readOnly = true;
-    efectivoEl.style.background = '#f8fafc';
-    transferEl.value = '';
-    transferEl.readOnly = true;
-    transferEl.style.background = '#f8fafc';
+    efectivoEl.value = total ? formatearMonto(total) : (sinTotal ? efectivoEl.value : '');
+    efectivoEl.readOnly = !sinTotal;
+    efectivoEl.style.background = sinTotal ? 'white' : '#f8fafc';
+    transferEl.value = sinTotal ? transferEl.value : '';
+    transferEl.readOnly = !sinTotal;
+    transferEl.style.background = sinTotal ? 'white' : '#f8fafc';
     if(errorEl) errorEl.style.display = 'none';
   } else if (pago === 'TRANSFERENCIA') {
-    transferEl.value = total ? formatearMonto(total) : '';
-    transferEl.readOnly = true;
-    transferEl.style.background = '#f8fafc';
-    efectivoEl.value = '';
-    efectivoEl.readOnly = true;
-    efectivoEl.style.background = '#f8fafc';
+    transferEl.value = total ? formatearMonto(total) : (sinTotal ? transferEl.value : '');
+    transferEl.readOnly = !sinTotal;
+    transferEl.style.background = sinTotal ? 'white' : '#f8fafc';
+    efectivoEl.value = sinTotal ? efectivoEl.value : '';
+    efectivoEl.readOnly = !sinTotal;
+    efectivoEl.style.background = sinTotal ? 'white' : '#f8fafc';
     if(errorEl) errorEl.style.display = 'none';
   } else if (pago === 'MIXTO') {
     efectivoEl.value = '';
@@ -2199,7 +2209,8 @@ async function cargarTodo() {
     if(cfg && cfg.values) {
       window.CONFIG_DATA = {
         locales: [], ubicaciones: [], proveedores: [], referencias: [],
-        responsables: [], categorias: [], categoriasAcc: [], tipoGastos: []
+        responsables: [], categorias: [], categoriasAcc: [], tipoGastos: [],
+        proveedoresPago: []
       };
       for(let i=1; i<cfg.values.length; i++) {
         const row = cfg.values[i];
@@ -2211,6 +2222,7 @@ async function cargarTodo() {
         if(row[10]) window.CONFIG_DATA.categoriasAcc.push(row[10].toString());
         if(row[13]) window.CONFIG_DATA.proveedores.push(row[13].toString());
         if(row[15]) window.CONFIG_DATA.referencias.push(row[15].toString());
+        if(row[17]) window.CONFIG_DATA.proveedoresPago.push(row[17].toString());
       }
       window.CONFIG_LISTAS = window.CONFIG_DATA;
       llenarSelectsDesdeConfig();
@@ -2406,6 +2418,9 @@ async function enviarForm(tipo) {
   }
 
   const fecha = new Date().toISOString().split('T')[0];
+  const btn = document.querySelector(`#screen-${tipo} .submit-btn`);
+  if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+
   let hoja = '';
   let fila = [];
   let imei = '';
@@ -2490,7 +2505,7 @@ async function enviarForm(tipo) {
     const monto = getNumero('nd-monto');
     const localDeuda = getVal('nd-local') || 'GENERAL';
     hoja = 'DEUDAS';
-    fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), '', localDeuda];
+    fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), '', localDeuda, getVal('nd-proposito')||'OPERATIVA'];
     if(ndRecibido) {
       const ndPago = getVal('nd-pago') || 'EFECTIVO';
       const ndEfectivo = getNumero('nd-efectivo') || (ndPago === 'EFECTIVO' ? monto : 0);
@@ -2536,9 +2551,6 @@ async function enviarForm(tipo) {
     // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, RESPONSABLE
     fila = [getVal('g-fecha')||fecha, getVal('g-tipo'), getVal('g-tipo-cat'), getVal('g-desc'), getVal('g-local'), getNumero('g-valor'), getVal('g-pago'), getNumero('g-efectivo'), getNumero('g-transfer'), 'OK', ''];
   }
-
-  const btn = document.querySelector(`#screen-${tipo} .submit-btn`);
-  if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
 
   let ok = false;
   let errorMsg = '';
@@ -2605,7 +2617,8 @@ const CONFIG_COLUMNAS = {
   categorias: { col: 'I', idx: 8 },
   categoriasAcc: { col: 'K', idx: 10 },
   proveedores: { col: 'N', idx: 13 },
-  referencias: { col: 'P', idx: 15 }
+  referencias: { col: 'P', idx: 15 },
+  proveedoresPago: { col: 'R', idx: 17 }
 };
 
 async function cargarConfigAdmin() {
@@ -5296,6 +5309,8 @@ async function cargarReporteInventario() {
 // =============================================
 let provSemanaDesde = '';
 let provSemanaHasta = '';
+let provSemanaPayjoyDesde = '';
+let provSemanaPayjoyHasta = '';
 
 function getLunesDomingo(fecha) {
   // Crear fecha en hora local para evitar desplazamiento UTC
@@ -5318,33 +5333,64 @@ function getLunesDomingo(fecha) {
   return { desde: fmt(lunes), hasta: fmt(domingo) };
 }
 
+function getMartesLunes(fecha) {
+  let d;
+  if(typeof fecha === 'string') { const [y,m,dy]=fecha.split('-').map(Number); d=new Date(y,m-1,dy); }
+  else d = new Date(fecha);
+  // Martes=2, si es lunes(1) retroceder 6 días, si es martes(2) es hoy, etc.
+  const dia = d.getDay(); // 0=dom,1=lun,2=mar...
+  const diasHastaMartes = dia === 0 ? 5 : dia === 1 ? 6 : dia - 2;
+  const martes = new Date(d); martes.setDate(d.getDate() - diasHastaMartes);
+  const lunes = new Date(martes); lunes.setDate(martes.getDate() + 6);
+  const fmt = x => { const yy=x.getFullYear(),mm=String(x.getMonth()+1).padStart(2,'0'),dd=String(x.getDate()).padStart(2,'0'); return `${yy}-${mm}-${dd}`; };
+  return { desde: fmt(martes), hasta: fmt(lunes) };
+}
+
 function setSemanaProv(tipo) {
   const hoy = new Date();
   let ref = hoy;
-  if(tipo === 'anterior') { ref = new Date(hoy); ref.setDate(hoy.getDate()-7); }
-  else if(tipo === 'custom') { ref = new Date(document.getElementById('prov-fecha-ref').value); }
-  const { desde, hasta } = getLunesDomingo(ref);
-  provSemanaDesde = desde;
-  provSemanaHasta = hasta;
-  // Actualizar labels de botones
-  ['actual','anterior'].forEach(t => {
-    const btn = document.getElementById('prov-sem-'+t);
-    if(btn) {
-      btn.style.background = tipo===t ? '#d97706' : 'white';
-      btn.style.color = tipo===t ? 'white' : '#d97706';
-    }
+  let esPayjoy = tipo.includes('payjoy');
+  if(tipo === 'anterior' || tipo === 'anterior-payjoy') { ref = new Date(hoy); ref.setDate(hoy.getDate()-7); }
+  else if(tipo === 'custom') { ref = new Date(document.getElementById('prov-fecha-ref').value+'T12:00:00'); }
+
+  const { desde, hasta } = esPayjoy ? getMartesLunes(ref) : getLunesDomingo(ref);
+
+  if(esPayjoy) {
+    provSemanaPayjoyDesde = desde;
+    provSemanaPayjoyHasta = hasta;
+  } else {
+    provSemanaDesde = desde;
+    provSemanaHasta = hasta;
+  }
+
+  // Actualizar botones
+  ['actual','anterior','actual-payjoy','anterior-payjoy'].forEach(t => {
+    const id = t === 'actual' ? 'prov-sem-actual' : t === 'anterior' ? 'prov-sem-ant' : t === 'actual-payjoy' ? 'prov-sem-pj' : 'prov-sem-pjant';
+    const btn = document.getElementById(id);
+    if(!btn) return;
+    const isPayjoyBtn = t.includes('payjoy');
+    const color = isPayjoyBtn ? '#0891b2' : '#d97706';
+    btn.style.background = t === tipo ? color : 'white';
+    btn.style.color = t === tipo ? 'white' : color;
   });
-  // Mostrar rango
-  const label = document.getElementById('prov-rango-label');
+
+    const label = document.getElementById('prov-rango-label');
   if(label) {
-    const fmtDate = s => new Date(s+'T12:00:00').toLocaleDateString('es-CO', {day:'numeric',month:'long'});
-    label.textContent = `Semana: ${fmtDate(desde)} — ${fmtDate(hasta)}`;
+    const fmtDate = s => new Date(s+'T12:00:00').toLocaleDateString('es-CO',{day:'numeric',month:'long'});
+    const desdeN = provSemanaDesde;
+    const hastaN = provSemanaHasta;
+    const desdePj = provSemanaPayjoyDesde;
+    const hastaPj = provSemanaPayjoyHasta;
+    label.innerHTML = `
+      <div>Semana general: <b>${desdeN&&hastaN?fmtDate(desdeN)+' — '+fmtDate(hastaN):'...'}</b></div>
+      <div style="color:#0891b2;">PayJoy (Mar-Lun): <b>${desdePj&&hastaPj?fmtDate(desdePj)+' — '+fmtDate(hastaPj):'...'}</b></div>`;
   }
   cargarReporteProveedores();
 }
 
 async function cargarReporteProveedores() {
   if(!provSemanaDesde) { setSemanaProv('actual'); return; }
+  if(!provSemanaPayjoyDesde) { setSemanaProv('actual-payjoy'); return; }
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
   const fmtColor = n => `<span style="font-weight:800;color:${n>0?'#dc2626':n<0?'#16a34a':'#64748b'}">${n>0?'+':''}${fmt(n)}</span>`;
   const loading = document.getElementById('rep-loading');
@@ -5373,6 +5419,7 @@ async function cargarReporteProveedores() {
     if(loading) loading.style.display = 'none';
 
     const enSemana = f => { const s=fmtFecha(f); return s>=provSemanaDesde && s<=provSemanaHasta; };
+    const enSemanaPayjoy = f => { const s=fmtFecha(f); return s>=provSemanaPayjoyDesde && s<=provSemanaPayjoyHasta; };
 
     // COMTEL — ET_CLARO
     let comtelTotal=0, comtelVentas=[];
@@ -5457,17 +5504,22 @@ async function cargarReporteProveedores() {
       }
     }
 
-    // ALO_CREDIT de LIQUIDACIONES ya no aplica — se usa col O
-    const liqData = { PAYJOY:{ total:0, ventas:[] } };
+    const liqData = { PAYJOY:{ total:0, ventas:[] }, ADDI:{ total:0, ventas:[] } };
     if(liqSheet?.values?.length > 1) {
       for(let i=1;i<liqSheet.values.length;i++) {
         const r = liqSheet.values[i];
-        if(!enSemana(r[5])) continue;
         const tipo = r[2]?.toString()||'';
-        if(tipo !== 'PAYJOY') continue;
-        const pago = parseFloat(r[6])||0;
-        liqData.PAYJOY.total += pago;
-        liqData.PAYJOY.ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+        if(tipo === 'PAYJOY') {
+          if(!enSemanaPayjoy(r[5])) continue; // martes-lunes
+          const pago = parseFloat(r[6])||0;
+          liqData.PAYJOY.total += pago;
+          liqData.PAYJOY.ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+        } else if(tipo === 'ADDI') {
+          if(!enSemana(r[5])) continue; // lunes-domingo
+          const pago = parseFloat(r[6])||0;
+          liqData.ADDI.total += pago;
+          liqData.ADDI.ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
+        }
       }
     }
 
@@ -5517,7 +5569,8 @@ async function cargarReporteProveedores() {
     renderMovisimDif('OFICINA',    movData.OFICINA,    'rep-prov-oficina');
     renderMovisimDif('RECOMPRA',   movData.RECOMPRA,   'rep-prov-recompra');
     renderMovisimDif('ALO_CREDIT', movData.ALO_CREDIT, 'rep-prov-alocredit');
-    renderLiqProv(liqData.PAYJOY, 'rep-prov-payjoy', '#0891b2', '#ecfeff');  } catch(e) {
+    renderLiqProv(liqData.PAYJOY, 'rep-prov-payjoy', '#0891b2', '#ecfeff');
+    renderLiqProv(liqData.ADDI,   'rep-prov-addi',   '#7c3aed', '#ede9fe');  } catch(e) {
     if(loading) loading.style.display = 'none';
     console.error('Error proveedores:', e);
   }
@@ -5588,7 +5641,7 @@ async function cargarReportes() {
   };
 
   try {
-    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet, creditos] = await Promise.all([
+    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet, creditos, deudas] = await Promise.all([
       fetchConReintento('CONTROL'),
       fetchConReintento('VENTAS_CONTADO'),
       fetchConReintento('VENTAS_ACCESORIOS'),
@@ -5597,8 +5650,18 @@ async function cargarReportes() {
       fetchConReintento('INGRESOS_LOCAL'),
       fetchConReintento('ABONOS_DEUDAS'),
       fetchConReintento('LIQUIDACIONES'),
-      fetchConReintento('VENTAS_CREDITOS')
+      fetchConReintento('VENTAS_CREDITOS'),
+      fetchConReintento('DEUDAS')
     ]);
+
+    // Mapa acreedor → propósito (columna K = índice 10)
+    const propositoDeuda = {};
+    if(deudas?.values?.length > 1) {
+      for(let i=1;i<deudas.values.length;i++) {
+        const r = deudas.values[i];
+        if(r[1]) propositoDeuda[r[1].toString().trim()] = r[10]?.toString()||'OPERATIVA';
+      }
+    }
 
     const fmtFecha = f => {
       if(!f) return '';
@@ -5727,11 +5790,15 @@ async function cargarReportes() {
       }
     }
 
-    // ABONOS_DEUDAS → por local o general
+    // ABONOS_DEUDAS — solo OPERATIVAS (cruzar con tabla DEUDAS)
     if(abonosDeudas?.values?.length > 1) {
       for(let i=1;i<abonosDeudas.values.length;i++) {
         const r = abonosDeudas.values[i];
         if(!enRango(r[0])) continue;
+        // Verificar propósito cruzando con DEUDAS
+        const acreedor = r[1]?.toString().trim()||'';
+        const proposito = propositoDeuda[acreedor] || 'OPERATIVA';
+        if(proposito === 'INVENTARIO') continue; // No afecta rentabilidad operativa
         const local = r[7]?.toString()||'';
         const valor = parseFloat(r[3])||0;
         if(local && datos[local]) {
