@@ -266,7 +266,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <div class="field"><label>Fecha</label><input type="date" id="ig-fecha"></div>
     <div class="field"><label>Tipo</label><div class="select-wrap"><select id="ig-tipo" onchange="onTipoIngresoGerencia()"><option value="">Seleccionar...</option><option>PAGO DE PROVEEDOR</option><option>PRESTAMO RECIBIDO</option><option>ABONO CLIENTE</option><option>OTROS</option></select></div></div>
-    <div class="field" id="ig-proveedor-wrap" style="display:none"><label>Proveedor</label><div class="select-wrap"><select id="ig-proveedor"><option value="">Seleccionar...</option><option>MOVISIM</option><option>COMTEL</option></select></div></div>
+    <div class="field" id="ig-proveedor-wrap" style="display:none"><label>Proveedor</label><div class="select-wrap"><select id="ig-proveedor"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Descripción</label><input type="text" id="ig-desc" placeholder="Detalle del ingreso"></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="ig-local"><option value="">Seleccionar...</option><option>GENERAL</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
     <div class="field"><label>Valor</label><input type="text" id="ig-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('ig')"></div>
@@ -1425,6 +1425,17 @@ function irA(s){
         sel.innerHTML += `<option value="${r}">${r}</option>`;
       });
     }
+  }
+  if(s === 'ingresos-gerencia') {
+    const sel = document.getElementById('ig-proveedor');
+    if(sel) {
+      sel.innerHTML = '<option value="">Seleccionar...</option>';
+      const provsPago = window.CONFIG_LISTAS?.proveedoresPago || ['MOVISIM','COMTEL','PAYJOY','ADDI'];
+      provsPago.forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
+    }
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaEl = document.getElementById('ig-fecha');
+    if(fechaEl && !fechaEl.value) fechaEl.value = hoy;
   }
   if(s === 'abono-deuda') {
     const sel = document.getElementById('ab-local');
