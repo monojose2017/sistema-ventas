@@ -2364,8 +2364,8 @@ async function marcarVendidoExcel(imei, tipoVenta) {
         if (inv.values[i][0] && inv.values[i][0].toString().trim() === imei.toString().trim()) {
           const fila = i + 1;
           const result = await graphPatch(
-            `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${fila}')`,
-            { values: [['']] }
+            `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
+            { values: [['VENDIDO', tipoVenta]] }
           );
           if(result) return true;
           break;
@@ -3880,7 +3880,8 @@ async function anularCredito() {
     }
 
     if(filaImei > 0) {
-      // Limpiar ESTADO_ESPECIAL (M) — la fórmula en G calculará DISPONIBLE automáticamente
+      // Limpiar M y escribir DISPONIBLE en G
+      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
       await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${filaImei}')`, { values: [['']] });
     }
 
