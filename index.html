@@ -2324,31 +2324,9 @@ async function agregarFilaExcel(hoja, fila) {
 }
 
 async function escribirFormulasInventario(imei) {
-  try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    if(!inv || !inv.values) return;
-    for(let i=1; i<inv.values.length; i++) {
-      const r = inv.values[i];
-      if(r[0] && r[0].toString().trim() === imei.toString().trim()) {
-        const filaNum = i + 1;
-        const formulaEstado = `=SI(A${filaNum}="";"";SI(M${filaNum}<>"";M${filaNum};SI(O(CONTAR.SI(VENTAS_CREDITOS!$E:$E;ESPACIOS(A${filaNum}))>0;CONTAR.SI(VENTAS_CONTADO!$C:$C;ESPACIOS(A${filaNum}))>0);"VENDIDO";"DISPONIBLE")))`;
-        const formulaTipo = `=SI.ERROR(INDICE(VENTAS_CREDITOS!$C:$C;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CREDITOS!$E:$E;0));SI.ERROR(INDICE(VENTAS_CONTADO!$L:$L;COINCIDIR(ESPACIOS(A${filaNum});VENTAS_CONTADO!$C:$C;0));""))`;
-        // Usar values con = para que Graph API lo interprete como fórmula
-        await graphPatch(
-          `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaNum}')`,
-          { values: [[formulaEstado]] }
-        );
-        await graphPatch(
-          `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='H${filaNum}')`,
-          { values: [[formulaTipo]] }
-        );
-        console.log('Fórmulas escritas en fila', filaNum);
-        break;
-      }
-    }
-  } catch(e) {
-    console.error('Error escribiendo fórmulas inventario:', e);
-  }
+  // DESACTIVADO — las fórmulas complejas corrompen el archivo via Graph API
+  // G y H se escriben directamente con valores al ingresar/vender
+  return;
 }
 
 async function marcarVendidoExcel(imei, tipoVenta) {
