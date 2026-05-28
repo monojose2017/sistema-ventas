@@ -3484,16 +3484,26 @@ async function reponerAccesorio() {
       const row = inv.values[i];
       if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
         const filaExcel = i+1;
-        // Usar STOCK_INICIAL original (columna D = row[3]) no el stock actual calculado
         const stockInicialOriginal = parseInt(row[3]) || 0;
         const costoActual = parseFloat(row[4]) || 0;
-        // Calcular ventas realizadas = stockInicial - stockActual
-        const stockActualReal = parseInt(row[6]) || 0;
-        const ventasRealizadas = stockInicialOriginal - stockActualReal;
+        // Calcular ventas del producto leyendo VENTAS_ACCESORIOS
+        const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`);
+        let unidadesVendidas = 0;
+        if(ventas?.values?.length > 1) {
+          for(let v=1; v<ventas.values.length; v++) {
+            const rv = ventas.values[v];
+            if(rv[1]?.toString()===local && rv[3]?.toString()===prod.producto) {
+              unidadesVendidas += parseInt(rv[4])||0;
+            }
+          }
+        }
+        const stockActualReal = Math.max(0, stockInicialOriginal - unidadesVendidas);
         // Nuevo stock inicial = original + cantidad nueva
         const nuevoStockInicial = stockInicialOriginal + cantNueva;
-        // Precio promedio basado en stock actual real + cantidad nueva
-        const promedio = Math.round((stockActualReal * costoActual + cantNueva * precioNuevo) / (stockActualReal + cantNueva));
+        // Precio promedio
+        const promedio = stockActualReal + cantNueva > 0
+          ? Math.round((stockActualReal * costoActual + cantNueva * precioNuevo) / (stockActualReal + cantNueva))
+          : precioNuevo;
 
         await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStockInicial, promedio]] });
 
