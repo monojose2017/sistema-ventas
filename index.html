@@ -3489,15 +3489,20 @@ async function reponerAccesorio() {
         // Calcular ventas del producto leyendo VENTAS_ACCESORIOS
         const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`);
         let unidadesVendidas = 0;
+        const prodNorm = prod.producto.toString().trim().toUpperCase();
+        const localNorm = local.toString().trim().toUpperCase();
         if(ventas?.values?.length > 1) {
           for(let v=1; v<ventas.values.length; v++) {
             const rv = ventas.values[v];
-            if(rv[1]?.toString()===local && rv[3]?.toString()===prod.producto) {
+            const rvLocal = rv[1]?.toString().trim().toUpperCase()||'';
+            const rvProd = rv[3]?.toString().trim().toUpperCase()||'';
+            if(rvLocal===localNorm && rvProd===prodNorm) {
               unidadesVendidas += parseInt(rv[4])||0;
             }
           }
         }
         const stockActualReal = Math.max(0, stockInicialOriginal - unidadesVendidas);
+        console.log(`Reposición: local=${local}, producto=${prod.producto}, stockInicial=${stockInicialOriginal}, vendidas=${unidadesVendidas}, stockActual=${stockActualReal}, cantNueva=${cantNueva}, nuevoStockInicial=${stockInicialOriginal + cantNueva}`);
         // Nuevo stock inicial = original + cantidad nueva
         const nuevoStockInicial = stockInicialOriginal + cantNueva;
         // Precio promedio
