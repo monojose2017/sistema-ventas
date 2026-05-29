@@ -3516,6 +3516,7 @@ async function reponerAccesorio() {
         if(precioVentaNuevo > 0) {
           await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${filaExcel}')`, { values: [[precioVentaNuevo]] });
         }
+        await new Promise(r => setTimeout(r, 2000)); // Esperar 2 segundos antes de recargar
         await cargarTodo();
         mostrarExito('inventario');
         return;
