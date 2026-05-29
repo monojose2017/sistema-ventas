@@ -1405,7 +1405,7 @@ function irA(s){
   if(s === 'credito') cargarPrecios();
   if(s === 'garantia-recuperar') cargarTelefonosEnGarantia();
   if(s === 'apertura-caja') {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyLocal();
     document.getElementById('ac-fecha').value = hoy;
     const sel = document.getElementById('ac-responsable');
     if(sel) {
@@ -1416,7 +1416,7 @@ function irA(s){
     }
   }
   if(s === 'retiro-caja') {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyLocal();
     document.getElementById('rc-fecha').value = hoy;
     const sel = document.getElementById('rc-responsable');
     if(sel) {
@@ -1433,7 +1433,7 @@ function irA(s){
       const provsPago = window.CONFIG_LISTAS?.proveedoresPago || ['MOVISIM','COMTEL','PAYJOY','ADDI'];
       provsPago.forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
     }
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyLocal();
     const fechaEl = document.getElementById('ig-fecha');
     if(fechaEl && !fechaEl.value) fechaEl.value = hoy;
   }
@@ -1456,7 +1456,7 @@ function irA(s){
     }
   }
   if(s === 'mis-registros') {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = fechaHoyLocal();
     document.getElementById('mr-fecha').value = hoy;
     const sel = document.getElementById('mr-local');
     sel.innerHTML = '<option value="">Seleccionar...</option>';
@@ -1493,12 +1493,21 @@ window.onload = function() {
     });
   });
   // Poner fecha de hoy en todos los formularios
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyLocal();
   ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
 };
+
+// Fecha de hoy en hora local (evita desfase UTC en Colombia UTC-5)
+function fechaHoyLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
 
 function formatMoney(input){
   let val = input.value.replace(/[^0-9]/g,'');
@@ -1739,7 +1748,7 @@ function verificarClave(){
   if(val===CLAVE){
     gerenciaAutenticada = true;
     cerrarClave();
-    document.getElementById('g-fecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('g-fecha').value = fechaHoyLocal();
     irA('gerencia');
   } else {
     document.getElementById('clave-error').classList.add('visible');
@@ -2049,7 +2058,7 @@ window.onload = async function() {
   // Asegurar que siempre inicie en el menú principal
   document.querySelectorAll('.screen').forEach(x => x.classList.remove('active'));
   document.getElementById('screen-inicio').classList.add('active');
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyLocal();
   ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
@@ -2406,7 +2415,7 @@ async function enviarForm(tipo) {
     }
   }
 
-  const fecha = new Date().toISOString().split('T')[0];
+  const fecha = fechaHoyLocal();
   const btn = document.querySelector(`#screen-${tipo} .submit-btn`);
   if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
 
@@ -2915,7 +2924,7 @@ async function ejecutarEliminarTelefono() {
     for(let i=1; i<inv.values.length; i++) {
       if(inv.values[i][0]?.toString() === imeiAEliminar) {
         // Eliminar la fila
-        await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/rows/$/itemAt(index=${i})`);
+        await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/TBL_INVENTARIO_TELEFONO/rows/itemAt(index=${i-1})`);
         await cargarTodo();
         verInventario();
         mostrarToastVerde('✅ IMEI eliminado correctamente');
@@ -3561,7 +3570,7 @@ function mostrarExito(destino) {
 }
 
 function limpiarFormulario(tipo) {
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyLocal();
   // Reset readonly en campos de pago
   ['c-efectivo','c-transfer','ct-efectivo','ct-transfer','a-efectivo','a-transfer','g-efectivo','g-transfer'].forEach(id => {
     const el = document.getElementById(id);
@@ -4525,7 +4534,7 @@ async function registrarPrestamoEntrante() {
   const ubicacion=document.getElementById('pe-ubicacion').value;
   const obs=document.getElementById('pe-obs').value.trim();
   if(!imei||!ref||!quien||!costo||!ubicacion){alert('⚠️ Completa todos los campos obligatorios');return;}
-  const hoy=new Date().toISOString().split('T')[0];
+  const hoy=fechaHoyLocal();
   const observacion=`PRESTADO DE: ${quien}${obs?' — '+obs:''}`;
   const fila=[imei,ref,costo,hoy,quien,observacion,'DISPONIBLE','PRESTADO','',ubicacion,0,'','PRESTADO'];
   try {
@@ -4649,7 +4658,7 @@ async function ejecutarCambioImei() {
   if(!imeiNuevo){alert('⚠️ Ingresa el IMEI nuevo');return;}
   if(!motivo){alert('⚠️ Indica el motivo del cambio');return;}
   const imeiMalo=cambioImeiFila.imei;
-  const hoy=new Date().toISOString().split('T')[0];
+  const hoy=fechaHoyLocal();
   try {
     const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
     for(let i=1;i<inv.values.length;i++){
@@ -4951,7 +4960,7 @@ async function guardarLiquidacion() {
   if(!pagoFinanciera) { alert('⚠️ Ingresa el valor que paga la financiera'); return; }
   const obs = document.getElementById('liq-observacion').value.trim();
   const v = liqVentaActual;
-  const fechaHoy = new Date().toISOString().split('T')[0];
+  const fechaHoy = fechaHoyLocal();
   const btn = document.querySelector('#screen-liquidacion-detalle .submit-btn');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
@@ -4981,7 +4990,7 @@ async function guardarLiquidacion() {
       window.LIQ_PENDIENTES = window.LIQ_PENDIENTES.filter(p => p.imei !== v.imei);
       liqCompletadas.push({
         imei: v.imei, ref: v.ref, tipo: v.tipo, porc: v.porc, costo: v.costo,
-        fecha: v.fecha, pagoFinanciera, obs, fechaAct: new Date().toISOString().split('T')[0],
+        fecha: v.fecha, pagoFinanciera, obs, fechaAct: fechaHoyLocal(),
         costoClaro, valorSistema
       });
     } else {
@@ -5114,7 +5123,7 @@ function renderProyeccion() {
   const diasMes = new Date(hoy.getFullYear(), hoy.getMonth()+1, 0).getDate();
   const diaActual = hoy.getDate();
   const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
-  const hoyStr = hoy.toISOString().split('T')[0];
+  const hoyStr = fechaHoyLocal();
 
   const fmtFecha = f => {
     if(!f) return '';
