@@ -2795,25 +2795,51 @@ async function ejecutarReponer() {
   btn.textContent = 'Enviando...'; btn.disabled = true;
 
   const prod = mercProductoSeleccionado;
-  const promedio = Math.round((prod.stock * prod.costo + cantNueva * costoNuevo) / (prod.stock + cantNueva));
-  const nuevoStock = prod.stock + cantNueva;
 
   try {
     const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
     for(let i=1; i<inv.values.length; i++) {
       const row = inv.values[i];
       if(row[0]?.toString()===prod.local && row[2]?.toString()===prod.producto) {
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${i+1}:E${i+1}')`, { values: [[nuevoStock, promedio]] });
+        // Leer stock inicial real de Excel (D = row[3])
+        const stockInicialReal = parseInt(row[3]) || 0;
+        // Calcular ventas reales desde VENTAS_ACCESORIOS
+        const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`);
+        let unidadesVendidas = 0;
+        const prodNorm = prod.producto.toString().trim().toUpperCase();
+        const localNorm = prod.local.toString().trim().toUpperCase();
+        if(ventas?.values?.length > 1) {
+          for(let v=1; v<ventas.values.length; v++) {
+            const rv = ventas.values[v];
+            if(rv[1]?.toString().trim().toUpperCase()===localNorm && rv[3]?.toString().trim().toUpperCase()===prodNorm) {
+              unidadesVendidas += parseInt(rv[4])||0;
+            }
+          }
+        }
+        const stockActualReal = Math.max(0, stockInicialReal - unidadesVendidas);
+        const nuevoStockInicial = stockInicialReal + cantNueva;
+        const costoActual = parseFloat(row[4]) || 0;
+        const promedio = stockActualReal + cantNueva > 0
+          ? Math.round((stockActualReal * costoActual + cantNueva * costoNuevo) / (stockActualReal + cantNueva))
+          : costoNuevo;
+
+        console.log(`Reposición: local=${prod.local}, producto=${prod.producto}, stockInicialReal=${stockInicialReal}, vendidas=${unidadesVendidas}, stockActual=${stockActualReal}, cantNueva=${cantNueva}, nuevoStockInicial=${nuevoStockInicial}`);
+
+        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${i+1}:E${i+1}')`, { values: [[nuevoStockInicial, promedio]] });
         if(pventaNuevo > 0) await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${i+1}')`, { values: [[pventaNuevo]] });
         btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
         mercProductoSeleccionado = null;
+        await new Promise(r => setTimeout(r, 1500));
         cargarTodo();
         mostrarExito('inventario');
         return;
       }
     }
     alert('❌ Producto no encontrado');
-  } catch(e) { alert('❌ Error al actualizar'); }
+  } catch(e) { 
+    console.error('Error reposición:', e);
+    alert('❌ Error al actualizar'); 
+  }
   btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
 }
 
