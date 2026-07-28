@@ -1971,7 +1971,7 @@ async function desbloquearExcel() {
   try {
     const token = await getToken();
     if(!token) return;
-    // Cerrar sesiones activas
+    // Solo cerrar sesiones activas existentes
     const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
       headers: { 'Authorization': 'Bearer ' + token }
     });
@@ -1983,21 +1983,7 @@ async function desbloquearExcel() {
             method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
           });
         }
-      }
-    }
-    // Crear y cerrar sesión nueva para forzar desbloqueo
-    const nueva = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/createSession`, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ persistChanges: false })
-    });
-    if(nueva.ok) {
-      const sesData = await nueva.json();
-      if(sesData.id) {
-        await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${sesData.id}`, {
-          method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
-        });
-        console.log('Archivo desbloqueado ✅');
+        console.log('Sesiones cerradas:', data.value.length);
       }
     }
   } catch(e) { console.log('desbloquearExcel:', e.message); }
