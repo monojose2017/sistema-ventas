@@ -1967,50 +1967,25 @@ function mensajeError(tipo) {
   return mensajes[tipo] || '❌ Error desconocido.';
 }
 
-async function desbloquearExcel() {
-  try {
-    const token = await getToken();
-    if(!token) return;
-    // Solo cerrar sesiones activas existentes
-    const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if(sesiones.ok) {
-      const data = await sesiones.json();
-      if(data.value && data.value.length > 0) {
-        for(const ses of data.value) {
-          await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
-            method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
-          });
-        }
-        console.log('Sesiones cerradas:', data.value.length);
-      }
-    }
-  } catch(e) { console.log('desbloquearExcel:', e.message); }
-}
-
 async function graphGet(endpoint) {
-  for(let i=0; i<3; i++) {
+  for(let i=0; i<2; i++) {
     const token = await getToken();
-    if(!token) { setEstadoCarga('error'); return null; }
+    if(!token) {
+      setEstadoCarga('error');
+      return null;
+    }
     try {
       const r = await fetch(`${GRAPH_URL}${endpoint}`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       if(r.ok) return await r.json();
       const tipo = clasificarError(r.status);
-      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
-      if((r.status === 400 || r.status === 501) && i === 0) {
-        console.log('Archivo bloqueado, desbloqueando automáticamente...');
-        await desbloquearExcel();
-        await new Promise(r=>setTimeout(r,2000));
-        continue;
-      }
+      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue; // reintentar con token nuevo
       console.error(`graphGet error ${r.status} (${tipo}):`, endpoint);
       return null;
     } catch(e) {
       console.error('graphGet sin conexión:', e);
-      if(i < 2) await new Promise(r=>setTimeout(r,1000));
+      if(i === 0) await new Promise(r=>setTimeout(r,1000));
     }
   }
   return null;
@@ -2157,8 +2132,28 @@ async function cargarTodo() {
   if (!msAccount) return;
   setEstadoCarga('cargando');
 
-  // Desbloquear archivo automáticamente si está bloqueado
-  await desbloquearExcel();
+  // Cerrar sesiones activas del workbook que puedan estar bloqueando
+  try {
+    const token = await getToken();
+    if(token) {
+      const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(sesiones.ok) {
+        const data = await sesiones.json();
+        if(data.value && data.value.length > 0) {
+          for(const ses of data.value) {
+            await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+          }
+        }
+      }
+    }
+  } catch(e) {
+    console.log('No se pudieron cerrar sesiones:', e);
+  }
 
   // Función helper para reintentar una llamada hasta 3 veces
   const fetchConReintento = async (endpoint) => {
@@ -3914,32 +3909,9 @@ async function anularCredito() {
     }
 
     if(filaImei > 0) {
+      // Limpiar M y escribir DISPONIBLE en G
       await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
       await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${filaImei}')`, { values: [['']] });
-    }
-
-    // Eliminar de LIQUIDACIONES si existe
-    const liq = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
-    if(liq?.values?.length > 1) {
-      for(let i=1; i<liq.values.length; i++) {
-        const imeiLiq = liq.values[i][0]?.toString().trim()||'';
-        if(imeiLiq === imei.trim()) {
-          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/TBL_LIQUIDACIONES/rows/itemAt(index=${i-1})`);
-          break;
-        }
-      }
-    }
-
-    // Eliminar de CONTROL si existe
-    const ctrl = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/usedRange`);
-    if(ctrl?.values?.length > 1) {
-      for(let i=1; i<ctrl.values.length; i++) {
-        const imeiCtrl = ctrl.values[i][4]?.toString().trim()||'';
-        if(imeiCtrl === imei.trim()) {
-          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/rows/$/itemAt(index=${i})`);
-          break;
-        }
-      }
     }
 
     await cargarTodo();
