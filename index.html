@@ -3914,6 +3914,32 @@ async function anularCredito() {
       await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${filaImei}')`, { values: [['']] });
     }
 
+    // 3. Eliminar de LIQUIDACIONES si existe
+    const liq = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
+    if(liq?.values?.length > 1) {
+      for(let i=1; i<liq.values.length; i++) {
+        const imeiLiq = liq.values[i][0]?.toString().trim()||'';
+        if(imeiLiq === imei.trim()) {
+          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/TBL_LIQUIDACIONES/rows/itemAt(index=${i-1})`);
+          console.log('Liquidación eliminada para IMEI:', imei);
+          break;
+        }
+      }
+    }
+
+    // 4. Eliminar de CONTROL si existe
+    const ctrl = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/usedRange`);
+    if(ctrl?.values?.length > 1) {
+      for(let i=1; i<ctrl.values.length; i++) {
+        const imeiCtrl = ctrl.values[i][4]?.toString().trim()||''; // columna E = índice 4
+        if(imeiCtrl === imei.trim()) {
+          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/rows/$/itemAt(index=${i})`);
+          console.log('CONTROL eliminado para IMEI:', imei);
+          break;
+        }
+      }
+    }
+
     await cargarTodo();
     msg.style.background='#d1fae5'; msg.style.color='#065f46';
     msg.textContent = filaAnulada > 0 
