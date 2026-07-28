@@ -2030,6 +2030,10 @@ async function initMSAL() {
   }
 }
 
+function actualizarBotonConexion(conectado) {
+  // Manejado por setEstadoCarga
+}
+
 async function conectarMicrosoft() {
   try {
     await msalApp.loginRedirect({ scopes: MS_SCOPES });
@@ -2077,7 +2081,7 @@ window.onload = async function() {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
-  actualizarBotonConexion(false);
+  // actualizarBotonConexion manejado por setEstadoCarga
   await initMSAL();
 };
 
