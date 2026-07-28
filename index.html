@@ -1957,20 +1957,10 @@ async function conectarMicrosoft() {
 }
 
 async function getToken() {
-  try {
-    const resp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
-    return resp.accessToken;
-  } catch(e) {
-    try {
-      const resp = await msalApp.acquireTokenPopup({ scopes: MS_SCOPES, account: msAccount });
-      msAccount = resp.account;
-      return resp.accessToken;
-    } catch(e2) {
-      console.error('Error renovando token:', e2);
-      return null;
-    }
-  }
+  // No se necesita token — usando backend de Vercel
+  return 'backend';
 }
+
 
 // Clasificar el tipo de error de Graph API
 function clasificarError(status, body) {
@@ -1995,92 +1985,6 @@ function mensajeError(tipo) {
   return mensajes[tipo] || '❌ Error desconocido.';
 }
 
-async function graphGet(endpoint) {
-  for(let i=0; i<2; i++) {
-    const token = await getToken();
-    if(!token) {
-      setEstadoCarga('error');
-      return null;
-    }
-    try {
-      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if(r.ok) return await r.json();
-      const tipo = clasificarError(r.status);
-      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue; // reintentar con token nuevo
-      console.error(`graphGet error ${r.status} (${tipo}):`, endpoint);
-      return null;
-    } catch(e) {
-      console.error('graphGet sin conexión:', e);
-      if(i === 0) await new Promise(r=>setTimeout(r,1000));
-    }
-  }
-  return null;
-}
-
-async function graphPost(endpoint, body) {
-  for(let i=0; i<2; i++) {
-    const token = await getToken();
-    if(!token) throw new Error('🔑 No se pudo obtener token. Recarga la app.');
-    try {
-      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if(r.ok) return await r.json();
-      const tipo = clasificarError(r.status);
-      let errText = '';
-      try { errText = await r.text(); } catch(e) {}
-      console.error(`graphPost ${r.status} (${tipo}):`, errText);
-      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
-      // Mostrar código de error real para debugging
-      throw new Error(`${mensajeError(tipo)} (${r.status})`);
-    } catch(e) {
-      if(e.message.includes('🔑') || e.message.includes('🔒') || e.message.includes('🔍') || e.message.includes('🖥️') || e.message.includes('📶')) throw e;
-      if(i === 1) throw new Error('📶 Error de conexión. Verifica tu internet.');
-      await new Promise(r=>setTimeout(r,1000));
-    }
-  }
-  return null;
-}
-
-async function graphPatch(endpoint, body) {
-  for(let i=0; i<2; i++) {
-    const token = await getToken();
-    if(!token) return null;
-    try {
-      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-        method: 'PATCH',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if(r.ok) return await r.json();
-      const tipo = clasificarError(r.status);
-      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
-      throw new Error(mensajeError(tipo));
-    } catch(e) {
-      if(i === 1 || e.message.includes('🔑') || e.message.includes('🔒') || e.message.includes('🖥️')) throw e;
-      await new Promise(r=>setTimeout(r,1000));
-    }
-  }
-  return null;
-}
-
-async function graphDelete(endpoint) {
-  const token = await getToken();
-  if(!token) return false;
-  try {
-    const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    return r.ok;
-  } catch(e) {
-    return false;
-  }
-}
 
 window.onload = async function() {
   // Asegurar que siempre inicie en el menú principal
@@ -2134,54 +2038,14 @@ async function reintentarCarga() {
   await cargarTodo();
 }
 
-// Renovar token automáticamente cada 45 minutos en segundo plano
+// Renovación de token no necesaria — usando backend de Vercel
 function iniciarRenovacionToken() {
-  setInterval(async () => {
-    if(!msAccount) return;
-    try {
-      const resp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
-      if(resp) {
-        msAccount = resp.account;
-        console.log('Token renovado automáticamente ✅');
-      }
-    } catch(e) {
-      console.log('Renovación silenciosa falló, intentando popup...');
-      try {
-        const resp = await msalApp.acquireTokenPopup({ scopes: MS_SCOPES, account: msAccount });
-        msAccount = resp.account;
-      } catch(e2) {
-        console.error('No se pudo renovar token:', e2);
-      }
-    }
-  }, 45 * 60 * 1000); // 45 minutos
+  // No se necesita con el backend
 }
 
 async function cargarTodo() {
   if (!msAccount) return;
   setEstadoCarga('cargando');
-
-  // Cerrar sesiones activas del workbook que puedan estar bloqueando
-  try {
-    const token = await getToken();
-    if(token) {
-      const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if(sesiones.ok) {
-        const data = await sesiones.json();
-        if(data.value && data.value.length > 0) {
-          for(const ses of data.value) {
-            await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': 'Bearer ' + token }
-            });
-          }
-        }
-      }
-    }
-  } catch(e) {
-    console.log('No se pudieron cerrar sesiones:', e);
-  }
 
   // Función helper para reintentar una llamada hasta 3 veces
   const fetchConReintento = async (endpoint) => {
