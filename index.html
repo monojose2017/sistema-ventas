@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Sistema de Ventas</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<!-- MSAL no necesario - usando backend Vercel -->
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <style>
 :root{--azul:#1a3c6e;--azul2:#2563eb;--verde:#16a34a;--naranja:#ea580c;--morado:#7c3aed;--rojo:#dc2626;--texto:#1e293b;--sub:#64748b;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -1860,16 +1860,53 @@ function validarMixto(prefijo) {
 }
 // ===== CONFIGURACIÓN BACKEND VERCEL =====
 const MS_FILE_ID = 'C8E07BCB-204A-48B8-A5C9-E9ACF0974507';
+const MS_CLIENT_ID = '1c3a5663-3ecb-4d9b-bdb6-bec271a857a5';
+const MS_SCOPES = ['Files.ReadWrite', 'User.Read', 'offline_access'];
 const BACKEND_URL = 'https://jpkredy-backend.vercel.app/api/proxy';
 const BACKEND_KEY = 'jpkredy2024secure';
+let msalApp = null;
+let msAccount = true; // Se actualiza cuando el admin inicia sesión
 
-// Funciones de Graph API via backend (sin token, sin login)
+// Enviar token al backend para que las niñas no necesiten login
+async function enviarTokenAlBackend(token) {
+  try {
+    await fetch(`${BACKEND_URL}?endpoint=%2Fme`, {
+      headers: { 'X-API-Key': BACKEND_KEY, 'X-Access-Token': token }
+    });
+    console.log('Token enviado al backend ✅');
+  } catch(e) {
+    console.log('Error enviando token al backend:', e);
+  }
+}
+
+async function getToken() {
+  if(!msalApp) return currentAccessToken;
+  try {
+    const resp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
+    currentAccessToken = resp.accessToken;
+    // Enviar token al backend para que las niñas puedan usarlo
+    await enviarTokenAlBackend(currentAccessToken);
+    return currentAccessToken;
+  } catch(e) {
+    try {
+      const resp = await msalApp.acquireTokenPopup({ scopes: MS_SCOPES, account: msAccount });
+      msAccount = resp.account;
+      currentAccessToken = resp.accessToken;
+      await enviarTokenAlBackend(currentAccessToken);
+      return currentAccessToken;
+    } catch(e2) {
+      console.error('Error renovando token:', e2);
+      return currentAccessToken;
+    }
+  }
+}
 async function graphGet(endpoint) {
+  const token = await getToken();
   for(let i=0; i<3; i++) {
     try {
-      const r = await fetch(`${BACKEND_URL}?endpoint=${encodeURIComponent(endpoint)}`, {
-        headers: { 'X-API-Key': BACKEND_KEY }
-      });
+      const headers = { 'X-API-Key': BACKEND_KEY };
+      if(token) headers['X-Access-Token'] = token;
+      const r = await fetch(`${BACKEND_URL}?endpoint=${encodeURIComponent(endpoint)}`, { headers });
       if(r.ok) return await r.json();
       const tipo = clasificarError(r.status);
       console.error(`graphGet ${r.status} (${tipo}):`, endpoint);
@@ -1883,12 +1920,13 @@ async function graphGet(endpoint) {
 }
 
 async function graphPost(endpoint, body) {
+  const token = await getToken();
   for(let i=0; i<2; i++) {
     try {
+      const headers = { 'X-API-Key': BACKEND_KEY, 'Content-Type': 'application/json' };
+      if(token) headers['X-Access-Token'] = token;
       const r = await fetch(`${BACKEND_URL}?endpoint=${encodeURIComponent(endpoint)}`, {
-        method: 'POST',
-        headers: { 'X-API-Key': BACKEND_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        method: 'POST', headers, body: JSON.stringify(body)
       });
       if(r.ok) return await r.json();
       const tipo = clasificarError(r.status);
@@ -1905,12 +1943,13 @@ async function graphPost(endpoint, body) {
 }
 
 async function graphPatch(endpoint, body) {
+  const token = await getToken();
   for(let i=0; i<2; i++) {
     try {
+      const headers = { 'X-API-Key': BACKEND_KEY, 'Content-Type': 'application/json' };
+      if(token) headers['X-Access-Token'] = token;
       const r = await fetch(`${BACKEND_URL}?endpoint=${encodeURIComponent(endpoint)}`, {
-        method: 'PATCH',
-        headers: { 'X-API-Key': BACKEND_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        method: 'PATCH', headers, body: JSON.stringify(body)
       });
       if(r.ok) return await r.json();
       const tipo = clasificarError(r.status);
@@ -1925,10 +1964,12 @@ async function graphPatch(endpoint, body) {
 }
 
 async function graphDelete(endpoint) {
+  const token = await getToken();
   try {
+    const headers = { 'X-API-Key': BACKEND_KEY };
+    if(token) headers['X-Access-Token'] = token;
     const r = await fetch(`${BACKEND_URL}?endpoint=${encodeURIComponent(endpoint)}`, {
-      method: 'DELETE',
-      headers: { 'X-API-Key': BACKEND_KEY }
+      method: 'DELETE', headers
     });
     return r.ok || r.status === 204;
   } catch(e) {
@@ -1936,24 +1977,65 @@ async function graphDelete(endpoint) {
   }
 }
 
-let msAccount = true; // Siempre conectado via backend
+// msAccount ya declarado arriba
 let PRECIOS_DINAMICOS = {};
 
 // Inicializar MSAL
 async function initMSAL() {
-  // Con el backend de Vercel no se necesita login de Microsoft
-  // La conexión es automática y permanente
-  preciosCargados = false;
-  await cargarTodo();
-}
+  const config = {
+    auth: {
+      clientId: MS_CLIENT_ID,
+      authority: 'https://login.microsoftonline.com/consumers',
+      redirectUri: window.location.origin + window.location.pathname
+    },
+    cache: { cacheLocation: 'localStorage' } // localStorage dura más que sessionStorage
+  };
+  msalApp = new msal.PublicClientApplication(config);
+  await msalApp.initialize();
 
-function actualizarBotonConexion(conectado) {
-  // Ya no se necesita — siempre conectado via backend
+  try {
+    const resp = await msalApp.handleRedirectPromise();
+    if(resp) {
+      msAccount = resp.account;
+      msalApp.setActiveAccount(msAccount);
+      currentAccessToken = resp.accessToken;
+      await enviarTokenAlBackend(currentAccessToken);
+      preciosCargados = false;
+      await cargarTodo();
+    } else {
+      const accounts = msalApp.getAllAccounts();
+      if(accounts.length > 0) {
+        msAccount = accounts[0];
+        msalApp.setActiveAccount(msAccount);
+        // Renovar token silenciosamente
+        try {
+          const tokenResp = await msalApp.acquireTokenSilent({ scopes: MS_SCOPES, account: msAccount });
+          currentAccessToken = tokenResp.accessToken;
+          await enviarTokenAlBackend(currentAccessToken);
+        } catch(e) { console.log('Token silencioso falló'); }
+        preciosCargados = false;
+        await cargarTodo();
+      } else {
+        // Intentar cargar via backend (token guardado previamente)
+        msAccount = true; // marcar como conectado
+        preciosCargados = false;
+        await cargarTodo();
+      }
+    }
+  } catch(e) {
+    console.log('Error MSAL init:', e);
+    // Intentar via backend de todas formas
+    msAccount = true;
+    await cargarTodo();
+  }
 }
 
 async function conectarMicrosoft() {
-  // Ya no se necesita — siempre conectado via backend
-  await cargarTodo();
+  try {
+    await msalApp.loginRedirect({ scopes: MS_SCOPES });
+  } catch(e) {
+    console.error('Error login:', e);
+  }
 }
 
 async function getToken() {
