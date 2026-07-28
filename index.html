@@ -2016,10 +2016,20 @@ async function initMSAL() {
         preciosCargados = false;
         await cargarTodo();
       } else {
-        // Intentar cargar via backend (token guardado previamente)
-        msAccount = true; // marcar como conectado
-        preciosCargados = false;
-        await cargarTodo();
+        // No hay sesión — mostrar botón para que el admin inicie sesión
+        const btn = document.getElementById('btn-conectar');
+        const menuBloqueado = document.getElementById('menu-bloqueado');
+        if(btn) {
+          btn.textContent = '🔗 Conectar con Excel (OneDrive)';
+          btn.style.background = 'linear-gradient(135deg,#1a3c6e,#2563eb)';
+          btn.style.color = 'white';
+          btn.onclick = conectarMicrosoft;
+        }
+        if(menuBloqueado) menuBloqueado.innerHTML = `
+          <div style="font-size:32px;margin-bottom:8px;">🔗</div>
+          <div style="font-weight:800;color:#1e293b;font-size:15px;">No conectado</div>
+          <div style="color:#64748b;font-size:13px;margin-top:4px;">Toca el boton azul para conectar con Excel</div>`;
+        if(menuBloqueado) menuBloqueado.style.display = 'block';
       }
     }
   } catch(e) {
