@@ -1967,25 +1967,50 @@ function mensajeError(tipo) {
   return mensajes[tipo] || '❌ Error desconocido.';
 }
 
-async function graphGet(endpoint) {
-  for(let i=0; i<2; i++) {
+async function desbloquearExcel() {
+  try {
     const token = await getToken();
-    if(!token) {
-      setEstadoCarga('error');
-      return null;
+    if(!token) return;
+    // Solo cerrar sesiones activas existentes
+    const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if(sesiones.ok) {
+      const data = await sesiones.json();
+      if(data.value && data.value.length > 0) {
+        for(const ses of data.value) {
+          await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
+            method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+          });
+        }
+        console.log('Sesiones cerradas:', data.value.length);
+      }
     }
+  } catch(e) { console.log('desbloquearExcel:', e.message); }
+}
+
+async function graphGet(endpoint) {
+  for(let i=0; i<3; i++) {
+    const token = await getToken();
+    if(!token) { setEstadoCarga('error'); return null; }
     try {
       const r = await fetch(`${GRAPH_URL}${endpoint}`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       if(r.ok) return await r.json();
       const tipo = clasificarError(r.status);
-      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue; // reintentar con token nuevo
+      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
+      if((r.status === 400 || r.status === 501) && i === 0) {
+        console.log('Archivo bloqueado, desbloqueando automáticamente...');
+        await desbloquearExcel();
+        await new Promise(r=>setTimeout(r,2000));
+        continue;
+      }
       console.error(`graphGet error ${r.status} (${tipo}):`, endpoint);
       return null;
     } catch(e) {
       console.error('graphGet sin conexión:', e);
-      if(i === 0) await new Promise(r=>setTimeout(r,1000));
+      if(i < 2) await new Promise(r=>setTimeout(r,1000));
     }
   }
   return null;
@@ -2128,32 +2153,30 @@ function iniciarRenovacionToken() {
   }, 45 * 60 * 1000); // 45 minutos
 }
 
+// Ping cada 20 minutos para mantener el archivo Excel activo y no se bloquee
+function iniciarPingExcel() {
+  setInterval(async () => {
+    if(!msAccount) return;
+    try {
+      const token = await getToken();
+      if(!token) return;
+      const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/worksheets`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(r.ok) console.log('Ping Excel ✅ archivo activo');
+      else console.log('Ping Excel falló:', r.status);
+    } catch(e) {
+      console.log('Ping Excel error:', e.message);
+    }
+  }, 20 * 60 * 1000); // cada 20 minutos
+}
+
 async function cargarTodo() {
   if (!msAccount) return;
   setEstadoCarga('cargando');
 
-  // Cerrar sesiones activas del workbook que puedan estar bloqueando
-  try {
-    const token = await getToken();
-    if(token) {
-      const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if(sesiones.ok) {
-        const data = await sesiones.json();
-        if(data.value && data.value.length > 0) {
-          for(const ses of data.value) {
-            await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
-              method: 'DELETE',
-              headers: { 'Authorization': 'Bearer ' + token }
-            });
-          }
-        }
-      }
-    }
-  } catch(e) {
-    console.log('No se pudieron cerrar sesiones:', e);
-  }
+  // Desbloquear archivo automáticamente si está bloqueado
+  await desbloquearExcel();
 
   // Función helper para reintentar una llamada hasta 3 veces
   const fetchConReintento = async (endpoint) => {
@@ -2259,6 +2282,7 @@ async function cargarTodo() {
     if(!window._tokenRenovacionIniciada) {
       window._tokenRenovacionIniciada = true;
       iniciarRenovacionToken();
+      iniciarPingExcel(); // Mantener archivo activo
     }
   } catch(e) {
     console.error('Error cargando datos:', e);
@@ -3909,9 +3933,32 @@ async function anularCredito() {
     }
 
     if(filaImei > 0) {
-      // Limpiar M y escribir DISPONIBLE en G
       await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
       await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${filaImei}')`, { values: [['']] });
+    }
+
+    // Eliminar de LIQUIDACIONES si existe
+    const liq = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
+    if(liq?.values?.length > 1) {
+      for(let i=1; i<liq.values.length; i++) {
+        const imeiLiq = liq.values[i][0]?.toString().trim()||'';
+        if(imeiLiq === imei.trim()) {
+          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/TBL_LIQUIDACIONES/rows/itemAt(index=${i-1})`);
+          break;
+        }
+      }
+    }
+
+    // Eliminar de CONTROL si existe
+    const ctrl = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/usedRange`);
+    if(ctrl?.values?.length > 1) {
+      for(let i=1; i<ctrl.values.length; i++) {
+        const imeiCtrl = ctrl.values[i][4]?.toString().trim()||'';
+        if(imeiCtrl === imei.trim()) {
+          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/rows/$/itemAt(index=${i})`);
+          break;
+        }
+      }
     }
 
     await cargarTodo();
