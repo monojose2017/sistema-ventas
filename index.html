@@ -1870,6 +1870,7 @@ let msAccount = true; // Se actualiza cuando el admin inicia sesión
 // Enviar token al backend para que las niñas no necesiten login
 async function enviarTokenAlBackend(token) {
   try {
+    console.log('Enviando token al backend, primeros 50 chars:', token.substring(0,50));
     await fetch(`${BACKEND_URL}?endpoint=%2Fme`, {
       headers: { 'X-API-Key': BACKEND_KEY, 'X-Access-Token': token }
     });
