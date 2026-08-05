@@ -4981,14 +4981,13 @@ function calcularUtilidad() {
   const v = iphoneVentaSeleccionada;
   if(!v) return;
 
-  const getN = id => { const el = document.getElementById(id); return el ? (parseFloat(el.value.replace(/[^0-9.-]/g,''))||0) : 0; };
-  const vs = getN('ci-vs');
-  const cuotaSistema = getN('ci-cuota-sistema');
-  const descuento = getN('ci-descuento');
-  const costo = getN('ci-costo');
-  const comTrab = getN('ci-comision-trabajadora');
-  const porcEnc = getN('ci-porc-encargada');
-  const pagoMovisim = getN('ci-pago-movisim');
+  const vs = getNumero('ci-vs');
+  const cuotaSistema = getNumero('ci-cuota-sistema');
+  const descuento = getNumero('ci-descuento');
+  const costo = getNumero('ci-costo');
+  const comTrab = getNumero('ci-comision-trabajadora');
+  const porcEnc = parseFloat(document.getElementById('ci-porc-encargada')?.value)||0;
+  const pagoMovisim = getNumero('ci-pago-movisim');
   const tipo = document.getElementById('ci-tipo')?.value || 'MIO';
   const financiera = v.financiera;
   const cuotaReal = v.cuotaInicial - descuento;
@@ -5037,7 +5036,7 @@ async function guardarCompletarIphone() {
   const btn = document.querySelector('#screen-completar-iphone .submit-btn');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
-  const getN = id => { const el = document.getElementById(id); return el ? (parseFloat(el.value.replace(/[^0-9.-]/g,''))||0) : 0; };
+  const getN = id => getNumero(id);
   const c = v._calc;
   const fila = v.idx + 2; // +2 porque idx es 0-based y hay encabezado
 
