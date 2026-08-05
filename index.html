@@ -4921,17 +4921,31 @@ function renderListaIphone() {
     return;
   }
   lista.innerHTML = filtradas.map(v => `
-    <div onclick="abrirCompletarIphone(${v.idx})" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid ${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</span>
-        <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:${v.estado==='PENDIENTE'?'#fef3c7':'#dcfce7'};color:${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">${v.estado}</span>
+    <div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);border-left:4px solid ${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">
+      <div onclick="abrirCompletarIphone(${v.idx})" style="cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</span>
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:${v.estado==='PENDIENTE'?'#fef3c7':'#dcfce7'};color:${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">${v.estado}</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;">${v.fecha} · ${v.local} · ${v.financiera}</div>
+        ${v.nombre ? `<div style="font-size:12px;color:#475569;margin-top:3px;">👤 ${v.nombre}</div>` : ''}
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
+          <span>Cuota inicial: <b>${fmt(v.cuotaInicial)}</b></span>
+          ${v.estado==='COMPLETA' ? `<span>Utilidad neta: <b style="color:#16a34a;">${fmt(v.utilNeta)}</b></span>` : ''}
+        </div>
       </div>
-      <div style="font-size:12px;color:#64748b;">${v.fecha} · ${v.local} · ${v.financiera}</div>
-      ${v.nombre ? `<div style="font-size:12px;color:#475569;margin-top:3px;">👤 ${v.nombre}</div>` : ''}
-      <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
-        <span>Cuota inicial: <b>${fmt(v.cuotaInicial)}</b></span>
-        ${v.estado==='COMPLETA' ? `<span>Utilidad neta: <b style="color:#16a34a;">${fmt(v.utilNeta)}</b></span>` : ''}
-      </div>
+      ${v.estado==='COMPLETA' ? `
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;font-weight:700;color:${v.liquidado==='SI'?'#16a34a':'#d97706'};">
+              ${v.liquidado==='SI' ? '✅ Liquidado: '+fmt(v.pagoFinanciera) : '⏳ Pendiente de liquidar'}
+            </span>
+            <div style="display:flex;gap:6px;">
+              <button onclick="abrirCompletarIphone(${v.idx})" style="padding:6px 12px;background:#64748b;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Editar</button>
+              ${v.liquidado!=='SI' ? `<button onclick="abrirRegistrarPago(${v.idx})" style="padding:6px 12px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💰 Registrar pago</button>` : ''}
+            </div>
+          </div>
+        </div>` : ''}
     </div>
   `).join('');
 }
@@ -5065,6 +5079,62 @@ async function guardarCompletarIphone() {
     mostrarToastVerde('✅ Venta iPhone completada');
   } catch(e) {
     if(btn) { btn.textContent = 'Guardar ✓'; btn.disabled = false; }
+    alert('❌ Error al guardar: ' + e.message);
+  }
+}
+
+function abrirRegistrarPago(idx) {
+  const v = iphoneVentas[idx];
+  if(!v) return;
+
+  // Calcular valor sugerido según financiera y tipo
+  const vsEfectivo = v.financiera === 'OME-CREDIT' ? v.vs * 0.9 : v.vs;
+  const descuento = v.financiera === 'OME-CREDIT' ? 300000 : 250000;
+  const sugerido = v.tipo === 'MIO' 
+    ? vsEfectivo - v.cuotaSistema - descuento
+    : vsEfectivo - v.cuotaSistema - v.costo - descuento;
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+
+  // Mostrar modal
+  const modal = document.createElement('div');
+  modal.id = 'modal-pago-iphone';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:400px;">
+      <div style="font-weight:800;font-size:16px;margin-bottom:4px;">💰 Registrar pago</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:16px;">${v.ref} · ${v.financiera}</div>
+      <div style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;">
+        <div style="color:#64748b;">Valor sugerido (lo que debería depositar):</div>
+        <div style="font-size:18px;font-weight:900;color:#16a34a;">${fmt(sugerido)}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">VS${v.financiera==='OME-CREDIT'?' × 90%':''} - Cuota sistema${v.tipo==='OFICINA'?' - Costo MOVISIM':''} - ${fmt(descuento)}</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">PAGO REAL RECIBIDO</label>
+        <input type="text" id="input-pago-real" value="${fmt(sugerido)}" oninput="formatMoney(this)" style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;font-weight:700;box-sizing:border-box;">
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('modal-pago-iphone').remove()" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="guardarPagoIphone(${idx})" style="flex:2;padding:12px;background:#0891b2;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">✅ Confirmar pago</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function guardarPagoIphone(idx) {
+  const v = iphoneVentas[idx];
+  const pagoReal = getNumero('input-pago-real');
+  if(!pagoReal) { alert('⚠️ Ingresa el monto del pago'); return; }
+
+  const fila = v.idx + 2;
+  try {
+    await graphPatch(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='W${fila}:X${fila}')`,
+      { values: [['SI', pagoReal]] }
+    );
+    document.getElementById('modal-pago-iphone')?.remove();
+    await cargarVentasIphone();
+    mostrarToastVerde('✅ Pago registrado correctamente');
+  } catch(e) {
     alert('❌ Error al guardar: ' + e.message);
   }
 }
