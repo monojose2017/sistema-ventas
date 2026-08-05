@@ -1869,6 +1869,8 @@ function getValorTotal(prefijo) {
     return parseInt((document.getElementById('ig-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
   } else if(prefijo === 'ab') {
     return parseInt((document.getElementById('ab-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  } else if(prefijo === 'vi') {
+    return parseInt((document.getElementById('vi-cuota')?.value||'').replace(/[^0-9]/g,'')) || 0;
   }
   return 0;
 }
@@ -1883,8 +1885,12 @@ function manejarPago(prefijo) {
   const efectivoEl = document.getElementById(`${prefijo}-efectivo`);
   const transferEl = document.getElementById(`${prefijo}-transfer`);
   const errorEl = document.getElementById(`${prefijo}-mixto-error`);
-  
+  const fieldsEl = document.getElementById(`${prefijo}-pago-fields`);
+
   if (!pago || !efectivoEl || !transferEl) return;
+
+  // Mostrar/ocultar campos de pago
+  if(fieldsEl) fieldsEl.style.display = pago ? 'block' : 'none';
 
   // Para nueva deuda (nd) los campos siempre son editables
   const sinTotal = prefijo === 'nd';
@@ -2447,7 +2453,8 @@ async function agregarFilaExcel(hoja, fila) {
     'INVENTARIO_ACCESORIOS': 'TBL_INVENTARIO_ACCESORIOS',
     'LIQUIDACIONES': 'TBL_LIQUIDACIONES',
     'RETIROS_CAJA': 'TBL_RETIROS_CAJA',
-    'APERTURA_CAJA': 'TBL_APERTURA_CAJA'
+    'APERTURA_CAJA': 'TBL_APERTURA_CAJA',
+    'VENTAS_IPHONE': 'TBL_VENTAS_IPHONE'
   };
   const tabla = tablaMap[hoja];
   console.log('Enviando a hoja:', hoja, 'tabla:', tabla, 'fila:', JSON.stringify(fila));
