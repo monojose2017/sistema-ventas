@@ -2116,11 +2116,16 @@ function setEstadoCarga(estado, detalle) {
     btn.style.background = 'linear-gradient(135deg,#dc2626,#b91c1c)';
     btn.style.color = 'white'; btn.style.boxShadow = '0 4px 12px rgba(220,38,38,.3)';
     btn.onclick = reintentarCarga;
+    const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const urlDesbloquear = esCelular ? 'ms-officemobile://' : `https://onedrive.live.com/`;
+    const textoDesbloquear = esCelular ? '📱 Abrir M365 y desbloquear' : '🌐 Abrir Excel Online';
     if(menuBloqueado) menuBloqueado.innerHTML = `
       <div style="font-size:32px;margin-bottom:8px;">❌</div>
       <div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div>
       ${detalle ? `<div style="color:#7f1d1d;font-size:12px;margin-top:8px;background:#fee2e2;padding:8px 10px;border-radius:8px;word-break:break-all;text-align:left;">${detalle}</div>` : ''}
-      <button onclick="reintentarCarga()" style="margin-top:14px;padding:10px 24px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Reintentar</button>`;
+      <a href="${urlDesbloquear}" id="btn-desbloquear" onclick="iniciarConteoDesbloqueo()" style="display:block;margin-top:14px;padding:12px;background:#d97706;color:white;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;text-align:center;" ${esCelular?'':'target="_blank"'}>${textoDesbloquear}</a>
+      <div id="conteo-desbloqueo" style="color:#64748b;font-size:13px;margin-top:10px;display:none;font-weight:700;"></div>
+      <button onclick="reintentarCarga()" style="margin-top:10px;padding:10px 24px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Reintentar</button>`;
     if(menuBloqueado) menuBloqueado.style.display = 'block';
     if(menuPrincipal) menuPrincipal.style.display = 'none';
   }
@@ -2129,6 +2134,24 @@ function setEstadoCarga(estado, detalle) {
 async function reintentarCarga() {
   setEstadoCarga('cargando');
   await cargarTodo();
+}
+
+function iniciarConteoDesbloqueo() {
+  const conteo = document.getElementById('conteo-desbloqueo');
+  if(!conteo) return;
+  conteo.style.display = 'block';
+  let segundos = 10;
+  conteo.textContent = `⏳ Recargando en ${segundos} segundos...`;
+  const intervalo = setInterval(() => {
+    segundos--;
+    if(segundos > 0) {
+      conteo.textContent = `⏳ Recargando en ${segundos} segundos...`;
+    } else {
+      clearInterval(intervalo);
+      conteo.textContent = '🔄 Recargando...';
+      reintentarCarga();
+    }
+  }, 1000);
 }
 
 // Renovar token automáticamente cada 45 minutos en segundo plano
