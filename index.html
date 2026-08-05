@@ -101,6 +101,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </div>
       <p class="sec-titulo">Ventas</p>
       <button class="btn-menu" onclick="irA('credito')"><div class="btn-icon verde">📋</div><div class="btn-info"><div class="btn-titulo">Venta a Crédito</div><div class="btn-sub">Oficina · ET Oficina · ET Claro · Recompra · más</div></div><span class="btn-arrow">›</span></button>
+      <button class="btn-menu" onclick="irA('venta-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">Venta iPhone</div><div class="btn-sub">E-Credit · OME-Credit</div></div><span class="btn-arrow">›</span></button>
       <button class="btn-menu" onclick="irA('contado')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Venta de Contado</div><div class="btn-sub">Pago inmediato</div></div><span class="btn-arrow">›</span></button>
       <button class="btn-menu" onclick="irA('accesorios')"><div class="btn-icon naranja">🎧</div><div class="btn-info"><div class="btn-titulo">Venta de Accesorios</div><div class="btn-sub">Vidrios · Forros · Cargadores · más</div></div><span class="btn-arrow">›</span></button>
       <div class="divider"></div>
@@ -143,6 +144,28 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 </div>
 
 <!-- CONTADO -->
+<!-- VENTA IPHONE -->
+<div class="screen" id="screen-venta-iphone">
+  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🍎 Venta iPhone</div><div class="form-header-sub">Registra los datos de la venta</div></div></div>
+  <div class="form-body">
+    <div class="field"><label>Fecha</label><input type="date" id="vi-fecha"></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="vi-local"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Referencia iPhone</label><div class="select-wrap"><select id="vi-referencia"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Financiera</label><div class="select-wrap"><select id="vi-financiera"><option value="">Seleccionar...</option><option>E-CREDIT</option><option>OME-CREDIT</option></select></div></div>
+    <div class="field"><label>IMEI <span style="color:#94a3b8;font-size:11px;">(opcional)</span></label><input type="text" id="vi-imei" placeholder="15 dígitos"></div>
+    <div class="field"><label>Cédula cliente <span style="color:#94a3b8;font-size:11px;">(opcional)</span></label><input type="text" id="vi-cedula" placeholder="Número de cédula"></div>
+    <div class="field"><label>Nombre y apellido <span style="color:#94a3b8;font-size:11px;">(opcional)</span></label><input type="text" id="vi-nombre" placeholder="Nombre completo"></div>
+    <div class="field"><label>Cuota inicial recibida</label><input type="text" id="vi-cuota" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Método de pago</label><div class="select-wrap"><select id="vi-pago" onchange="manejarPago('vi')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
+    <div id="vi-pago-fields" style="display:none;">
+      <div class="field"><label>Efectivo</label><input type="text" id="vi-efectivo" placeholder="$0" oninput="formatMoney(this)"></div>
+      <div class="field"><label>Transferencia</label><input type="text" id="vi-transfer" placeholder="$0" oninput="formatMoney(this)"></div>
+      <div id="vi-mixto-error" style="display:none;color:#dc2626;font-size:12px;padding:6px 12px;">⚠️ La suma no coincide con la cuota inicial</div>
+    </div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e);" onclick="enviarForm('venta-iphone')">Registrar Venta iPhone ✓</button>
+  </div>
+</div>
+
 <div class="screen" id="screen-contado">
   <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">💵 Venta de Contado</div><div class="form-header-sub">Ingresa los datos de la venta</div></div></div>
   <div class="form-body">
@@ -213,6 +236,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <p class="sec-titulo">Control</p>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
 
     <div class="divider"></div>
@@ -288,6 +312,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
           <option value="proveedores">Proveedores</option>
           <option value="referencias">Referencias</option>
           <option value="proveedoresPago">Proveedores de Pago (PayJoy, Addi...)</option>
+          <option value="referenciasIphone">Referencias iPhone</option>
           <option value="ubicaciones">Ubicaciones</option>
           <option value="locales">Locales</option>
           <option value="responsables">Responsables</option>
@@ -688,6 +713,50 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 </div>
 
 <!-- LIQUIDACIONES -->
+<!-- GERENCIA IPHONE -->
+<div class="screen" id="screen-gerencia-iphone">
+  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🍎 iPhone</div><div class="form-header-sub">Completar ventas y calcular utilidades</div></div></div>
+  <div class="form-body">
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button onclick="setTabIphone('pendientes')" id="tab-iphone-pend" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pendientes</button>
+      <button onclick="setTabIphone('completas')" id="tab-iphone-comp" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:white;color:#1a1a2e;font-weight:700;cursor:pointer;font-size:13px;">✅ Completas</button>
+    </div>
+    <div id="iphone-lista"></div>
+  </div>
+</div>
+
+<!-- FORMULARIO COMPLETAR VENTA IPHONE -->
+<div class="screen" id="screen-completar-iphone">
+  <div class="form-header"><button class="back-btn" onclick="irA('gerencia-iphone')">‹</button><div><div class="form-header-title">🍎 Completar Venta iPhone</div><div class="form-header-sub">Ingresa los datos de liquidación</div></div></div>
+  <div class="form-body">
+    <div id="ci-resumen" style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:14px;font-size:13px;"></div>
+    <div class="field"><label>Valor Sistema (VS)</label><input type="text" id="ci-vs" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div class="field"><label>Cuota Inicial Sistema</label><input type="text" id="ci-cuota-sistema" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div class="field"><label>Descuento al cliente</label><input type="text" id="ci-descuento" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div class="field"><label>Costo iPhone</label><div class="select-wrap"><select id="ci-tipo" onchange="onChangeTipoIphone();calcularUtilidad()"><option value="MIO">📱 iPhone mío</option><option value="OFICINA">🏢 iPhone de oficina (MOVISIM)</option></select></div></div>
+    <div id="ci-costo-wrap" class="field"><label>Costo</label><input type="text" id="ci-costo" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div id="ci-pago-movisim-wrap" class="field" style="display:none;"><label>Pago de MOVISIM (lo que te deposita)</label><input type="text" id="ci-pago-movisim" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div class="field"><label>Comisión trabajadora</label><input type="text" id="ci-comision-trabajadora" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div class="field"><label>% Comisión encargada</label><input type="number" id="ci-porc-encargada" placeholder="Ej: 20" min="0" max="100" oninput="calcularUtilidad()"></div>
+
+    <!-- Resultados calculados -->
+    <div id="ci-resultados" style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:14px;display:none;">
+      <div style="font-weight:800;color:#15803d;margin-bottom:10px;">📊 Cálculo automático</div>
+      <div style="display:grid;gap:6px;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;"><span>Cuota inicial real:</span><span id="ci-r-cuota-real" style="font-weight:700;"></span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Pago MOVISIM:</span><span id="ci-r-pago-movisim" style="font-weight:700;color:#0891b2;"></span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid #bbf7d0;padding-top:6px;"><span>Utilidad bruta:</span><span id="ci-r-util-bruta" style="font-weight:800;color:#15803d;"></span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Comisión trabajadora:</span><span id="ci-r-com-trab" style="font-weight:700;color:#dc2626;"></span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Comisión encargada:</span><span id="ci-r-com-enc" style="font-weight:700;color:#dc2626;"></span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid #bbf7d0;padding-top:6px;"><span style="font-weight:800;">Utilidad neta:</span><span id="ci-r-util-neta" style="font-weight:900;font-size:16px;color:#15803d;"></span></div>
+      </div>
+    </div>
+
+    <button class="submit-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e);" onclick="guardarCompletarIphone()">Guardar ✓</button>
+  </div>
+</div>
+
 <div class="screen" id="screen-liquidaciones">
   <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💱 Liquidaciones</div><div class="form-header-sub">Completa el valor que paga la financiera</div></div></div>
   <div class="form-body">
@@ -1403,6 +1472,20 @@ function irA(s){
   window.scrollTo(0,0);
   if(s === 'ingresar-mercancia') iniciarMercancia();
   if(s === 'credito') cargarPrecios();
+  if(s === 'venta-iphone') {
+    document.getElementById('vi-fecha').value = fechaHoyLocal();
+    const selLocal = document.getElementById('vi-local');
+    if(selLocal && CONFIG_LISTAS?.locales) {
+      selLocal.innerHTML = '<option value="">Seleccionar...</option>';
+      CONFIG_LISTAS.locales.forEach(l => selLocal.innerHTML += `<option>${l}</option>`);
+    }
+    const selRef = document.getElementById('vi-referencia');
+    if(selRef) {
+      selRef.innerHTML = '<option value="">Seleccionar...</option>';
+      const refs = window.CONFIG_DATA?.referenciasIphone || [];
+      refs.forEach(r => selRef.innerHTML += `<option>${r}</option>`);
+    }
+  }
   if(s === 'garantia-recuperar') cargarTelefonosEnGarantia();
   if(s === 'apertura-caja') {
     const hoy = fechaHoyLocal();
@@ -1494,7 +1577,7 @@ window.onload = function() {
   });
   // Poner fecha de hoy en todos los formularios
   const hoy = fechaHoyLocal();
-  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha','vi-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
@@ -2084,7 +2167,7 @@ window.onload = async function() {
   document.querySelectorAll('.screen').forEach(x => x.classList.remove('active'));
   document.getElementById('screen-inicio').classList.add('active');
   const hoy = fechaHoyLocal();
-  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha'].forEach(id => {
+  ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha','vi-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = hoy;
   });
@@ -2276,7 +2359,7 @@ async function cargarTodo() {
       window.CONFIG_DATA = {
         locales: [], ubicaciones: [], proveedores: [], referencias: [],
         responsables: [], categorias: [], categoriasAcc: [], tipoGastos: [],
-        proveedoresPago: []
+        proveedoresPago: [], referenciasIphone: []
       };
       for(let i=1; i<cfg.values.length; i++) {
         const row = cfg.values[i];
@@ -2289,6 +2372,7 @@ async function cargarTodo() {
         if(row[13]) window.CONFIG_DATA.proveedores.push(row[13].toString());
         if(row[15]) window.CONFIG_DATA.referencias.push(row[15].toString());
         if(row[17]) window.CONFIG_DATA.proveedoresPago.push(row[17].toString());
+        if(row[19]) window.CONFIG_DATA.referenciasIphone.push(row[19].toString());
       }
       window.CONFIG_LISTAS = window.CONFIG_DATA;
       llenarSelectsDesdeConfig();
@@ -2487,6 +2571,20 @@ async function enviarForm(tipo) {
     window._tipoVentaGuardado = tipoVenta; // Guardar antes de que se limpie el formulario
     fila = [getVal('c-fecha')||fecha, getVal('c-local'), tipoVenta, getVal('c-ref'), imei, porcFinal, cuotaFinal, descuento, cuotaFinal-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO'];
 
+  } else if(tipo === 'venta-iphone') {
+    if(!getVal('vi-local')) { alert('⚠️ Selecciona el local'); if(btn){btn.disabled=false;btn.textContent='Registrar Venta iPhone ✓';} return; }
+    if(!getVal('vi-referencia')) { alert('⚠️ Ingresa la referencia del iPhone'); if(btn){btn.disabled=false;btn.textContent='Registrar Venta iPhone ✓';} return; }
+    if(!getVal('vi-financiera')) { alert('⚠️ Selecciona la financiera'); if(btn){btn.disabled=false;btn.textContent='Registrar Venta iPhone ✓';} return; }
+    hoja = 'VENTAS_IPHONE';
+    fila = [
+      getVal('vi-fecha')||fecha, getVal('vi-local'), getVal('vi-referencia'),
+      getVal('vi-financiera'), getVal('vi-imei')||'', getVal('vi-cedula')||'',
+      getVal('vi-nombre')||'', getNumero('vi-cuota')||0, getVal('vi-pago')||'',
+      getNumero('vi-efectivo')||0, getNumero('vi-transfer')||0,
+      '','','','','','','','','','',
+      'PENDIENTE','NO',''
+    ];
+
   } else if(tipo === 'contado') {
     const imeiSel = getVal('ct-imei');
     imei = imeiSel ? imeiSel.split('|')[0] : '';
@@ -2663,7 +2761,8 @@ const CONFIG_COLUMNAS = {
   categoriasAcc: { col: 'K', idx: 10 },
   proveedores: { col: 'N', idx: 13 },
   referencias: { col: 'P', idx: 15 },
-  proveedoresPago: { col: 'R', idx: 17 }
+  proveedoresPago: { col: 'R', idx: 17 },
+  referenciasIphone: { col: 'T', idx: 19 }
 };
 
 async function cargarConfigAdmin() {
@@ -4755,6 +4854,208 @@ async function ejecutarCambioImei() {
 let liqVentaActual = null;
 let liqTabActual = 'pendientes';
 let liqCompletadas = [];
+
+// =============================================
+// MÓDULO IPHONE
+// =============================================
+let iphoneTabActual = 'pendientes';
+let iphoneVentas = [];
+let iphoneVentaSeleccionada = null;
+
+function setTabIphone(tab) {
+  iphoneTabActual = tab;
+  ['pendientes','completas'].forEach(t => {
+    const btn = document.getElementById(`tab-iphone-${t === 'pendientes' ? 'pend' : 'comp'}`);
+    if(btn) {
+      btn.style.background = t === tab ? '#1a1a2e' : 'white';
+      btn.style.color = t === tab ? 'white' : '#1a1a2e';
+    }
+  });
+  renderListaIphone();
+}
+
+async function cargarVentasIphone() {
+  const lista = document.getElementById('iphone-lista');
+  if(lista) lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">Cargando...</div>';
+  try {
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/usedRange`);
+    if(data?.values?.length > 1) {
+      iphoneVentas = data.values.slice(1).map((r,i) => ({
+        idx: i,
+        fecha: r[0]||'', local: r[1]||'', ref: r[2]||'', financiera: r[3]||'',
+        imei: r[4]||'', cedula: r[5]||'', nombre: r[6]||'',
+        cuotaInicial: parseFloat(r[7])||0, metodoPago: r[8]||'',
+        efectivo: parseFloat(r[9])||0, transfer: parseFloat(r[10])||0,
+        vs: parseFloat(r[11])||0, cuotaSistema: parseFloat(r[12])||0,
+        descuento: parseFloat(r[13])||0, costo: parseFloat(r[14])||0,
+        tipo: r[15]||'', comTrab: parseFloat(r[16])||0,
+        porcEnc: parseFloat(r[17])||0, utilBruta: parseFloat(r[18])||0,
+        comEnc: parseFloat(r[19])||0, utilNeta: parseFloat(r[20])||0,
+        estado: r[21]||'PENDIENTE', liquidado: r[22]||'NO',
+        pagoFinanciera: parseFloat(r[23])||0
+      }));
+    } else {
+      iphoneVentas = [];
+    }
+    renderListaIphone();
+  } catch(e) {
+    if(lista) lista.innerHTML = '<div style="color:#dc2626;padding:16px;">Error cargando ventas iPhone</div>';
+  }
+}
+
+function renderListaIphone() {
+  const lista = document.getElementById('iphone-lista');
+  if(!lista) return;
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const filtradas = iphoneVentas.filter(v => 
+    iphoneTabActual === 'pendientes' ? v.estado === 'PENDIENTE' : v.estado === 'COMPLETA'
+  );
+  if(filtradas.length === 0) {
+    lista.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;">No hay ventas ${iphoneTabActual === 'pendientes' ? 'pendientes' : 'completas'}</div>`;
+    return;
+  }
+  lista.innerHTML = filtradas.map(v => `
+    <div onclick="abrirCompletarIphone(${v.idx})" style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);cursor:pointer;border-left:4px solid ${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</span>
+        <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:${v.estado==='PENDIENTE'?'#fef3c7':'#dcfce7'};color:${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">${v.estado}</span>
+      </div>
+      <div style="font-size:12px;color:#64748b;">${v.fecha} · ${v.local} · ${v.financiera}</div>
+      ${v.nombre ? `<div style="font-size:12px;color:#475569;margin-top:3px;">👤 ${v.nombre}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
+        <span>Cuota inicial: <b>${fmt(v.cuotaInicial)}</b></span>
+        ${v.estado==='COMPLETA' ? `<span>Utilidad neta: <b style="color:#16a34a;">${fmt(v.utilNeta)}</b></span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function abrirCompletarIphone(idx) {
+  iphoneVentaSeleccionada = iphoneVentas[idx];
+  const v = iphoneVentaSeleccionada;
+  const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '';
+
+  // Resumen
+  const resumen = document.getElementById('ci-resumen');
+  if(resumen) resumen.innerHTML = `
+    <div style="font-weight:800;margin-bottom:6px;">🍎 ${v.ref} — ${v.financiera}</div>
+    <div style="color:#64748b;font-size:12px;">${v.fecha} · ${v.local}</div>
+    ${v.nombre ? `<div style="font-size:12px;">👤 ${v.nombre} ${v.cedula?'· CC: '+v.cedula:''}</div>` : ''}
+    ${v.imei ? `<div style="font-size:12px;">IMEI: ${v.imei}</div>` : ''}
+    <div style="margin-top:6px;font-size:13px;">Cuota inicial recibida: <b>${fmt(v.cuotaInicial)}</b></div>`;
+
+  // Llenar campos si ya tiene datos
+  const setMoney = (id, val) => { const el = document.getElementById(id); if(el) el.value = val ? '$'+Math.round(val).toLocaleString('es-CO') : ''; };
+  setMoney('ci-vs', v.vs);
+  setMoney('ci-cuota-sistema', v.cuotaSistema);
+  setMoney('ci-descuento', v.descuento);
+  setMoney('ci-costo', v.costo);
+  setMoney('ci-comision-trabajadora', v.comTrab);
+  setMoney('ci-pago-movisim', 0);
+  const tipoEl = document.getElementById('ci-tipo');
+  if(tipoEl) tipoEl.value = v.tipo || 'MIO';
+  const porcEl = document.getElementById('ci-porc-encargada');
+  if(porcEl) porcEl.value = v.porcEnc || '';
+
+  onChangeTipoIphone();
+  calcularUtilidad();
+  irA('completar-iphone');
+}
+
+function onChangeTipoIphone() {
+  const tipo = document.getElementById('ci-tipo')?.value;
+  const costoWrap = document.getElementById('ci-costo-wrap');
+  const pagoWrap = document.getElementById('ci-pago-movisim-wrap');
+  if(costoWrap) costoWrap.style.display = tipo === 'MIO' ? 'block' : 'none';
+  if(pagoWrap) pagoWrap.style.display = tipo === 'OFICINA' ? 'block' : 'none';
+}
+
+function calcularUtilidad() {
+  const v = iphoneVentaSeleccionada;
+  if(!v) return;
+
+  const getN = id => { const el = document.getElementById(id); return el ? (parseFloat(el.value.replace(/[^0-9.-]/g,''))||0) : 0; };
+  const vs = getN('ci-vs');
+  const cuotaSistema = getN('ci-cuota-sistema');
+  const descuento = getN('ci-descuento');
+  const costo = getN('ci-costo');
+  const comTrab = getN('ci-comision-trabajadora');
+  const porcEnc = getN('ci-porc-encargada');
+  const pagoMovisim = getN('ci-pago-movisim');
+  const tipo = document.getElementById('ci-tipo')?.value || 'MIO';
+  const financiera = v.financiera;
+  const cuotaReal = v.cuotaInicial - descuento;
+
+  if(!vs || !cuotaSistema) { document.getElementById('ci-resultados').style.display = 'none'; return; }
+
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+
+  // Calcular VS efectivo para OME-CREDIT
+  const vsEfectivo = financiera === 'OME-CREDIT' ? vs * 0.9 : vs;
+  const descuentoMovisim = financiera === 'OME-CREDIT' ? 300000 : 250000;
+
+  // Pago que hace la financiera a MOVISIM
+  const pagoFinanciera = vsEfectivo - cuotaSistema;
+  // Pago neto que recibes de MOVISIM
+  const pagoNetoMovisim = tipo === 'MIO' ? pagoFinanciera - descuentoMovisim : pagoMovisim;
+
+  // Utilidad bruta
+  let utilBruta;
+  if(tipo === 'MIO') {
+    utilBruta = cuotaReal + pagoNetoMovisim - costo;
+  } else {
+    utilBruta = cuotaReal + pagoNetoMovisim;
+  }
+
+  const comEnc = (utilBruta - comTrab) * (porcEnc / 100);
+  const utilNeta = utilBruta - comTrab - comEnc;
+
+  // Mostrar resultados
+  document.getElementById('ci-resultados').style.display = 'block';
+  document.getElementById('ci-r-cuota-real').textContent = fmt(cuotaReal);
+  document.getElementById('ci-r-pago-movisim').textContent = fmt(pagoNetoMovisim);
+  document.getElementById('ci-r-util-bruta').textContent = fmt(utilBruta);
+  document.getElementById('ci-r-com-trab').textContent = fmt(comTrab);
+  document.getElementById('ci-r-com-enc').textContent = fmt(comEnc);
+  document.getElementById('ci-r-util-neta').textContent = fmt(utilNeta);
+
+  // Guardar en ventaSeleccionada para usar al guardar
+  iphoneVentaSeleccionada._calc = { vsEfectivo, cuotaReal, pagoNetoMovisim, utilBruta, comEnc, utilNeta };
+}
+
+async function guardarCompletarIphone() {
+  const v = iphoneVentaSeleccionada;
+  if(!v || !v._calc) { alert('⚠️ Completa los datos primero'); return; }
+
+  const btn = document.querySelector('#screen-completar-iphone .submit-btn');
+  if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+
+  const getN = id => { const el = document.getElementById(id); return el ? (parseFloat(el.value.replace(/[^0-9.-]/g,''))||0) : 0; };
+  const c = v._calc;
+  const fila = v.idx + 2; // +2 porque idx es 0-based y hay encabezado
+
+  try {
+    // Actualizar columnas L a X (índices 11-23)
+    await graphPatch(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='L${fila}:X${fila}')`,
+      { values: [[
+        getN('ci-vs'), getN('ci-cuota-sistema'), getN('ci-descuento'),
+        getN('ci-costo'), document.getElementById('ci-tipo')?.value||'MIO',
+        getN('ci-comision-trabajadora'), getN('ci-porc-encargada'),
+        Math.round(c.utilBruta), Math.round(c.comEnc), Math.round(c.utilNeta),
+        'COMPLETA', v.liquidado||'NO', v.pagoFinanciera||0
+      ]] }
+    );
+
+    if(btn) { btn.textContent = 'Guardar ✓'; btn.disabled = false; }
+    await cargarVentasIphone();
+    irA('gerencia-iphone');
+    mostrarToastVerde('✅ Venta iPhone completada');
+  } catch(e) {
+    if(btn) { btn.textContent = 'Guardar ✓'; btn.disabled = false; }
+    alert('❌ Error al guardar: ' + e.message);
+  }
+}
 
 async function cargarLiquidaciones() {
   document.getElementById('liq-loading').style.display = 'block';
