@@ -734,9 +734,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Valor Sistema (VS)</label><input type="text" id="ci-vs" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>Cuota Inicial Sistema</label><input type="text" id="ci-cuota-sistema" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>Descuento al cliente</label><input type="text" id="ci-descuento" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
-    <div class="field"><label>Costo iPhone</label><div class="select-wrap"><select id="ci-tipo" onchange="onChangeTipoIphone();calcularUtilidad()"><option value="MIO">📱 iPhone mío</option><option value="OFICINA">🏢 iPhone de oficina (MOVISIM)</option></select></div></div>
-    <div id="ci-costo-wrap" class="field"><label>Costo</label><input type="text" id="ci-costo" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
-    <div id="ci-pago-movisim-wrap" class="field" style="display:none;"><label>Pago de MOVISIM (lo que te deposita)</label><input type="text" id="ci-pago-movisim" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="ci-tipo" onchange="onChangeTipoIphone();calcularUtilidad()"><option value="MIO">📱 iPhone mío</option><option value="OFICINA">🏢 iPhone de oficina (MOVISIM)</option></select></div></div>
+    <div class="field"><label>Costo iPhone</label><input type="text" id="ci-costo" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>Comisión trabajadora</label><input type="text" id="ci-comision-trabajadora" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>% Comisión encargada</label><input type="number" id="ci-porc-encargada" placeholder="Ej: 20" min="0" max="100" oninput="calcularUtilidad()"></div>
 
@@ -4970,11 +4969,8 @@ function abrirCompletarIphone(idx) {
 }
 
 function onChangeTipoIphone() {
-  const tipo = document.getElementById('ci-tipo')?.value;
-  const costoWrap = document.getElementById('ci-costo-wrap');
-  const pagoWrap = document.getElementById('ci-pago-movisim-wrap');
-  if(costoWrap) costoWrap.style.display = tipo === 'MIO' ? 'block' : 'none';
-  if(pagoWrap) pagoWrap.style.display = tipo === 'OFICINA' ? 'block' : 'none';
+  // Ya no hay campos que mostrar/ocultar - siempre se ingresa el costo
+  calcularUtilidad();
 }
 
 function calcularUtilidad() {
@@ -5002,14 +4998,24 @@ function calcularUtilidad() {
 
   // Pago que hace la financiera a MOVISIM
   const pagoFinanciera = vsEfectivo - cuotaSistema;
+
   // Pago neto que recibes de MOVISIM
-  const pagoNetoMovisim = tipo === 'MIO' ? pagoFinanciera - descuentoMovisim : pagoMovisim;
+  // iPhone mío: financiera paga a MOVISIM, MOVISIM descuenta $250k y te paga el resto
+  // iPhone oficina: financiera paga a MOVISIM, MOVISIM descuenta su costo + $250k y te paga el resto
+  let pagoNetoMovisim;
+  if(tipo === 'MIO') {
+    pagoNetoMovisim = pagoFinanciera - descuentoMovisim;
+  } else {
+    // Oficina: MOVISIM descuenta su costo y los $250k
+    pagoNetoMovisim = pagoFinanciera - costo - descuentoMovisim;
+  }
 
   // Utilidad bruta
   let utilBruta;
   if(tipo === 'MIO') {
     utilBruta = cuotaReal + pagoNetoMovisim - costo;
   } else {
+    // Oficina: no pagas el costo, la utilidad es cuota + lo que te paga MOVISIM
     utilBruta = cuotaReal + pagoNetoMovisim;
   }
 
