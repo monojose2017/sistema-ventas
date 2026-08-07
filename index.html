@@ -754,7 +754,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <!-- LIQUIDACIONES -->
 <!-- GERENCIA IPHONE -->
 <div class="screen" id="screen-gerencia-iphone">
-  <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🍎 iPhone</div><div class="form-header-sub">Completar ventas y calcular utilidades</div></div></div>
+  <div class="form-header"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🍎 iPhone</div><div class="form-header-sub">Completar ventas y calcular utilidades</div></div></div>
   <div class="form-body">
     <!-- Tabs -->
     <div style="display:flex;gap:8px;margin-bottom:16px;">
@@ -5197,6 +5197,13 @@ async function setTablaActual(hoja) {
   }
 }
 
+function fmtPorc(h) {
+  if(h === null || h === undefined || h === '') return '';
+  const n = parseFloat(h.toString().replace('%',''));
+  if(isNaN(n)) return h;
+  return n < 1 ? Math.round(n*100)+'%' : Math.round(n)+'%';
+}
+
 function renderTabla(hoja) {
   const data = tablaDatos[hoja];
   if(!data?.values?.length) {
@@ -5205,7 +5212,7 @@ function renderTabla(hoja) {
   }
 
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
-  const headers = data.values[0].slice(1); // porcentajes
+  const headers = data.values[0].slice(1);
   const rows = data.values.slice(1).filter(r => r[0]);
 
   let html = `<div style="overflow-x:auto;">
@@ -5213,7 +5220,7 @@ function renderTabla(hoja) {
       <thead>
         <tr style="background:#7c3aed;color:white;">
           <th style="padding:8px;text-align:left;min-width:140px;">Referencia</th>
-          ${headers.map(h => `<th style="padding:8px;text-align:center;min-width:90px;">${Math.round(parseFloat(h)*100)}%</th>`).join('')}
+          ${headers.map(h => `<th style="padding:8px;text-align:center;min-width:90px;">${fmtPorc(h)}</th>`).join('')}
           <th style="padding:8px;text-align:center;min-width:60px;">✏️</th>
         </tr>
       </thead>
@@ -5256,7 +5263,7 @@ function abrirEditarFila(hoja, rowIdx, ref) {
       <div class="field"><label>Referencia</label><input type="text" id="tbl-edit-ref" value="${ref}" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;"></div>
       ${headers.map((h, j) => `
         <div class="field">
-          <label>${Math.round(parseFloat(h)*100)}%</label>
+          <label>${fmtPorc(h)}</label>
           <input type="text" id="tbl-edit-${j}" value="${fmt(row[j+1])}" oninput="formatMoney(this)" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;">
         </div>`).join('')}
       <div style="display:flex;gap:10px;margin-top:14px;">
@@ -5282,7 +5289,7 @@ function abrirAgregarFila(hoja) {
       <div class="field"><label>Referencia</label><input type="text" id="tbl-edit-ref" placeholder="Nombre del teléfono" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;"></div>
       ${headers.map((h, j) => `
         <div class="field">
-          <label>${Math.round(parseFloat(h)*100)}%</label>
+          <label>${fmtPorc(h)}</label>
           <input type="text" id="tbl-edit-${j}" placeholder="$0" oninput="formatMoney(this)" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;">
         </div>`).join('')}
       <div style="display:flex;gap:10px;margin-top:14px;">
