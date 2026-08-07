@@ -117,7 +117,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="divider"></div>
       <p class="sec-titulo">Acceso restringido</p>
       <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
-      <button class="btn-menu" onclick="abrirExcelOnline()" style="border:2px dashed #d97706;background:#fff7ed;"><div class="btn-icon" style="background:#d97706;">📊</div><div class="btn-info"><div class="btn-titulo" style="color:#d97706;">Abrir Excel</div><div class="btn-sub">Desbloquear archivo si hay error</div></div><span class="btn-arrow" style="color:#d97706;">›</span></button>
     </div>
   </div>
 </div>
@@ -5224,7 +5223,7 @@ function renderTabla(hoja) {
 
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
   const headers = data.values[0].slice(1);
-  const rows = data.values.slice(1).filter(r => r[0]);
+  const rows = data.values.slice(1).filter(r => r[0] && r[0].toString() !== '__ELIMINADO__');
 
   let html = `<div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -5358,15 +5357,11 @@ function confirmarEliminarFilaTabla(hoja, rowIdx, ref) {
 async function eliminarFilaTabla(hoja, rowIdx) {
   const excelRow = rowIdx + 1;
   try {
-    const totalCols = tablaDatos[hoja].values[0].length;
-    const colFin = String.fromCharCode(64 + totalCols);
-    // Limpiar la fila (dejar vacía) en vez de eliminarla físicamente
-    const celdas = Array(totalCols).fill('');
+    // Marcar primera celda como ELIMINADO para que se filtre al cargar
     await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}:${colFin}${excelRow}')`,
-      { values: [celdas] }
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}')`,
+      { values: [['__ELIMINADO__']] }
     );
-    // Quitar de memoria local
     tablaDatos[hoja].values.splice(rowIdx, 1);
     preciosCargados = false;
     document.getElementById('modal-tabla').remove();
