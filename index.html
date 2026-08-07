@@ -6,6 +6,9 @@
 <title>Sistema de Ventas</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--azul:#1a3c6e;--azul2:#2563eb;--verde:#16a34a;--naranja:#ea580c;--morado:#7c3aed;--rojo:#dc2626;--texto:#1e293b;--sub:#64748b;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -148,21 +151,39 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-venta-iphone">
   <div class="form-header"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">🍎 Venta iPhone</div><div class="form-header-sub">Registra los datos de la venta</div></div></div>
   <div class="form-body">
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button onclick="setTabVentaIphone('credito')" id="vi-tab-cred" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">💳 Crédito</button>
+      <button onclick="setTabVentaIphone('contado')" id="vi-tab-cont" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:white;color:#1a1a2e;font-weight:700;cursor:pointer;font-size:13px;">💵 Contado</button>
+    </div>
+
+    <!-- CAMPOS COMUNES -->
     <div class="field"><label>Fecha</label><input type="date" id="vi-fecha"></div>
     <div class="field"><label>Local</label><div class="select-wrap"><select id="vi-local"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Referencia iPhone</label><div class="select-wrap"><select id="vi-referencia"><option value="">Seleccionar...</option></select></div></div>
-    <div class="field"><label>Financiera</label><div class="select-wrap"><select id="vi-financiera"><option value="">Seleccionar...</option><option>E-CREDIT</option><option>OME-CREDIT</option></select></div></div>
     <div class="field"><label>IMEI <span style="color:#94a3b8;font-size:11px;">(opcional)</span></label><input type="text" id="vi-imei" placeholder="15 dígitos"></div>
     <div class="field"><label>Cédula cliente <span style="color:#94a3b8;font-size:11px;">(opcional)</span></label><input type="text" id="vi-cedula" placeholder="Número de cédula"></div>
     <div class="field"><label>Nombre y apellido <span style="color:#94a3b8;font-size:11px;">(opcional)</span></label><input type="text" id="vi-nombre" placeholder="Nombre completo"></div>
-    <div class="field"><label>Cuota inicial recibida</label><input type="text" id="vi-cuota" placeholder="$0" oninput="formatMoney(this)"></div>
+
+    <!-- SOLO CRÉDITO -->
+    <div id="vi-sec-credito">
+      <div class="field"><label>Financiera</label><div class="select-wrap"><select id="vi-financiera"><option value="">Seleccionar...</option><option>E-CREDIT</option><option>OME-CREDIT</option></select></div></div>
+      <div class="field"><label>Cuota inicial recibida</label><input type="text" id="vi-cuota" placeholder="$0" oninput="formatMoney(this)"></div>
+    </div>
+
+    <!-- SOLO CONTADO -->
+    <div id="vi-sec-contado" style="display:none;">
+      <div class="field"><label>Precio de venta recibido</label><input type="text" id="vi-precio-contado" placeholder="$0" oninput="formatMoney(this)"></div>
+    </div>
+
+    <!-- MÉTODO DE PAGO -->
     <div class="field"><label>Método de pago</label><div class="select-wrap"><select id="vi-pago" onchange="manejarPago('vi')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div id="vi-pago-fields" style="display:none;">
       <div class="field"><label>Efectivo</label><input type="text" id="vi-efectivo" placeholder="$0" oninput="formatMoney(this)"></div>
       <div class="field"><label>Transferencia</label><input type="text" id="vi-transfer" placeholder="$0" oninput="formatMoney(this)"></div>
-      <div id="vi-mixto-error" style="display:none;color:#dc2626;font-size:12px;padding:6px 12px;">⚠️ La suma no coincide con la cuota inicial</div>
+      <div id="vi-mixto-error" style="display:none;color:#dc2626;font-size:12px;padding:6px 12px;">⚠️ La suma no coincide</div>
     </div>
-    <button class="submit-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e);" onclick="enviarForm('venta-iphone')">Registrar Venta iPhone ✓</button>
+    <button class="submit-btn" id="vi-submit-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e);" onclick="enviarVentaIphone()">Registrar Venta iPhone ✓</button>
   </div>
 </div>
 
@@ -246,7 +267,25 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="divider"></div>
     <p class="sec-titulo">Configuración</p>
     <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="cargarTablas();irA('tablas')"><div class="btn-icon morado">📊</div><div class="btn-info"><div class="btn-titulo">Tablas de Cuotas</div><div class="btn-sub">OFICINA · ET OFICINA · ET CLARO · RECOMPRA</div></div><span class="btn-arrow">›</span></button>
 
+  </div>
+</div>
+
+<!-- TABLAS DE CUOTAS -->
+<div class="screen" id="screen-tablas">
+  <div class="form-header" style="background:linear-gradient(135deg,#5b21b6,#7c3aed)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">📊 Tablas de Cuotas</div><div class="form-header-sub">Editar cuotas iniciales por referencia</div></div></div>
+  <div class="form-body">
+    <!-- Selector de tabla -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button onclick="setTablaActual('OFICINA')" id="tbl-btn-OFICINA" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:#7c3aed;color:white;font-weight:700;cursor:pointer;font-size:12px;">OFICINA</button>
+      <button onclick="setTablaActual('ET_OFICINA')" id="tbl-btn-ET_OFICINA" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ET OFICINA</button>
+      <button onclick="setTablaActual('ET_CLARO')" id="tbl-btn-ET_CLARO" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ET CLARO</button>
+      <button onclick="setTablaActual('RECOMPRA')" id="tbl-btn-RECOMPRA" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA</button>
+      <button onclick="setTablaActual('RECOMPRA_REAL')" id="tbl-btn-RECOMPRA_REAL" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA REAL</button>
+    </div>
+    <div id="tablas-loading" style="text-align:center;padding:20px;color:#64748b;display:none;">Cargando...</div>
+    <div id="tablas-contenido"></div>
   </div>
 </div>
 
@@ -719,12 +758,20 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <!-- Tabs -->
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button onclick="setTabIphone('pendientes')" id="tab-iphone-pend" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pendientes</button>
+      <button onclick="setTabIphone('pendientes')" id="tab-iphone-pend" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Crédito Pend.</button>
       <button onclick="setTabIphone('completas')" id="tab-iphone-comp" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:white;color:#1a1a2e;font-weight:700;cursor:pointer;font-size:13px;">✅ Completas</button>
+      <button onclick="setTabIphone('contado')" id="tab-iphone-cont" style="flex:1;padding:10px;border-radius:10px;border:2px solid #15803d;background:white;color:#15803d;font-weight:700;cursor:pointer;font-size:13px;">💵 Contado</button>
     </div>
     <div id="iphone-lista"></div>
-  </div>
-</div>
+
+    <!-- Botones reporte -->
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0;">
+      <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;">📄 Reporte Pendientes de Pago</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="generarReporteIphone('excel')" style="flex:1;padding:12px;background:linear-gradient(135deg,#15803d,#16a34a);color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">📊 Excel</button>
+        <button onclick="generarReporteIphone('pdf')" style="flex:1;padding:12px;background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">📄 PDF</button>
+      </div>
+    </div>
 
 <!-- FORMULARIO COMPLETAR VENTA IPHONE -->
 <div class="screen" id="screen-completar-iphone">
@@ -740,10 +787,22 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="field"><label>Nombre y apellido <span id="ci-nombre-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-nombre-edit" placeholder="Nombre completo"></div>
     </div>
 
-    <div class="field"><label>Valor Sistema (VS)</label><input type="text" id="ci-vs" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
-    <div class="field"><label>Cuota Inicial Sistema</label><input type="text" id="ci-cuota-sistema" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
-    <div class="field"><label>Descuento al cliente</label><input type="text" id="ci-descuento" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
-    <div class="field"><label>Tipo</label><div class="select-wrap"><select id="ci-tipo" onchange="onChangeTipoIphone();calcularUtilidad()"><option value="MIO">📱 iPhone mío</option><option value="OFICINA">🏢 iPhone de oficina (MOVISIM)</option></select></div></div>
+    <!-- Campos solo para crédito -->
+    <div id="ci-sec-credito">
+      <div class="field"><label>Valor Sistema (VS)</label><input type="text" id="ci-vs" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+      <div class="field"><label>Cuota Inicial Sistema</label><input type="text" id="ci-cuota-sistema" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+      <div class="field"><label>Descuento al cliente</label><input type="text" id="ci-descuento" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
+      <div class="field"><label>Tipo</label><div class="select-wrap"><select id="ci-tipo" onchange="onChangeTipoIphone();calcularUtilidad()"><option value="MIO">📱 iPhone mío</option><option value="OFICINA">🏢 iPhone de oficina (MOVISIM)</option></select></div></div>
+    </div>
+
+    <!-- Campo solo para contado -->
+    <div id="ci-sec-contado" style="display:none;">
+      <div style="background:#f0fdf4;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;">
+        <span style="color:#64748b;">Precio de venta registrado por la niña:</span>
+        <span id="ci-precio-contado-display" style="font-weight:800;color:#15803d;"></span>
+      </div>
+    </div>
+
     <div class="field"><label>Costo iPhone</label><input type="text" id="ci-costo" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>Comisión trabajadora</label><input type="text" id="ci-comision-trabajadora" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>% Comisión encargada</label><input type="number" id="ci-porc-encargada" placeholder="Ej: 20" min="0" max="100" oninput="calcularUtilidad()"></div>
@@ -753,7 +812,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div style="font-weight:800;color:#15803d;margin-bottom:10px;">📊 Cálculo automático</div>
       <div style="display:grid;gap:6px;font-size:13px;">
         <div style="display:flex;justify-content:space-between;"><span>Cuota inicial real:</span><span id="ci-r-cuota-real" style="font-weight:700;"></span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Pago MOVISIM:</span><span id="ci-r-pago-movisim" style="font-weight:700;color:#0891b2;"></span></div>
+        <div style="display:flex;justify-content:space-between;"><span id="ci-label-pago">Pago MOVISIM:</span><span id="ci-r-pago-movisim" style="font-weight:700;color:#0891b2;"></span></div>
         <div style="display:flex;justify-content:space-between;border-top:1px solid #bbf7d0;padding-top:6px;"><span>Utilidad bruta:</span><span id="ci-r-util-bruta" style="font-weight:800;color:#15803d;"></span></div>
         <div style="display:flex;justify-content:space-between;"><span>Comisión trabajadora:</span><span id="ci-r-com-trab" style="font-weight:700;color:#dc2626;"></span></div>
         <div style="display:flex;justify-content:space-between;"><span>Comisión encargada:</span><span id="ci-r-com-enc" style="font-weight:700;color:#dc2626;"></span></div>
@@ -793,6 +852,23 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div>📊 Porcentaje: <b id="liq-det-porc"></b></div>
         <div>💰 Costo: <b id="liq-det-costo"></b></div>
         <div>💵 Cuota cliente: <b id="liq-det-cuota"></b></div>
+      </div>
+    </div>
+
+    <!-- CALCULADORA ET_OFICINA -->
+    <div id="calc-etoficina" style="display:none;">
+      <div style="background:#dcfce7;border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:10px;">🧮 Calculadora ET OFICINA</div>
+        <div style="background:white;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;color:#64748b;">
+          Porcentaje cuota: <b id="calc-eto-porc-label" style="color:#15803d;"></b>
+        </div>
+        <div class="field"><label>Valor Sistema</label><input type="text" id="calc-eto-vs" placeholder="$0" oninput="formatMoney(this);calcEtOficina()"></div>
+        <div id="calc-etoficina-result" style="display:none;background:white;border-radius:10px;padding:12px;font-size:13px;line-height:1.9;">
+          <div>📊 Cuota inicial (<span id="calc-eto-porc-show"></span>): <b id="calc-eto-cuota"></b></div>
+          <div>📉 MOVISIM descuenta: <b style="color:#dc2626;">$230.000</b></div>
+          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0;font-size:15px;">✅ <b>Paga MOVISIM: <span id="calc-eto-paga" style="color:#16a34a;font-size:17px;"></span></b></div>
+        </div>
+        <button onclick="usarResultadoCalc('etoficina')" style="width:100%;margin-top:10px;padding:10px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">Usar este valor ↓</button>
       </div>
     </div>
 
@@ -904,6 +980,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="rep-seccion">
         <div class="rep-titulo">🎧 Accesorios</div>
         <div id="rep-proy-accesorios"></div>
+      </div>
+      <div class="rep-seccion">
+        <div class="rep-titulo">🍎 iPhone</div>
+        <div id="rep-proy-iphone"></div>
       </div>
     </div>
 
@@ -1362,6 +1442,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
           <span id="mr-count-accesorios" style="background:#fff7ed;color:#d97706;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
         </div>
         <div id="mr-lista-accesorios"></div>
+      </div>
+
+      <!-- IPHONE -->
+      <div id="mr-sec-iphone" style="display:none;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:800;color:#1e293b;margin-bottom:8px;display:flex;justify-content:space-between;">
+          <span>🍎 Ventas iPhone</span>
+          <span id="mr-count-iphone" style="background:#e0e7ff;color:#4338ca;padding:2px 8px;border-radius:20px;font-size:12px;"></span>
+        </div>
+        <div id="mr-lista-iphone"></div>
       </div>
 
       <!-- GASTOS -->
@@ -1878,7 +1967,9 @@ function getValorTotal(prefijo) {
   } else if(prefijo === 'ab') {
     return parseInt((document.getElementById('ab-valor')?.value||'').replace(/[^0-9]/g,'')) || 0;
   } else if(prefijo === 'vi') {
-    return parseInt((document.getElementById('vi-cuota')?.value||'').replace(/[^0-9]/g,'')) || 0;
+    return viTabActual === 'contado' 
+      ? parseInt((document.getElementById('vi-precio-contado')?.value||'').replace(/[^0-9]/g,'')) || 0
+      : parseInt((document.getElementById('vi-cuota')?.value||'').replace(/[^0-9]/g,'')) || 0;
   }
   return 0;
 }
@@ -4436,14 +4527,15 @@ async function iniciarMisRegistros() {
       return null;
     };
 
-    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas] = await Promise.all([
+    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas, iphoneData] = await Promise.all([
       fetchConReintento('VENTAS_CREDITOS'),
       fetchConReintento('VENTAS_CONTADO'),
       fetchConReintento('VENTAS_ACCESORIOS'),
       fetchConReintento('GASTOS_DIARIOS'),
       fetchConReintento('INGRESOS_LOCAL'),
       fetchConReintento('RETIROS_CAJA'),
-      fetchConReintento('APERTURA_CAJA')
+      fetchConReintento('APERTURA_CAJA'),
+      fetchConReintento('VENTAS_IPHONE')
     ]);
 
     const fmtFecha = f => {
@@ -4456,7 +4548,7 @@ async function iniciarMisRegistros() {
       return f.toString();
     };
 
-    MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[] };
+    MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[], iphone:[] };
 
     if(creditos?.values?.length > 1) {
       for(let i=1;i<creditos.values.length;i++) {
@@ -4505,6 +4597,19 @@ async function iniciarMisRegistros() {
         const r = aperturas.values[i];
         if(!r[0]) continue;
         MR_DATOS.aperturas.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', saldo:parseFloat(r[2])||0 });
+      }
+    }
+    if(iphoneData?.values?.length > 1) {
+      for(let i=1;i<iphoneData.values.length;i++) {
+        const r = iphoneData.values[i];
+        if(!r[0]) continue;
+        MR_DATOS.iphone.push({
+          fecha:fmtFecha(r[0]), local:r[1]?.toString()||'',
+          ref:r[2]||'', financiera:r[3]||'', imei:r[4]||'',
+          nombre:r[6]||'', cuota:parseFloat(r[7])||0,
+          pago:r[8]||'', efectivo:parseFloat(r[9])||0,
+          transfer:parseFloat(r[10])||0, estado:r[21]||'PENDIENTE'
+        });
       }
     }
 
@@ -4557,11 +4662,13 @@ function renderMisRegistros(local, fecha) {
   const listaRet = MR_DATOS.retiros.filter(v => v.local===local && v.fecha===fecha);
   const saldoApertura = MR_DATOS.aperturas.filter(v => v.local===local && v.fecha===fecha).reduce((s,v)=>s+v.saldo,0);
 
-  const totalVentas = listaCred.length + listaCont.length + listaAcc.length;
+  const listaIphone = (MR_DATOS.iphone||[]).filter(v => v.local===local && v.fecha===fecha);
+  const totalVentas = listaCred.length + listaCont.length + listaAcc.length + listaIphone.length;
   const totalEfectivoEntrado =
     listaCred.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.cuota:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaCont.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.precio:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaAcc.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.total:i.pago==='MIXTO'?i.efectivo:0),0) +
+    listaIphone.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.cuota:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaIng.reduce((s,i)=>s+i.valor,0);
   const totalGastosEfectivo = listaGas.reduce((s,i) => s + (i.metodo==='TRANSFERENCIA' ? 0 : i.valor), 0);
   const totalRetiros = listaRet.reduce((s,i)=>s+i.valor,0);
@@ -4616,6 +4723,22 @@ function renderMisRegistros(local, fecha) {
           <div style="font-size:11px;color:#64748b;">${v.cat} · ${v.cant} und · 💳 ${v.pago}${v.pago==='MIXTO'?' · Efectivo: $'+v.efectivo.toLocaleString('es-CO'):''}</div>
         </div>
         <div style="font-weight:800;color:#d97706;font-size:14px;">${fmt(v.total)}</div>
+      </div>
+    </div>`).join('');
+
+  // iPhone
+  document.getElementById('mr-sec-iphone').style.display = listaIphone.length ? 'block' : 'none';
+  document.getElementById('mr-count-iphone').textContent = listaIphone.length;
+  document.getElementById('mr-lista-iphone').innerHTML = listaIphone.map(v=>`
+    <div style="background:white;border-radius:12px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid #4338ca;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;">${v.ref}</div>
+          <div style="font-size:11px;color:#64748b;">${v.financiera} · <span style="background:#e0e7ff;color:#4338ca;padding:1px 6px;border-radius:4px;font-weight:700;">${v.estado}</span></div>
+          ${v.nombre ? `<div style="font-size:11px;color:#64748b;">👤 ${v.nombre}</div>` : ''}
+          <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?' · Efectivo: $'+v.efectivo.toLocaleString('es-CO'):''}</div>
+        </div>
+        <div style="font-weight:800;color:#4338ca;font-size:14px;">${fmt(v.cuota)}</div>
       </div>
     </div>`).join('');
 
@@ -4870,21 +4993,471 @@ let liqVentaActual = null;
 let liqTabActual = 'pendientes';
 let liqCompletadas = [];
 
-// =============================================
-// MÓDULO IPHONE
-// =============================================
-let iphoneTabActual = 'pendientes';
+function generarReporteIphone(formato) {
+  const pendientes = iphoneVentas.filter(v =>
+    v.estado === 'COMPLETA' && v.liquidado !== 'SI' && v.financiera !== 'CONTADO'
+  );
+  if(pendientes.length === 0) { alert('✅ No hay iPhones pendientes de pago.'); return; }
+
+  const fmt = n => {
+    const neg = n < 0;
+    const s = '$' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+    return neg ? `(${s})` : s;
+  };
+
+  const calcular = v => {
+    const esOme = v.financiera === 'OME-CREDIT';
+    const vsEf = esOme ? Math.round(v.vs * 0.9) : v.vs;
+    const desc = esOme ? 300000 : 250000;
+    const desembolso = vsEf - v.cuotaSistema;
+    const pagoMovisim = v.tipo === 'MIO' ? desembolso - desc : desembolso - v.costo - desc;
+    return { ...v, vsEf, desc, desembolso, pagoMovisim };
+  };
+
+  const ecredit   = pendientes.filter(v => v.financiera === 'E-CREDIT').map(calcular);
+  const omecredit = pendientes.filter(v => v.financiera === 'OME-CREDIT').map(calcular);
+  const totalE = ecredit.reduce((s,v) => s + v.pagoMovisim, 0);
+  const totalO = omecredit.reduce((s,v) => s + v.pagoMovisim, 0);
+  const totalG = totalE + totalO;
+  const hoy = new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'});
+
+  if(formato === 'excel') {
+    const wb = XLSX.utils.book_new();
+
+    const crearHoja = (datos, hdrs, filasDatos, totalLabel, total) => {
+      const ws_data = [
+        [`REPORTE IPHONES PENDIENTES — JOSE CAMARGO`],
+        [`Generado: ${hoy}`],
+        [],
+        hdrs,
+        ...filasDatos,
+        [],
+        [...Array(hdrs.length - 2).fill(''), totalLabel, Math.round(total)]
+      ];
+      return XLSX.utils.aoa_to_sheet(ws_data);
+    };
+
+    // E-CREDIT
+    const hdrsE = ["FECHA","REFERENCIA","IMEI","CÉDULA","NOMBRE","VS","CTA SISTEMA","TIPO","COSTO","DESEMBOLSO","PAGO MOVISIM"];
+    const filasE = ecredit.map(v => [v.fecha, v.ref, v.imei, v.cedula||'', v.nombre||'', v.vs, v.cuotaSistema, v.tipo, v.costo, v.desembolso, Math.round(v.pagoMovisim)]);
+    const wsE = crearHoja(ecredit, hdrsE, filasE, 'SUBTOTAL E-CREDIT', totalE);
+    XLSX.utils.book_append_sheet(wb, wsE, 'E-CREDIT');
+
+    // OME-CREDIT
+    const hdrsO = ["FECHA","REFERENCIA","IMEI","CÉDULA","NOMBRE","VS","VS EFECT.(90%)","CTA SISTEMA","TIPO","COSTO","DESEMBOLSO","PAGO MOVISIM"];
+    const filasO = omecredit.map(v => [v.fecha, v.ref, v.imei, v.cedula||'', v.nombre||'', v.vs, v.vsEf, v.cuotaSistema, v.tipo, v.costo, v.desembolso, Math.round(v.pagoMovisim)]);
+    const wsO = crearHoja(omecredit, hdrsO, filasO, 'SUBTOTAL OME-CREDIT', totalO);
+    XLSX.utils.book_append_sheet(wb, wsO, 'OME-CREDIT');
+
+    // Resumen
+    const wsR = XLSX.utils.aoa_to_sheet([
+      ['RESUMEN'],
+      [''],
+      ['Financiera', 'Ventas', 'Total Pago MOVISIM'],
+      ['E-CREDIT', ecredit.length, Math.round(totalE)],
+      ['OME-CREDIT', omecredit.length, Math.round(totalO)],
+      ['TOTAL GENERAL', pendientes.length, Math.round(totalG)]
+    ]);
+    XLSX.utils.book_append_sheet(wb, wsR, 'Resumen');
+
+    XLSX.writeFile(wb, `Reporte_iPhones_${new Date().toISOString().split('T')[0]}.xlsx`);
+    mostrarToastVerde('✅ Excel descargado en tus descargas');
+
+  } else if(formato === 'pdf') {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    const encabezado = () => {
+      doc.setFillColor(26, 26, 46);
+      doc.rect(0, 0, 297, 18, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(13);
+      doc.setFont('helvetica','bold');
+      doc.text('REPORTE IPHONES PENDIENTES DE PAGO — JOSE CAMARGO', 148, 10, {align:'center'});
+      doc.setFontSize(8);
+      doc.setFont('helvetica','normal');
+      doc.text(`Generado: ${hoy}  |  E-CREDIT descuenta $250.000  |  OME-CREDIT descuenta $300.000 sobre VS×90%`, 148, 15, {align:'center'});
+      doc.setTextColor(0,0,0);
+    };
+
+    encabezado();
+    let y = 24;
+
+    // E-CREDIT
+    if(ecredit.length > 0) {
+      doc.setFillColor(26, 46, 86);
+      doc.rect(10, y, 277, 7, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica','bold');
+      doc.text(`💳  E-CREDIT (${ecredit.length} ventas)`, 14, y+5);
+      doc.setTextColor(0,0,0);
+      y += 8;
+
+      doc.autoTable({
+        startY: y,
+        head: [["FECHA","REFERENCIA","IMEI","CÉDULA","NOMBRE","VS","CTA SIS.","TIPO","COSTO","DESEMBOLSO","PAGO MOVISIM"]],
+        body: [
+          ...ecredit.map(v => [v.fecha, v.ref, v.imei, v.cedula||'—', v.nombre||'—',
+            fmt(v.vs), fmt(v.cuotaSistema), v.tipo, fmt(v.costo), fmt(v.desembolso),
+            { content: fmt(v.pagoMovisim), styles: { textColor: v.pagoMovisim < 0 ? [220,38,38] : [22,101,52], fontStyle:'bold' }}]),
+          [{ content: 'SUBTOTAL E-CREDIT', colSpan: 10, styles: { halign:'right', fontStyle:'bold', fillColor:[26,46,86], textColor:[255,255,255] }},
+           { content: fmt(totalE), styles: { fontStyle:'bold', fillColor:[26,46,86], textColor: totalE<0?[252,165,165]:[255,255,255] }}]
+        ],
+        styles: { fontSize: 7, cellPadding: 1.5, halign:'center' },
+        headStyles: { fillColor:[46,56,86], textColor:[255,255,255], fontStyle:'bold', fontSize:7 },
+        alternateRowStyles: { fillColor:[242,242,242] },
+        margin: { left:10, right:10 }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    // OME-CREDIT
+    if(omecredit.length > 0) {
+      if(y > 160) { doc.addPage(); encabezado(); y = 24; }
+      doc.setFillColor(55, 86, 35);
+      doc.rect(10, y, 277, 7, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica','bold');
+      doc.text(`📱  OME-CREDIT (${omecredit.length} ventas)`, 14, y+5);
+      doc.setTextColor(0,0,0);
+      y += 8;
+
+      doc.autoTable({
+        startY: y,
+        head: [["FECHA","REFERENCIA","IMEI","CÉDULA","NOMBRE","VS","VS(90%)","CTA SIS.","TIPO","COSTO","DESEMBOLSO","PAGO MOVISIM"]],
+        body: [
+          ...omecredit.map(v => [v.fecha, v.ref, v.imei, v.cedula||'—', v.nombre||'—',
+            fmt(v.vs), fmt(v.vsEf), fmt(v.cuotaSistema), v.tipo, fmt(v.costo), fmt(v.desembolso),
+            { content: fmt(v.pagoMovisim), styles: { textColor: v.pagoMovisim<0?[220,38,38]:[22,101,52], fontStyle:'bold' }}]),
+          [{ content: 'SUBTOTAL OME-CREDIT', colSpan: 11, styles: { halign:'right', fontStyle:'bold', fillColor:[55,86,35], textColor:[255,255,255] }},
+           { content: fmt(totalO), styles: { fontStyle:'bold', fillColor:[55,86,35], textColor: totalO<0?[252,165,165]:[255,255,255] }}]
+        ],
+        styles: { fontSize: 7, cellPadding: 1.5, halign:'center' },
+        headStyles: { fillColor:[55,86,35], textColor:[255,255,255], fontStyle:'bold', fontSize:7 },
+        alternateRowStyles: { fillColor:[242,242,242] },
+        margin: { left:10, right:10 }
+      });
+      y = doc.lastAutoTable.finalY + 6;
+    }
+
+    // Total general
+    doc.setFillColor(15, 23, 42);
+    doc.rect(10, y, 277, 10, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(11);
+    doc.setFont('helvetica','bold');
+    doc.text('TOTAL GENERAL (E-CREDIT + OME-CREDIT):', 14, y+7);
+    doc.setTextColor(totalG < 0 ? 252 : 134, totalG < 0 ? 165 : 239, totalG < 0 ? 165 : 172);
+    doc.text(fmt(totalG), 287, y+7, {align:'right'});
+
+    doc.save(`Reporte_iPhones_${new Date().toISOString().split('T')[0]}.pdf`);
+    mostrarToastVerde('✅ PDF descargado en tus descargas');
+  }
+}
+
+
+
+let tablaActual = 'OFICINA';
+let tablaDatos = {}; // { hoja: { values, headers, rowCount } }
+
+async function cargarTablas() {
+  await setTablaActual('OFICINA');
+}
+
+async function setTablaActual(hoja) {
+  tablaActual = hoja;
+  // Actualizar botones
+  ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','RECOMPRA_REAL'].forEach(t => {
+    const btn = document.getElementById('tbl-btn-'+t);
+    if(!btn) return;
+    btn.style.background = t === hoja ? '#7c3aed' : 'white';
+    btn.style.color = t === hoja ? 'white' : '#7c3aed';
+  });
+
+  // Si ya tenemos los datos en memoria los usamos
+  if(tablaDatos[hoja]) { renderTabla(hoja); return; }
+
+  document.getElementById('tablas-loading').style.display = 'block';
+  document.getElementById('tablas-contenido').innerHTML = '';
+
+  try {
+    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+    if(data?.values?.length > 1) {
+      tablaDatos[hoja] = data;
+    }
+    document.getElementById('tablas-loading').style.display = 'none';
+    renderTabla(hoja);
+  } catch(e) {
+    document.getElementById('tablas-loading').style.display = 'none';
+    document.getElementById('tablas-contenido').innerHTML = '<div style="color:#dc2626;padding:16px;">Error cargando tabla</div>';
+  }
+}
+
+function renderTabla(hoja) {
+  const data = tablaDatos[hoja];
+  if(!data?.values?.length) {
+    document.getElementById('tablas-contenido').innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Sin datos</div>';
+    return;
+  }
+
+  const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
+  const headers = data.values[0].slice(1); // porcentajes
+  const rows = data.values.slice(1).filter(r => r[0]);
+
+  let html = `<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#7c3aed;color:white;">
+          <th style="padding:8px;text-align:left;min-width:140px;">Referencia</th>
+          ${headers.map(h => `<th style="padding:8px;text-align:center;min-width:90px;">${Math.round(parseFloat(h)*100)}%</th>`).join('')}
+          <th style="padding:8px;text-align:center;min-width:60px;">✏️</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  rows.forEach((row, i) => {
+    const ref = row[0]?.toString()||'';
+    html += `<tr style="background:${i%2===0?'white':'#f8fafc'};border-bottom:1px solid #e2e8f0;">
+      <td style="padding:8px;font-weight:700;font-size:11px;">${ref}</td>
+      ${headers.map((h, j) => `<td style="padding:8px;text-align:center;color:#0891b2;">${fmt(row[j+1])}</td>`).join('')}
+      <td style="padding:8px;text-align:center;">
+        <button onclick="abrirEditarFila('${hoja}',${i+1},'${ref.replace(/'/g,"\\'")}')" 
+          style="padding:4px 8px;background:#7c3aed;color:white;border:none;border-radius:6px;cursor:pointer;font-size:11px;">✏️</button>
+        <button onclick="confirmarEliminarFilaTabla('${hoja}',${i+1},'${ref.replace(/'/g,"\\'")}')" 
+          style="padding:4px 8px;background:#dc2626;color:white;border:none;border-radius:6px;cursor:pointer;font-size:11px;margin-left:4px;">🗑️</button>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>
+    <button onclick="abrirAgregarFila('${hoja}')" style="width:100%;margin-top:14px;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">+ Agregar referencia</button>`;
+
+  document.getElementById('tablas-contenido').innerHTML = html;
+}
+
+function abrirEditarFila(hoja, rowIdx, ref) {
+  const data = tablaDatos[hoja];
+  if(!data) return;
+  const headers = data.values[0].slice(1);
+  const row = data.values[rowIdx];
+  const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-tabla';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px;">✏️ Editar cuotas</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px;">${ref} — ${hoja}</div>
+      <div class="field"><label>Referencia</label><input type="text" id="tbl-edit-ref" value="${ref}" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;"></div>
+      ${headers.map((h, j) => `
+        <div class="field">
+          <label>${Math.round(parseFloat(h)*100)}%</label>
+          <input type="text" id="tbl-edit-${j}" value="${fmt(row[j+1])}" oninput="formatMoney(this)" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;">
+        </div>`).join('')}
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button onclick="document.getElementById('modal-tabla').remove()" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="guardarFilaTabla('${hoja}',${rowIdx})" style="flex:2;padding:12px;background:#7c3aed;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">💾 Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function abrirAgregarFila(hoja) {
+  const data = tablaDatos[hoja];
+  if(!data) return;
+  const headers = data.values[0].slice(1);
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-tabla';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px;">+ Nueva referencia</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:16px;">${hoja}</div>
+      <div class="field"><label>Referencia</label><input type="text" id="tbl-edit-ref" placeholder="Nombre del teléfono" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;"></div>
+      ${headers.map((h, j) => `
+        <div class="field">
+          <label>${Math.round(parseFloat(h)*100)}%</label>
+          <input type="text" id="tbl-edit-${j}" placeholder="$0" oninput="formatMoney(this)" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;">
+        </div>`).join('')}
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button onclick="document.getElementById('modal-tabla').remove()" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="agregarFilaTabla('${hoja}')" style="flex:2;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">+ Agregar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function guardarFilaTabla(hoja, rowIdx) {
+  const data = tablaDatos[hoja];
+  const headers = data.values[0].slice(1);
+  const ref = document.getElementById('tbl-edit-ref').value.trim();
+  if(!ref) { alert('⚠️ Ingresa la referencia'); return; }
+
+  const valores = [ref, ...headers.map((h, j) => getNumero(`tbl-edit-${j}`))];
+  const excelRow = rowIdx + 1; // +1 por encabezado
+
+  try {
+    const rangoLetra = String.fromCharCode(65 + valores.length - 1); // A + n columnas
+    await graphPatch(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}:${rangoLetra}${excelRow}')`,
+      { values: [valores] }
+    );
+    // Actualizar memoria
+    tablaDatos[hoja].values[rowIdx] = valores;
+    // Actualizar PRECIOS_DINAMICOS
+    preciosCargados = false;
+    document.getElementById('modal-tabla').remove();
+    renderTabla(hoja);
+    mostrarToastVerde('✅ Cuotas actualizadas');
+  } catch(e) {
+    alert('❌ Error al guardar: ' + e.message);
+  }
+}
+
+function confirmarEliminarFilaTabla(hoja, rowIdx, ref) {
+  const modal = document.createElement('div');
+  modal.id = 'modal-tabla';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:380px;">
+      <div style="font-size:32px;text-align:center;margin-bottom:8px;">🗑️</div>
+      <div style="font-weight:800;font-size:15px;text-align:center;margin-bottom:6px;">¿Eliminar referencia?</div>
+      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;">${ref}</div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('modal-tabla').remove()" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="eliminarFilaTabla('${hoja}',${rowIdx})" style="flex:1;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function eliminarFilaTabla(hoja, rowIdx) {
+  // rowIdx es el índice en data.values (incluye encabezado en 0)
+  // Para Excel: fila real = rowIdx + 1, pero itemAt es 0-based sin encabezado = rowIdx - 1
+  const itemAtIndex = rowIdx - 1;
+  try {
+    await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/rows/$/itemAt(index=${itemAtIndex})`);
+    tablaDatos[hoja].values.splice(rowIdx, 1);
+    preciosCargados = false;
+    document.getElementById('modal-tabla').remove();
+    renderTabla(hoja);
+    mostrarToastVerde('✅ Referencia eliminada');
+  } catch(e) {
+    alert('❌ Error al eliminar: ' + e.message);
+  }
+}
+
+async function agregarFilaTabla(hoja) {
+  const data = tablaDatos[hoja];
+  const headers = data.values[0].slice(1);
+  const ref = document.getElementById('tbl-edit-ref').value.trim();
+  if(!ref) { alert('⚠️ Ingresa la referencia'); return; }
+
+  const valores = [ref, ...headers.map((h, j) => getNumero(`tbl-edit-${j}`))];
+  const nuevaFila = data.values.length + 1; // siguiente fila en Excel
+  const rangoLetra = String.fromCharCode(65 + valores.length - 1);
+
+  try {
+    await graphPatch(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${nuevaFila}:${rangoLetra}${nuevaFila}')`,
+      { values: [valores] }
+    );
+    // Actualizar memoria
+    tablaDatos[hoja].values.push(valores);
+    preciosCargados = false;
+    document.getElementById('modal-tabla').remove();
+    renderTabla(hoja);
+    mostrarToastVerde('✅ Referencia agregada');
+  } catch(e) {
+    alert('❌ Error al guardar: ' + e.message);
+  }
+}
+
+
+let viTabActual = 'credito';
+
+function setTabVentaIphone(tab) {
+  viTabActual = tab;
+  const btnCred = document.getElementById('vi-tab-cred');
+  const btnCont = document.getElementById('vi-tab-cont');
+  const secCred = document.getElementById('vi-sec-credito');
+  const secCont = document.getElementById('vi-sec-contado');
+  const submitBtn = document.getElementById('vi-submit-btn');
+
+  btnCred.style.background = tab === 'credito' ? '#1a1a2e' : 'white';
+  btnCred.style.color = tab === 'credito' ? 'white' : '#1a1a2e';
+  btnCont.style.background = tab === 'contado' ? '#1a1a2e' : 'white';
+  btnCont.style.color = tab === 'contado' ? 'white' : '#1a1a2e';
+
+  secCred.style.display = tab === 'credito' ? 'block' : 'none';
+  secCont.style.display = tab === 'contado' ? 'block' : 'none';
+
+  // Actualizar total para manejarPago
+  if(submitBtn) submitBtn.textContent = tab === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓';
+}
+
+async function enviarVentaIphone() {
+  const fecha = getVal('vi-fecha') || fechaHoyLocal();
+  const local = getVal('vi-local');
+  const ref = getVal('vi-referencia');
+  const pago = getVal('vi-pago');
+
+  if(!local) { alert('⚠️ Selecciona el local'); return; }
+  if(!ref) { alert('⚠️ Selecciona la referencia'); return; }
+  if(!pago) { alert('⚠️ Selecciona el método de pago'); return; }
+
+  const btn = document.getElementById('vi-submit-btn');
+  if(btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
+
+  const financiera = viTabActual === 'credito' ? (getVal('vi-financiera')||'') : 'CONTADO';
+  const cuotaInicial = viTabActual === 'credito' ? getNumero('vi-cuota') : getNumero('vi-precio-contado');
+
+  if(viTabActual === 'credito' && !financiera) {
+    alert('⚠️ Selecciona la financiera');
+    if(btn) { btn.textContent = 'Registrar Venta iPhone ✓'; btn.disabled = false; }
+    return;
+  }
+
+  const fila = [
+    fecha, local, ref, financiera,
+    getVal('vi-imei')||'', getVal('vi-cedula')||'', getVal('vi-nombre')||'',
+    cuotaInicial, pago,
+    getNumero('vi-efectivo')||0, getNumero('vi-transfer')||0,
+    '','','','','','','','','','',
+    'PENDIENTE','NO',''
+  ];
+
+  try {
+    await agregarFilaExcel('VENTAS_IPHONE', fila);
+    if(btn) { btn.textContent = viTabActual === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓'; btn.disabled = false; }
+    // Limpiar formulario
+    ['vi-imei','vi-cedula','vi-nombre','vi-cuota','vi-precio-contado','vi-efectivo','vi-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    document.getElementById('vi-pago').value = '';
+    document.getElementById('vi-pago-fields').style.display = 'none';
+    if(viTabActual === 'credito') document.getElementById('vi-financiera').value = '';
+    mostrarExito('venta-iphone');
+  } catch(e) {
+    if(btn) { btn.textContent = viTabActual === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓'; btn.disabled = false; }
+    alert('❌ Error: ' + e.message);
+  }
+}
 let iphoneVentas = [];
 let iphoneVentaSeleccionada = null;
 
 function setTabIphone(tab) {
   iphoneTabActual = tab;
-  ['pendientes','completas'].forEach(t => {
-    const btn = document.getElementById(`tab-iphone-${t === 'pendientes' ? 'pend' : 'comp'}`);
-    if(btn) {
-      btn.style.background = t === tab ? '#1a1a2e' : 'white';
-      btn.style.color = t === tab ? 'white' : '#1a1a2e';
-    }
+  ['pendientes','completas','contado'].forEach(t => {
+    const ids = { pendientes:'tab-iphone-pend', completas:'tab-iphone-comp', contado:'tab-iphone-cont' };
+    const colors = { pendientes:'#1a1a2e', completas:'#1a1a2e', contado:'#15803d' };
+    const btn = document.getElementById(ids[t]);
+    if(!btn) return;
+    btn.style.background = t === tab ? colors[t] : 'white';
+    btn.style.color = t === tab ? 'white' : colors[t];
+    btn.style.borderColor = colors[t];
   });
   renderListaIphone();
 }
@@ -4922,11 +5495,14 @@ function renderListaIphone() {
   const lista = document.getElementById('iphone-lista');
   if(!lista) return;
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
-  const filtradas = iphoneVentas.filter(v => 
-    iphoneTabActual === 'pendientes' ? v.estado === 'PENDIENTE' : v.estado === 'COMPLETA'
-  );
+  const filtradas = iphoneVentas.filter(v => {
+    if(iphoneTabActual === 'pendientes') return v.estado === 'PENDIENTE' && v.financiera !== 'CONTADO';
+    if(iphoneTabActual === 'completas') return v.estado === 'COMPLETA' && v.financiera !== 'CONTADO';
+    if(iphoneTabActual === 'contado') return v.financiera === 'CONTADO';
+    return false;
+  });
   if(filtradas.length === 0) {
-    lista.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;">No hay ventas ${iphoneTabActual === 'pendientes' ? 'pendientes' : 'completas'}</div>`;
+    lista.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;">No hay ventas ${iphoneTabActual === 'pendientes' ? 'de crédito pendientes' : iphoneTabActual === 'completas' ? 'completas' : 'de contado'}</div>`;
     return;
   }
   lista.innerHTML = filtradas.map(v => `
@@ -4939,7 +5515,7 @@ function renderListaIphone() {
         <div style="font-size:12px;color:#64748b;">${v.fecha} · ${v.local} · ${v.financiera}</div>
         ${v.nombre ? `<div style="font-size:12px;color:#475569;margin-top:3px;">👤 ${v.nombre}</div>` : ''}
         <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
-          <span>Cuota inicial: <b>${fmt(v.cuotaInicial)}</b></span>
+          <span>${v.financiera==='CONTADO'?'Precio':'Cuota inicial'}: <b>${fmt(v.cuotaInicial)}</b></span>
           ${v.estado==='COMPLETA' ? `<span>Utilidad neta: <b style="color:#16a34a;">${fmt(v.utilNeta)}</b></span>` : ''}
         </div>
       </div>
@@ -4951,7 +5527,7 @@ function renderListaIphone() {
             </span>
             <div style="display:flex;gap:6px;">
               <button onclick="abrirCompletarIphone(${v.idx})" style="padding:6px 12px;background:#64748b;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Editar</button>
-              ${v.liquidado!=='SI' ? `<button onclick="abrirRegistrarPago(${v.idx})" style="padding:6px 12px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💰 Registrar pago</button>` : ''}
+              ${v.liquidado!=='SI' && v.financiera!=='CONTADO' ? `<button onclick="abrirRegistrarPago(${v.idx})" style="padding:6px 12px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💰 Registrar pago</button>` : ''}
             </div>
           </div>
         </div>` : ''}
@@ -4981,14 +5557,22 @@ function abrirCompletarIphone(idx) {
   if(cedulaEl) { cedulaEl.value = v.cedula||''; document.getElementById('ci-cedula-req').style.display = v.cedula ? 'none' : 'inline'; }
   if(nombreEl) { nombreEl.value = v.nombre||''; document.getElementById('ci-nombre-req').style.display = v.nombre ? 'none' : 'inline'; }
 
+  // Mostrar/ocultar secciones según tipo
+  const esContado = v.financiera === 'CONTADO';
+  const secCred = document.getElementById('ci-sec-credito');
+  const secCont = document.getElementById('ci-sec-contado');
+  if(secCred) secCred.style.display = esContado ? 'none' : 'block';
+  if(secCont) secCont.style.display = esContado ? 'block' : 'none';
+
   // Llenar campos si ya tiene datos
   const setMoney = (id, val) => { const el = document.getElementById(id); if(el) el.value = val ? '$'+Math.round(val).toLocaleString('es-CO') : ''; };
-  setMoney('ci-vs', v.vs);
-  setMoney('ci-cuota-sistema', v.cuotaSistema);
-  setMoney('ci-descuento', v.descuento);
+  if(!esContado) {
+    setMoney('ci-vs', v.vs);
+    setMoney('ci-cuota-sistema', v.cuotaSistema);
+    setMoney('ci-descuento', v.descuento);
+  }
   setMoney('ci-costo', v.costo);
   setMoney('ci-comision-trabajadora', v.comTrab);
-  setMoney('ci-pago-movisim', 0);
   const tipoEl = document.getElementById('ci-tipo');
   if(tipoEl) tipoEl.value = v.tipo || 'MIO';
   const porcEl = document.getElementById('ci-porc-encargada');
@@ -5008,20 +5592,45 @@ function calcularUtilidad() {
   const v = iphoneVentaSeleccionada;
   if(!v) return;
 
-  const vs = getNumero('ci-vs');
-  const cuotaSistema = getNumero('ci-cuota-sistema');
-  const descuento = getNumero('ci-descuento');
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const esContado = v.financiera === 'CONTADO';
   const costo = getNumero('ci-costo');
   const comTrab = getNumero('ci-comision-trabajadora');
   const porcEnc = parseFloat(document.getElementById('ci-porc-encargada')?.value)||0;
-  const pagoMovisim = getNumero('ci-pago-movisim');
   const tipo = document.getElementById('ci-tipo')?.value || 'MIO';
+
+  if(esContado) {
+    // Contado: precio de venta - costo = utilidad bruta
+    const precioVenta = v.cuotaInicial; // La niña registró el precio como cuota
+    const displayEl = document.getElementById('ci-precio-contado-display');
+    if(displayEl) displayEl.textContent = fmt(precioVenta);
+
+    if(!costo) { document.getElementById('ci-resultados').style.display = 'none'; return; }
+
+    const utilBruta = precioVenta - costo;
+    const comEnc = (utilBruta - comTrab) * (porcEnc / 100);
+    const utilNeta = utilBruta - comTrab - comEnc;
+
+    document.getElementById('ci-resultados').style.display = 'block';
+    document.getElementById('ci-r-cuota-real').textContent = fmt(precioVenta);
+    document.getElementById('ci-r-pago-movisim').textContent = '—';
+    document.getElementById('ci-r-util-bruta').textContent = fmt(utilBruta);    document.getElementById('ci-r-com-trab').textContent = fmt(comTrab);
+    document.getElementById('ci-r-com-enc').textContent = fmt(comEnc);
+    document.getElementById('ci-r-util-neta').textContent = fmt(utilNeta);
+
+    iphoneVentaSeleccionada._calc = { cuotaReal: precioVenta, pagoNetoMovisim: 0, utilBruta, comEnc, utilNeta };
+    return;
+  }
+
+  // CRÉDITO
+  const vs = getNumero('ci-vs');
+  const cuotaSistema = getNumero('ci-cuota-sistema');
+  const descuento = getNumero('ci-descuento');
   const financiera = v.financiera;
-  const cuotaReal = v.cuotaInicial - descuento;
+  const cuotaReal = Math.max(0, v.cuotaInicial - descuento);
 
   if(!vs) { document.getElementById('ci-resultados').style.display = 'none'; return; }
 
-  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
 
   // Calcular VS efectivo para OME-CREDIT
   const vsEfectivo = financiera === 'OME-CREDIT' ? vs * 0.9 : vs;
@@ -5093,12 +5702,17 @@ async function guardarCompletarIphone() {
     );
 
     // Actualizar columnas L a X
+    const esContado = v.financiera === 'CONTADO';
     await graphPatch(
       `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='L${fila}:X${fila}')`,
       { values: [[
-        getN('ci-vs'), getN('ci-cuota-sistema'), getN('ci-descuento'),
-        getN('ci-costo'), document.getElementById('ci-tipo')?.value||'MIO',
-        getN('ci-comision-trabajadora'), getN('ci-porc-encargada'),
+        esContado ? 0 : getN('ci-vs'),
+        esContado ? 0 : getN('ci-cuota-sistema'),
+        esContado ? 0 : getN('ci-descuento'),
+        getN('ci-costo'),
+        esContado ? 'CONTADO' : (document.getElementById('ci-tipo')?.value||'MIO'),
+        getN('ci-comision-trabajadora'),
+        parseFloat(document.getElementById('ci-porc-encargada')?.value)||0,
         Math.round(c.utilBruta), Math.round(c.comEnc), Math.round(c.utilNeta),
         'COMPLETA', v.liquidado||'NO', v.pagoFinanciera||0
       ]] }
@@ -5184,7 +5798,7 @@ async function cargarLiquidaciones() {
   };
 
   try {
-    const tipos = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
+    const tipos = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
 
     // Cargar ambas hojas en paralelo con reintentos
     const [ventas, liqSheet] = await Promise.all([
@@ -5354,15 +5968,23 @@ function abrirLiquidacion(idx, tipo) {
   document.getElementById('liq-det-cuota').textContent = v.cuotaFinal ? '$'+parseFloat(v.cuotaFinal).toLocaleString('es-CO') : (v.cuotaSug ? '$'+parseFloat(v.cuotaSug).toLocaleString('es-CO') : '$0');
 
   // Mostrar calculadora según tipo
+  document.getElementById('calc-etoficina').style.display = 'none';
   document.getElementById('calc-etclaro').style.display = 'none';
   document.getElementById('calc-payjoy').style.display = 'none';
+  document.getElementById('calc-etoficina-result').style.display = 'none';
   document.getElementById('calc-etclaro-result').style.display = 'none';
   document.getElementById('calc-payjoy-result').style.display = 'none';
   document.getElementById('calc-vs').value = '';
   document.getElementById('calc-costo-claro').value = '';
+  document.getElementById('calc-eto-vs').value = '';
   document.getElementById('calc-pj-vs').value = '';
 
-  if(v.tipo === 'ET_CLARO') {
+  if(v.tipo === 'ET_OFICINA') {
+    document.getElementById('calc-etoficina').style.display = 'block';
+    const porcLabel = v.porc ? (parseFloat(v.porc)*100)+'%' : '?%';
+    document.getElementById('calc-eto-porc-label').textContent = porcLabel;
+    document.getElementById('calc-eto-porc-show').textContent = porcLabel;
+  } else if(v.tipo === 'ET_CLARO') {
     document.getElementById('calc-etclaro').style.display = 'block';
     document.getElementById('calc-porc-label').textContent = v.porc ? (parseFloat(v.porc)*100)+'%' : '?%';
   } else if(v.tipo === 'PAYJOY') {
@@ -5376,6 +5998,17 @@ function abrirLiquidacion(idx, tipo) {
   document.getElementById('liq-utilidad-preview').style.display = 'none';
 
   irA('liquidacion-detalle');
+}
+
+function calcEtOficina() {
+  const vs = getNumero('calc-eto-vs');
+  const porc = liqVentaActual ? parseFloat(liqVentaActual.porc) : 0;
+  if(!vs || !porc) { document.getElementById('calc-etoficina-result').style.display='none'; return; }
+  const cuotaIni = Math.round(vs * porc);
+  const pagaMovisim = vs - cuotaIni - 230000;
+  document.getElementById('calc-eto-cuota').textContent = '$'+cuotaIni.toLocaleString('es-CO');
+  document.getElementById('calc-eto-paga').textContent = '$'+pagaMovisim.toLocaleString('es-CO');
+  document.getElementById('calc-etoficina-result').style.display = 'block';
 }
 
 function calcEtClaro() {
@@ -5405,7 +6038,9 @@ function calcPayjoy() {
 
 function usarResultadoCalc(tipo) {
   let val = 0;
-  if(tipo === 'etclaro') {
+  if(tipo === 'etoficina') {
+    val = getNumero('calc-eto-paga');
+  } else if(tipo === 'etclaro') {
     val = parseInt(document.getElementById('calc-paga-claro').textContent.replace(/[^0-9]/g,'')) || 0;
   } else if(tipo === 'payjoy') {
     val = parseInt(document.getElementById('calc-paga-payjoy').textContent.replace(/[^0-9]/g,'')) || 0;
@@ -5424,7 +6059,7 @@ function mostrarPreviewUtilidad(pagoFinanciera) {
   let utilidad = 0;
   let detalle = '';
   const tipo = v.tipo;
-  if(tipo === 'ET_CLARO' || tipo === 'PAYJOY' || tipo === 'ADDI') {
+  if(tipo === 'ET_CLARO' || tipo === 'PAYJOY' || tipo === 'ADDI' || tipo === 'ET_OFICINA') {
     utilidad = cuota + pagoFinanciera - costo;
     detalle = `Cuota ($${cuota.toLocaleString('es-CO')}) + Pago ($${pagoFinanciera.toLocaleString('es-CO')}) - Costo ($${costo.toLocaleString('es-CO')})`;
   } else if(tipo === 'ALO_CREDIT') {
@@ -5449,9 +6084,8 @@ async function guardarLiquidacion() {
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
   // Leer COSTO_CLARO y VALOR_SISTEMA de las calculadoras si aplica
-  const costoClaro = parseInt((document.getElementById('calc-costo-claro')?.value||'').replace(/[^0-9]/g,'')) || 0;
-  const valorSistema = parseInt((document.getElementById('calc-vs')?.value||'').replace(/[^0-9]/g,'')) || 
-                       parseInt((document.getElementById('calc-pj-vs')?.value||'').replace(/[^0-9]/g,'')) || 0;
+  const costoClaro = getNumero('calc-costo-claro');
+  const valorSistema = getNumero('calc-vs') || getNumero('calc-eto-vs') || getNumero('calc-pj-vs');
 
   try {
     if(v.esEdicion && v.rowIndex) {
@@ -5465,6 +6099,30 @@ async function guardarLiquidacion() {
       const fila = [v.imei.toString(), v.ref, v.tipo, v.porc, v.costo, v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy, costoClaro, valorSistema];
       await agregarFilaExcel('LIQUIDACIONES', fila);
     }
+
+    // Si es ET_OFICINA actualizar utilidad en CONTROL columna T
+    if(v.tipo === 'ET_OFICINA') {
+      try {
+        const ctrl = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/usedRange`);
+        if(ctrl?.values?.length > 1) {
+          for(let i=1; i<ctrl.values.length; i++) {
+            const r = ctrl.values[i];
+            const imeiCtrl = r[4]?.toString().trim()||'';
+            if(imeiCtrl === v.imei.toString().trim() && r[13]!=='ANULADO') {
+              const cuotaCliente = parseFloat(r[8])||0; // col I = índice 8
+              const costo = parseFloat(v.costo)||0;
+              const utilidad = cuotaCliente + pagoFinanciera - costo;
+              await graphPatch(
+                `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/range(address='T${i+1}')`,
+                { values: [[Math.round(utilidad)]] }
+              );
+              break;
+            }
+          }
+        }
+      } catch(e) { console.error('Error actualizando CONTROL ET_OFICINA:', e); }
+    }
+
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     mostrarToastVerde('✅ Liquidación guardada correctamente');
 
@@ -5560,7 +6218,7 @@ async function cargarReporteProyeccion() {
       }
       return null;
     };
-    const [control, contado, accesorios] = await Promise.all([fetchR('CONTROL'), fetchR('VENTAS_CONTADO'), fetchR('VENTAS_ACCESORIOS')]);
+    const [control, contado, accesorios, iphoneVentasData] = await Promise.all([fetchR('CONTROL'), fetchR('VENTAS_CONTADO'), fetchR('VENTAS_ACCESORIOS'), fetchR('VENTAS_IPHONE')]);
     if(loading) loading.style.display = 'none';
 
     // Construir botones de locales
@@ -5576,7 +6234,7 @@ async function cargarReporteProyeccion() {
       `).join('');
     }
 
-    window._proyData = { control, contado, accesorios };
+    window._proyData = { control, contado, accesorios, iphoneVentasData };
     renderProyeccion();
 
   } catch(e) {
@@ -5599,7 +6257,7 @@ function setLocalProyeccion(local) {
 
 function renderProyeccion() {
   if(!window._proyData) return;
-  const { control, contado, accesorios } = window._proyData;
+  const { control, contado, accesorios, iphoneVentasData } = window._proyData;
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
 
   // Fechas del mes actual
@@ -5701,9 +6359,23 @@ function renderProyeccion() {
     }
   }
 
+  // IPHONE — utilidad neta columna U (índice 20)
+  let utilIphone=0, ventasIphone=0;
+  if(iphoneVentasData?.values?.length > 1) {
+    for(let i=1;i<iphoneVentasData.values.length;i++) {
+      const r = iphoneVentasData.values[i];
+      if(!enMes(r[0])) continue;
+      if(!filtroLocal(r[1])) continue;
+      if(r[21]==='PENDIENTE') continue; // solo completas
+      const util = parseFloat(r[20])||0;
+      if(util !== 0) { utilIphone+=util; ventasIphone++; }
+    }
+  }
+
   document.getElementById('rep-proy-credito').innerHTML = renderSeccion('Créditos', utilCredito, ventasCredito, '#1d4ed8', '#dbeafe');
   document.getElementById('rep-proy-contado').innerHTML = renderSeccion('Contado', utilContado, ventasContado, '#15803d', '#dcfce7');
   document.getElementById('rep-proy-accesorios').innerHTML = renderSeccion('Accesorios', utilAccesorios, ventasAccesorios, '#d97706', '#fff7ed');
+  document.getElementById('rep-proy-iphone').innerHTML = renderSeccion('iPhone', utilIphone, ventasIphone, '#4338ca', '#e0e7ff');
 }
 
 
@@ -6236,7 +6908,7 @@ async function cargarReportes() {
           // Puede ser venta sin liquidar
           const imei = r[4]?.toString().trim()||'';
           const tipo = r[2]?.toString()||'';
-          const tiposLiquidables = ['ET_CLARO','PAYJOY','ADDI','ALO_CREDIT'];
+          const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
           if(tiposLiquidables.includes(tipo) && !liqMap[imei]) {
             datos[local].sinLiquidar.push({ ref:r[3]||'', imei, tipo, fecha:fmtFecha(r[0]) });
           } else {
