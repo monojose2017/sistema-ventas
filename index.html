@@ -117,6 +117,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="divider"></div>
       <p class="sec-titulo">Acceso restringido</p>
       <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
+      <button class="btn-menu" onclick="abrirExcelOnline()" style="border:2px dashed #d97706;background:#fff7ed;"><div class="btn-icon" style="background:#d97706;">📊</div><div class="btn-info"><div class="btn-titulo" style="color:#d97706;">Abrir Excel</div><div class="btn-sub">Desbloquear archivo si hay error</div></div><span class="btn-arrow" style="color:#d97706;">›</span></button>
     </div>
   </div>
 </div>
@@ -1914,6 +1915,14 @@ function filtrarAccesorios(){
 
 let gerenciaAutenticada = false;
 
+function abrirExcelOnline() {
+  const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const urlOnline = 'https://onedrive.live.com/edit?resid=C8E07BCB204A48B8A5C9E9ACF0974507';
+  const urlMovil = 'ms-excel:ofe|u|https://onedrive.live.com/download?resid=C8E07BCB204A48B8A5C9E9ACF0974507';
+  const url = esCelular ? urlMovil : urlOnline;
+  window.open(url, '_blank');
+}
+
 function mostrarClave(){
   if(gerenciaAutenticada) {
     irA('gerencia');
@@ -2307,8 +2316,9 @@ function setEstadoCarga(estado, detalle) {
     btn.style.color = 'white'; btn.style.boxShadow = '0 4px 12px rgba(220,38,38,.3)';
     btn.onclick = reintentarCarga;
     const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const urlDesbloquear = esCelular ? 'ms-officemobile://' : `https://onedrive.live.com/`;
-    const textoDesbloquear = esCelular ? '📱 Abrir M365 y desbloquear' : '🌐 Abrir Excel Online';
+    const urlExcelOnline = `https://onedrive.live.com/edit?resid=C8E07BCB204A48B8A5C9E9ACF0974507`;
+    const urlDesbloquear = esCelular ? 'ms-excel:ofe|u|https://onedrive.live.com/download?resid=C8E07BCB204A48B8A5C9E9ACF0974507' : urlExcelOnline;
+    const textoDesbloquear = esCelular ? '📱 Abrir Excel en el celular' : '🌐 Abrir Excel Online en PC';
     if(menuBloqueado) menuBloqueado.innerHTML = `
       <div style="font-size:32px;margin-bottom:8px;">❌</div>
       <div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div>
@@ -5170,7 +5180,6 @@ async function cargarTablas() {
 
 async function setTablaActual(hoja) {
   tablaActual = hoja;
-  // Actualizar botones
   ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','RECOMPRA_REAL'].forEach(t => {
     const btn = document.getElementById('tbl-btn-'+t);
     if(!btn) return;
@@ -5178,22 +5187,24 @@ async function setTablaActual(hoja) {
     btn.style.color = t === hoja ? 'white' : '#7c3aed';
   });
 
-  // Si ya tenemos los datos en memoria los usamos
-  if(tablaDatos[hoja]) { renderTabla(hoja); return; }
-
+  // Siempre recargar para asegurar datos frescos
   document.getElementById('tablas-loading').style.display = 'block';
   document.getElementById('tablas-contenido').innerHTML = '';
 
   try {
     const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+    console.log(`Tabla ${hoja}:`, data?.values?.length, 'filas');
     if(data?.values?.length > 1) {
       tablaDatos[hoja] = data;
+    } else {
+      tablaDatos[hoja] = null;
     }
     document.getElementById('tablas-loading').style.display = 'none';
     renderTabla(hoja);
   } catch(e) {
+    console.error('Error cargando tabla', hoja, e);
     document.getElementById('tablas-loading').style.display = 'none';
-    document.getElementById('tablas-contenido').innerHTML = '<div style="color:#dc2626;padding:16px;">Error cargando tabla</div>';
+    document.getElementById('tablas-contenido').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error cargando ${hoja}: ${e.message}</div>`;
   }
 }
 
@@ -5345,11 +5356,14 @@ function confirmarEliminarFilaTabla(hoja, rowIdx, ref) {
 }
 
 async function eliminarFilaTabla(hoja, rowIdx) {
-  // rowIdx es el índice en data.values (incluye encabezado en 0)
-  // Para Excel: fila real = rowIdx + 1, pero itemAt es 0-based sin encabezado = rowIdx - 1
-  const itemAtIndex = rowIdx - 1;
+  const excelRow = rowIdx + 1;
   try {
-    await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/rows/$/itemAt(index=${itemAtIndex})`);
+    const totalCols = tablaDatos[hoja].values[0].length;
+    const colFin = String.fromCharCode(64 + totalCols);
+    await graphPost(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}:${colFin}${excelRow}')/delete`,
+      { shift: 'Up' }
+    );
     tablaDatos[hoja].values.splice(rowIdx, 1);
     preciosCargados = false;
     document.getElementById('modal-tabla').remove();
