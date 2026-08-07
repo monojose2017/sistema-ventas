@@ -5360,10 +5360,13 @@ async function eliminarFilaTabla(hoja, rowIdx) {
   try {
     const totalCols = tablaDatos[hoja].values[0].length;
     const colFin = String.fromCharCode(64 + totalCols);
-    await graphPost(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}:${colFin}${excelRow}')/delete`,
-      { shift: 'Up' }
+    // Limpiar la fila (dejar vacía) en vez de eliminarla físicamente
+    const celdas = Array(totalCols).fill('');
+    await graphPatch(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}:${colFin}${excelRow}')`,
+      { values: [celdas] }
     );
+    // Quitar de memoria local
     tablaDatos[hoja].values.splice(rowIdx, 1);
     preciosCargados = false;
     document.getElementById('modal-tabla').remove();
