@@ -731,6 +731,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-header"><button class="back-btn" onclick="irA('gerencia-iphone')">‹</button><div><div class="form-header-title">🍎 Completar Venta iPhone</div><div class="form-header-sub">Ingresa los datos de liquidación</div></div></div>
   <div class="form-body">
     <div id="ci-resumen" style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:14px;font-size:13px;"></div>
+
+    <!-- Datos del cliente — editables por la encargada -->
+    <div style="background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:12px;font-weight:800;color:#1e40af;margin-bottom:8px;">📋 Datos del cliente</div>
+      <div class="field"><label>IMEI <span id="ci-imei-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-imei-edit" placeholder="15 dígitos"></div>
+      <div class="field"><label>Cédula <span id="ci-cedula-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-cedula-edit" placeholder="Número de cédula"></div>
+      <div class="field"><label>Nombre y apellido <span id="ci-nombre-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-nombre-edit" placeholder="Nombre completo"></div>
+    </div>
+
     <div class="field"><label>Valor Sistema (VS)</label><input type="text" id="ci-vs" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>Cuota Inicial Sistema</label><input type="text" id="ci-cuota-sistema" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
     <div class="field"><label>Descuento al cliente</label><input type="text" id="ci-descuento" placeholder="$0" oninput="formatMoney(this);calcularUtilidad()"></div>
@@ -4964,6 +4973,14 @@ function abrirCompletarIphone(idx) {
     ${v.imei ? `<div style="font-size:12px;">IMEI: ${v.imei}</div>` : ''}
     <div style="margin-top:6px;font-size:13px;">Cuota inicial recibida: <b>${fmt(v.cuotaInicial)}</b></div>`;
 
+  // Cargar datos del cliente
+  const imeiEl = document.getElementById('ci-imei-edit');
+  const cedulaEl = document.getElementById('ci-cedula-edit');
+  const nombreEl = document.getElementById('ci-nombre-edit');
+  if(imeiEl) { imeiEl.value = v.imei||''; document.getElementById('ci-imei-req').style.display = v.imei ? 'none' : 'inline'; }
+  if(cedulaEl) { cedulaEl.value = v.cedula||''; document.getElementById('ci-cedula-req').style.display = v.cedula ? 'none' : 'inline'; }
+  if(nombreEl) { nombreEl.value = v.nombre||''; document.getElementById('ci-nombre-req').style.display = v.nombre ? 'none' : 'inline'; }
+
   // Llenar campos si ya tiene datos
   const setMoney = (id, val) => { const el = document.getElementById(id); if(el) el.value = val ? '$'+Math.round(val).toLocaleString('es-CO') : ''; };
   setMoney('ci-vs', v.vs);
@@ -5002,7 +5019,7 @@ function calcularUtilidad() {
   const financiera = v.financiera;
   const cuotaReal = v.cuotaInicial - descuento;
 
-  if(!vs || !cuotaSistema) { document.getElementById('ci-resultados').style.display = 'none'; return; }
+  if(!vs) { document.getElementById('ci-resultados').style.display = 'none'; return; }
 
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
 
@@ -5053,15 +5070,29 @@ async function guardarCompletarIphone() {
   const v = iphoneVentaSeleccionada;
   if(!v || !v._calc) { alert('⚠️ Completa los datos primero'); return; }
 
+  const imei = document.getElementById('ci-imei-edit')?.value.trim()||'';
+  const cedula = document.getElementById('ci-cedula-edit')?.value.trim()||'';
+  const nombre = document.getElementById('ci-nombre-edit')?.value.trim()||'';
+
+  if(!imei) { alert('⚠️ El IMEI es obligatorio'); return; }
+  if(!cedula) { alert('⚠️ La cédula es obligatoria'); return; }
+  if(!nombre) { alert('⚠️ El nombre es obligatorio'); return; }
+
   const btn = document.querySelector('#screen-completar-iphone .submit-btn');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
   const getN = id => getNumero(id);
   const c = v._calc;
-  const fila = v.idx + 2; // +2 porque idx es 0-based y hay encabezado
+  const fila = v.idx + 2;
 
   try {
-    // Actualizar columnas L a X (índices 11-23)
+    // Actualizar IMEI, cédula y nombre (columnas E, F, G = 5,6,7)
+    await graphPatch(
+      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='E${fila}:G${fila}')`,
+      { values: [[imei, cedula, nombre]] }
+    );
+
+    // Actualizar columnas L a X
     await graphPatch(
       `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='L${fila}:X${fila}')`,
       { values: [[
