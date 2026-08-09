@@ -2188,18 +2188,47 @@ async function desbloquearExcel() {
 }
 
 // =============================================
-// NUEVO SISTEMA: SheetJS + OneDrive directo
-// Sin sesiones de Excel — sin bloqueos
+// SISTEMA: SheetJS + Cola de operaciones
+// Los cambios se acumulan y suben en background
 // =============================================
-let WB = null;        // Workbook en memoria (SheetJS)
-let WB_ETAG = null;   // eTag del archivo para detectar conflictos
-let WB_SUBIENDO = false; // Evitar subidas simultáneas
+let WB = null;
+let WB_ETAG = null;
+let WB_COLA = [];        // Cola de cambios pendientes
+let WB_WORKER = null;    // Timer del worker
+let WB_SUBIENDO = false;
+let WB_CAMBIOS_PENDIENTES = 0;
+
+// Mostrar estado de sincronización
+function mostrarEstadoSync(estado, msg) {
+  let el = document.getElementById('sync-status');
+  if(!el) {
+    el = document.createElement('div');
+    el.id = 'sync-status';
+    el.style.cssText = 'position:fixed;bottom:70px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;padding:4px;z-index:8888;transition:all 0.3s;';
+    document.body.appendChild(el);
+  }
+  if(estado === 'ok') {
+    el.style.background = 'transparent';
+    el.textContent = '';
+  } else if(estado === 'guardando') {
+    el.style.background = '#d97706';
+    el.style.color = 'white';
+    el.textContent = '⏳ ' + (msg || 'Guardando...');
+  } else if(estado === 'listo') {
+    el.style.background = '#16a34a';
+    el.style.color = 'white';
+    el.textContent = '✅ Guardado';
+    setTimeout(() => mostrarEstadoSync('ok'), 2000);
+  } else if(estado === 'error') {
+    el.style.background = '#dc2626';
+    el.style.color = 'white';
+    el.textContent = '⚠️ ' + (msg || 'Error guardando, reintentando...');
+  }
+}
 
 async function descargarExcel() {
   const token = await getToken();
   if(!token) throw new Error('Sin token');
-  
-  // Reintentar hasta 5 veces si está bloqueado
   for(let i = 0; i < 3; i++) {
     const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
       headers: { 'Authorization': 'Bearer ' + token }
@@ -2208,14 +2237,12 @@ async function descargarExcel() {
       WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
       const buffer = await r.arrayBuffer();
       WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
-      console.log('Excel descargado ✅ eTag:', WB_ETAG);
+      console.log('Excel descargado ✅');
       return;
     }
     if(r.status === 400 || r.status === 423 || r.status === 501) {
       if(i < 2) {
         const espera = (i+1)*3;
-        console.log(`Archivo bloqueado, reintentando en ${espera} segundos... (intento ${i+1}/3)`);
-        setEstadoCarga('cargando');
         const btn = document.getElementById('btn-conectar');
         if(btn) btn.textContent = `⏳ Archivo ocupado, reintentando en ${espera}s... (${i+1}/3)`;
         await new Promise(r => setTimeout(r, espera * 1000));
@@ -2227,57 +2254,105 @@ async function descargarExcel() {
   }
 }
 
-async function subirExcel() {
-  if(WB_SUBIENDO) {
-    // Esperar a que termine la subida anterior
-    await new Promise(r => {
-      const check = setInterval(() => { if(!WB_SUBIENDO) { clearInterval(check); r(); } }, 200);
-    });
+async function subirExcelInterno() {
+  const token = await getToken();
+  if(!token) throw new Error('Sin token');
+  const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const headers = {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  };
+  if(WB_ETAG) headers['If-Match'] = WB_ETAG;
+  const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
+    method: 'PUT', headers, body: blob
+  });
+  if(r.status === 412) {
+    // Conflicto — otro local subió antes
+    console.log('⚠️ Conflicto, descargando versión nueva...');
+    await descargarExcel();
+    // Re-aplicar operaciones pendientes encima de la versión nueva
+    for(const op of WB_COLA) aplicarOperacion(op);
+    return await subirExcelInterno();
   }
+  if(r.status === 400 || r.status === 423 || r.status === 501) {
+    throw new Error('BLOQUEADO_SUBIDA');
+  }
+  if(!r.ok) throw new Error(`Error subiendo: ${r.status}`);
+  const data = await r.json();
+  WB_ETAG = data.eTag || data['@odata.etag'] || WB_ETAG;
+  console.log('Excel subido ✅');
+}
+
+// Aplicar una operación al WB en memoria
+function aplicarOperacion(op) {
+  const ws = WB.Sheets[op.hoja];
+  if(!ws) return;
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+  if(op.tipo === 'agregar') {
+    data.push(op.fila);
+  } else if(op.tipo === 'patch') {
+    while(data.length <= op.filaIdx) data.push([]);
+    for(let i = 0; i < op.valores.length; i++) {
+      while(data[op.filaIdx].length <= op.colIdx + i) data[op.filaIdx].push('');
+      data[op.filaIdx][op.colIdx + i] = op.valores[i];
+    }
+  } else if(op.tipo === 'eliminar') {
+    data.splice(op.filaIdx, 1);
+  }
+  WB.Sheets[op.hoja] = XLSX.utils.aoa_to_sheet(data);
+}
+
+// Worker que procesa la cola cada 3 segundos
+async function procesarCola() {
+  if(WB_SUBIENDO || WB_COLA.length === 0) return;
   WB_SUBIENDO = true;
-  let intentos = 0;
-  while(true) {
+  mostrarEstadoSync('guardando', `Guardando ${WB_COLA.length} cambio(s)...`);
   try {
-    const token = await getToken();
-    if(!token) throw new Error('Sin token');
-    const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const headers = {
-      'Authorization': 'Bearer ' + token,
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    };
-    if(WB_ETAG) headers['If-Match'] = WB_ETAG;
-    const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
-      method: 'PUT', headers, body: blob
-    });
-    if(r.status === 412) {
-      // Conflicto — otro local subió antes. Descargar versión nueva y reintentar
-      console.log('⚠️ Conflicto detectado, sincronizando...');
-      mostrarMensajeSincronizando(true);
-      await descargarExcel();
-      mostrarMensajeSincronizando(false);
-      throw new Error('CONFLICT');
-    }
-    if(!r.ok) {
-      if((r.status === 400 || r.status === 423) && intentos < 3) {
-        intentos++;
-        console.log(`Error subiendo, reintentando en ${intentos*2}s...`);
-        await new Promise(r => setTimeout(r, intentos * 2000));
-        continue;
-      }
-      throw new Error(`Error subiendo Excel: ${r.status}`);
-    }
-    const data = await r.json();
-    WB_ETAG = data.eTag || data['@odata.etag'] || WB_ETAG;
-    console.log('Excel subido ✅');
-    break; // Salir del while si fue exitoso
+    await subirExcelInterno();
+    WB_COLA = []; // Limpiar cola si subió bien
+    WB_CAMBIOS_PENDIENTES = 0;
+    mostrarEstadoSync('listo');
   } catch(e) {
-    if(e.message === 'CONFLICT') throw e;
-    throw e;
+    console.log('Worker: error subiendo, reintentará:', e.message);
+    mostrarEstadoSync('error', 'Reintentando...');
   } finally {
     WB_SUBIENDO = false;
   }
-  } // fin while
+}
+
+function iniciarWorker() {
+  if(WB_WORKER) clearInterval(WB_WORKER);
+  WB_WORKER = setInterval(procesarCola, 3000);
+}
+
+// Encolar un cambio y aplicarlo inmediatamente en memoria
+async function encolarCambio(op) {
+  if(!WB) throw new Error('Excel no cargado');
+  aplicarOperacion(op);
+  WB_COLA.push(op);
+  WB_CAMBIOS_PENDIENTES++;
+  mostrarEstadoSync('guardando');
+}
+
+async function subirExcel() {
+  // Compatibilidad — ahora solo encola
+  await procesarCola();
+}
+
+async function agregarFilaWB(hoja, fila) {
+  if(!WB) throw new Error('Excel no cargado');
+  await encolarCambio({ tipo: 'agregar', hoja, fila });
+}
+
+async function escribirRangoWB(hoja, filaIdx, colInicio, valores) {
+  if(!WB) throw new Error('Excel no cargado');
+  await encolarCambio({ tipo: 'patch', hoja, filaIdx, colIdx: colInicio, valores });
+}
+
+async function eliminarFilaWB(hoja, filaIdx) {
+  if(!WB) throw new Error('Excel no cargado');
+  await encolarCambio({ tipo: 'eliminar', hoja, filaIdx });
 }
 
 function mostrarMensajeSincronizando(mostrar) {
@@ -2330,42 +2405,25 @@ function prepararFila(fila) {
 // Agregar fila al final de una hoja
 async function agregarFilaWB(hoja, fila) {
   if(!WB) throw new Error('Excel no cargado');
-  const ws = WB.Sheets[hoja];
-  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-  data.push(prepararFila(fila));
-  const wsNuevo = XLSX.utils.aoa_to_sheet(data);
-  WB.Sheets[hoja] = wsNuevo;
-  await subirExcel();
+  await encolarCambio({ tipo: 'agregar', hoja, fila: prepararFila(fila) });
 }
 
 // Escribir valor en celda específica
-async function escribirCeldaWB(hoja, fila, col, valor) {
-  // fila y col son 0-based
+async function escribirCeldaWB(hoja, filaIdx, colIdx, valor) {
   if(!WB) throw new Error('Excel no cargado');
-  const ws = WB.Sheets[hoja];
-  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-  while(data.length <= fila) data.push([]);
-  while(data[fila].length <= col) data[fila].push('');
-  data[fila][col] = valor;
-  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
-  await subirExcel();
+  await encolarCambio({ tipo: 'patch', hoja, filaIdx, colIdx, valores: [valor] });
 }
 
 // Escribir rango de celdas
 async function escribirRangoWB(hoja, filaIdx, colInicio, valores) {
   if(!WB) throw new Error('Excel no cargado');
-  const ws = WB.Sheets[hoja];
-  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-  while(data.length <= filaIdx) data.push([]);
-  for(let i = 0; i < valores.length; i++) {
-    while(data[filaIdx].length <= colInicio + i) data[filaIdx].push('');
-    data[filaIdx][colInicio + i] = valores[i];
-  }
-  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
-  await subirExcel();
+  await encolarCambio({ tipo: 'patch', hoja, filaIdx, colIdx: colInicio, valores });
+}
+
+// Eliminar fila de una hoja
+async function eliminarFilaWB(hoja, filaIdx) {
+  if(!WB) throw new Error('Excel no cargado');
+  await encolarCambio({ tipo: 'eliminar', hoja, filaIdx });
 }
 
 // Eliminar fila de una hoja
@@ -2410,17 +2468,12 @@ async function graphGet(endpoint) {
 
 // Compatibilidad — reemplaza graphPatch
 async function graphPatch(endpoint, body) {
-  // Detectar escritura en celda/rango de hoja
   const matchRange = endpoint.match(/\/worksheets\/([^/]+)\/range\(address='([^']+)'\)/);
   if(matchRange && WB) {
     const hoja = decodeURIComponent(matchRange[1]);
-    const addr = matchRange[2]; // ej: 'G5' o 'L5:X5'
+    const addr = matchRange[2];
     const valores = body.values?.[0];
     if(!valores) return null;
-    const ws = WB.Sheets[hoja];
-    if(!ws) return null;
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-    // Parsear dirección
     const parseAddr = a => {
       const m = a.match(/([A-Z]+)(\d+)/);
       if(!m) return null;
@@ -2428,15 +2481,9 @@ async function graphPatch(endpoint, body) {
       const fila = parseInt(m[2]) - 1;
       return { col, fila };
     };
-    const [inicio, fin] = addr.includes(':') ? addr.split(':').map(parseAddr) : [parseAddr(addr), parseAddr(addr)];
+    const inicio = parseAddr(addr.includes(':') ? addr.split(':')[0] : addr);
     if(!inicio) return null;
-    while(data.length <= inicio.fila) data.push([]);
-    for(let c = 0; c < valores.length; c++) {
-      while(data[inicio.fila].length <= inicio.col + c) data[inicio.fila].push('');
-      data[inicio.fila][inicio.col + c] = valores[c];
-    }
-    WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
-    await subirExcel();
+    await encolarCambio({ tipo: 'patch', hoja, filaIdx: inicio.fila, colIdx: inicio.col, valores });
     return {};
   }
   // Fallback a Graph API
@@ -2789,7 +2836,8 @@ async function cargarTodo() {
     if(!window._tokenRenovacionIniciada) {
       window._tokenRenovacionIniciada = true;
       iniciarRenovacionToken();
-      iniciarPingExcel(); // Mantener archivo activo
+      iniciarPingExcel();
+      iniciarWorker(); // Cola de operaciones
     }
   } catch(e) {
     console.error('Error cargando datos:', e);
