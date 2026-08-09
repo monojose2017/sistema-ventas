@@ -2204,7 +2204,7 @@ function mostrarEstadoSync(estado, msg) {
   if(!el) {
     el = document.createElement('div');
     el.id = 'sync-status';
-    el.style.cssText = 'position:fixed;bottom:70px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;padding:4px;z-index:8888;transition:all 0.3s;';
+    el.style.cssText = 'position:fixed;bottom:70px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;padding:6px;z-index:8888;transition:all 0.3s;';
     document.body.appendChild(el);
   }
   if(estado === 'ok') {
@@ -2213,16 +2213,25 @@ function mostrarEstadoSync(estado, msg) {
   } else if(estado === 'guardando') {
     el.style.background = '#d97706';
     el.style.color = 'white';
-    el.textContent = '⏳ ' + (msg || 'Guardando...');
+    const pendientes = WB_COLA.length;
+    el.textContent = `⏳ Guardando${pendientes > 0 ? ' ('+pendientes+' pendiente'+(pendientes>1?'s':'')+')' : ''}...`;
   } else if(estado === 'listo') {
+    const hora = new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
     el.style.background = '#16a34a';
     el.style.color = 'white';
-    el.textContent = '✅ Guardado';
-    setTimeout(() => mostrarEstadoSync('ok'), 2000);
+    el.textContent = `✅ Guardado a las ${hora}`;
+    localStorage.setItem('ultima_sync', hora);
+    setTimeout(() => mostrarEstadoSync('ok'), 3000);
   } else if(estado === 'error') {
     el.style.background = '#dc2626';
     el.style.color = 'white';
-    el.textContent = '⚠️ ' + (msg || 'Error guardando, reintentando...');
+    el.textContent = '⚠️ ' + (msg || 'Reintentando...');
+  } else if(estado === 'cache') {
+    el.style.background = '#0891b2';
+    el.style.color = 'white';
+    const ultimaSync = localStorage.getItem('ultima_sync');
+    el.textContent = ultimaSync ? `📱 Usando datos guardados (últ. sync: ${ultimaSync})` : '📱 Usando datos guardados';
+    setTimeout(() => mostrarEstadoSync('ok'), 5000);
   }
 }
 
@@ -2741,9 +2750,89 @@ async function cargarTodo() {
   setEstadoCarga('cargando');
 
   try {
-    // Descargar el Excel completo una sola vez
-    await descargarExcel();
+    // Intentar cargar desde caché primero para abrir rápido
+    const cache = localStorage.getItem('WB_CACHE');
+    if(cache && !WB) {
+      try {
+        const buffer = Uint8Array.from(atob(cache), c => c.charCodeAt(0)).buffer;
+        WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
+        console.log('Cargado desde caché ✅');
+        procesarDatosWB();
+        setEstadoCarga('ok');
+        mostrarEstadoSync('cache');
+        if(!window._tokenRenovacionIniciada) {
+          window._tokenRenovacionIniciada = true;
+          iniciarRenovacionToken();
+          iniciarPingExcel();
+          iniciarWorker();
+        }
+        // Intentar actualizar desde OneDrive en background
+        actualizarDesdeOneDrive();
+        return;
+      } catch(e) {
+        console.log('Caché inválido, descargando desde OneDrive...');
+        localStorage.removeItem('WB_CACHE');
+      }
+    }
 
+    // Sin caché — descargar desde OneDrive
+    await descargarExcel();
+    // Guardar en caché
+    guardarCache();
+    procesarDatosWB();
+    setEstadoCarga('ok');
+    console.log('Todo cargado desde OneDrive ✅');
+    if(!window._tokenRenovacionIniciada) {
+      window._tokenRenovacionIniciada = true;
+      iniciarRenovacionToken();
+      iniciarPingExcel();
+      iniciarWorker();
+    }
+  } catch(e) {
+    console.error('Error cargando datos:', e);
+    if(e.message === 'BLOQUEADO') {
+      const yaRecargo = sessionStorage.getItem('auto_recargo');
+      if(!yaRecargo) {
+        sessionStorage.setItem('auto_recargo', '1');
+        localStorage.clear();
+        setTimeout(() => location.reload(), 1500);
+        setEstadoCarga('error', 'El archivo estaba bloqueado. Recargando automáticamente...');
+      } else {
+        sessionStorage.removeItem('auto_recargo');
+        setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
+      }
+    } else {
+      setEstadoCarga('error', e.message || e.toString());
+    }
+  }
+}
+
+// Actualizar desde OneDrive en background sin bloquear la app
+async function actualizarDesdeOneDrive() {
+  try {
+    await descargarExcel();
+    guardarCache();
+    procesarDatosWB();
+    console.log('Actualizado desde OneDrive ✅');
+  } catch(e) {
+    console.log('No se pudo actualizar desde OneDrive:', e.message);
+    // Reintentar en 30 segundos
+    setTimeout(actualizarDesdeOneDrive, 30000);
+  }
+}
+
+// Guardar WB en localStorage como caché
+function guardarCache() {
+  try {
+    const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    localStorage.setItem('WB_CACHE', base64);
+  } catch(e) {
+    console.log('No se pudo guardar caché:', e.message);
+  }
+}
+
+function procesarDatosWB() {
     // Leer hojas desde memoria
     const inv = leerHoja('INVENTARIO_TELEFONO');
     const acc = leerHoja('INVENTARIO_ACCESORIOS');
@@ -2832,34 +2921,14 @@ async function cargarTodo() {
     }
 
     setEstadoCarga('ok');
-    console.log('Todo cargado desde OneDrive ✅');
+    console.log('Datos procesados ✅');
     if(!window._tokenRenovacionIniciada) {
       window._tokenRenovacionIniciada = true;
       iniciarRenovacionToken();
       iniciarPingExcel();
-      iniciarWorker(); // Cola de operaciones
+      iniciarWorker();
     }
-  } catch(e) {
-    console.error('Error cargando datos:', e);
-    if(e.message === 'BLOQUEADO') {
-      // Solo recargar una vez automáticamente
-      const yaRecargo = sessionStorage.getItem('auto_recargo');
-      if(!yaRecargo) {
-        console.log('Limpiando sesión y recargando...');
-        sessionStorage.setItem('auto_recargo', '1');
-        localStorage.clear();
-        setTimeout(() => location.reload(), 1500);
-        setEstadoCarga('error', 'El archivo estaba bloqueado. Recargando automáticamente...');
-      } else {
-        // Ya recargó y sigue bloqueado — mostrar botón
-        sessionStorage.removeItem('auto_recargo');
-        setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
-      }
-    } else {
-      setEstadoCarga('error', e.message || e.toString());
-    }
-  }
-}
+} // fin procesarDatosWB
 
 let preciosCargados = false;
 
