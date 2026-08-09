@@ -2198,17 +2198,29 @@ let WB_SUBIENDO = false; // Evitar subidas simultáneas
 async function descargarExcel() {
   const token = await getToken();
   if(!token) throw new Error('Sin token');
-  const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
-    headers: { 'Authorization': 'Bearer ' + token }
-  });
-  if(r.status === 400 || r.status === 423 || r.status === 501) {
-    throw new Error('BLOQUEADO');
+  
+  // Reintentar hasta 5 veces si está bloqueado
+  for(let i = 0; i < 3; i++) {
+    const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if(r.ok) {
+      WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
+      const buffer = await r.arrayBuffer();
+      WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
+      console.log('Excel descargado ✅ eTag:', WB_ETAG);
+      return;
+    }
+    if(r.status === 400 || r.status === 423 || r.status === 501) {
+      if(i < 2) {
+        console.log(`Archivo bloqueado, reintentando en ${(i+1)*3} segundos... (intento ${i+1}/3)`);
+        await new Promise(r => setTimeout(r, (i+1) * 3000));
+        continue;
+      }
+      throw new Error('BLOQUEADO');
+    }
+    throw new Error(`Error descargando Excel: ${r.status}`);
   }
-  if(!r.ok) throw new Error(`Error descargando Excel: ${r.status}`);
-  WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
-  const buffer = await r.arrayBuffer();
-  WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
-  console.log('Excel descargado ✅ eTag:', WB_ETAG);
 }
 
 async function subirExcel() {
@@ -2219,6 +2231,8 @@ async function subirExcel() {
     });
   }
   WB_SUBIENDO = true;
+  let intentos = 0;
+  while(true) {
   try {
     const token = await getToken();
     if(!token) throw new Error('Sin token');
@@ -2240,13 +2254,26 @@ async function subirExcel() {
       mostrarMensajeSincronizando(false);
       throw new Error('CONFLICT');
     }
-    if(!r.ok) throw new Error(`Error subiendo Excel: ${r.status}`);
+    if(!r.ok) {
+      if((r.status === 400 || r.status === 423) && intentos < 3) {
+        intentos++;
+        console.log(`Error subiendo, reintentando en ${intentos*2}s...`);
+        await new Promise(r => setTimeout(r, intentos * 2000));
+        continue;
+      }
+      throw new Error(`Error subiendo Excel: ${r.status}`);
+    }
     const data = await r.json();
     WB_ETAG = data.eTag || data['@odata.etag'] || WB_ETAG;
     console.log('Excel subido ✅');
+    break; // Salir del while si fue exitoso
+  } catch(e) {
+    if(e.message === 'CONFLICT') throw e;
+    throw e;
   } finally {
     WB_SUBIENDO = false;
   }
+  } // fin while
 }
 
 function mostrarMensajeSincronizando(mostrar) {
@@ -2763,7 +2790,12 @@ async function cargarTodo() {
   } catch(e) {
     console.error('Error cargando datos:', e);
     if(e.message === 'BLOQUEADO') {
-      setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
+      // Limpiar sesión y recargar automáticamente
+      console.log('Limpiando sesión y recargando...');
+      localStorage.clear();
+      try { sessionStorage.clear(); } catch(e) {}
+      setTimeout(() => location.reload(), 1500);
+      setEstadoCarga('error', 'El archivo estaba bloqueado. Recargando automáticamente...');
     } else {
       setEstadoCarga('error', e.message || e.toString());
     }
