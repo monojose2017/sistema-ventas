@@ -7077,7 +7077,7 @@ async function cargarReportes() {
   };
 
   try {
-    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet, creditos, deudas] = await Promise.all([
+    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet, creditos, deudas, iphoneVentas] = await Promise.all([
       fetchConReintento('CONTROL'),
       fetchConReintento('VENTAS_CONTADO'),
       fetchConReintento('VENTAS_ACCESORIOS'),
@@ -7087,7 +7087,8 @@ async function cargarReportes() {
       fetchConReintento('ABONOS_DEUDAS'),
       fetchConReintento('LIQUIDACIONES'),
       fetchConReintento('VENTAS_CREDITOS'),
-      fetchConReintento('DEUDAS')
+      fetchConReintento('DEUDAS'),
+      fetchConReintento('VENTAS_IPHONE')
     ]);
 
     // Mapa acreedor → propósito (columna K = índice 10)
@@ -7123,9 +7124,9 @@ async function cargarReportes() {
     const LOCALES = window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'];
     const datos = {};
     LOCALES.forEach(l => datos[l] = {
-      utilCredito:0, utilContado:0, utilAccesorios:0, ingresosAdicionales:0,
-      gastosDiarios:0, egresosOperativos:0, abonosDeudas:0,
-      ventasCredito:0, ventasContado:0, ventasAccesorios:0,
+      utilCredito:0, utilContado:0, utilAccesorios:0, utilIphone:0,
+      ingresosAdicionales:0, gastosDiarios:0, egresosOperativos:0, abonosDeudas:0,
+      ventasCredito:0, ventasContado:0, ventasAccesorios:0, ventasIphone:0,
       sinLiquidar:[]
     });
 
@@ -7179,6 +7180,22 @@ async function cargarReportes() {
         if(!datos[local]) continue;
         datos[local].utilAccesorios += parseFloat(r[12])||0;
         datos[local].ventasAccesorios++;
+      }
+    }
+
+    // VENTAS_IPHONE → utilidad neta iPhone (col U = índice 20, estado col V = índice 21)
+    if(iphoneVentas?.values?.length > 1) {
+      for(let i=1;i<iphoneVentas.values.length;i++) {
+        const r = iphoneVentas.values[i];
+        if(!enRango(r[0])) continue;
+        if(r[21] === 'PENDIENTE' || r[21] === 'ANULADA') continue;
+        const local = r[1]?.toString()||'';
+        if(!datos[local]) continue;
+        const util = parseFloat(r[20])||0;
+        if(util !== 0) {
+          datos[local].utilIphone += util;
+          datos[local].ventasIphone++;
+        }
       }
     }
 
@@ -7414,14 +7431,14 @@ async function cargarReportes() {
 
     const htmlLocales = LOCALES.map(local => {
       const d = datos[local];
-      const totalIngresos = d.utilCredito + d.utilContado + d.utilAccesorios + d.ingresosAdicionales;
+      const totalIngresos = d.utilCredito + d.utilContado + d.utilAccesorios + d.utilIphone + d.ingresosAdicionales;
       const totalEgresos = d.gastosDiarios + d.egresosOperativos + d.abonosDeudas;
       const resultado = totalIngresos - totalEgresos;
       sumaLocales += resultado;
 
       const colorRes = resultado >= 0 ? '#16a34a' : '#dc2626';
       const bgRes = resultado >= 0 ? '#f0fdf4' : '#fee2e2';
-      const totalVentas = d.ventasCredito + d.ventasContado + d.ventasAccesorios;
+      const totalVentas = d.ventasCredito + d.ventasContado + d.ventasAccesorios + d.ventasIphone;
 
       if(totalIngresos === 0 && totalEgresos === 0) return '';
 
@@ -7437,6 +7454,7 @@ async function cargarReportes() {
             ${d.utilCredito ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad crédito (${d.ventasCredito})</span><span style="font-weight:700;">${fmt(d.utilCredito)}</span></div>` : ''}
             ${d.utilContado ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad contado (${d.ventasContado})</span><span style="font-weight:700;">${fmt(d.utilContado)}</span></div>` : ''}
             ${d.utilAccesorios ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad accesorios (${d.ventasAccesorios})</span><span style="font-weight:700;">${fmt(d.utilAccesorios)}</span></div>` : ''}
+            ${d.utilIphone ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Utilidad iPhone (${d.ventasIphone})</span><span style="font-weight:700;">${fmt(d.utilIphone)}</span></div>` : ''}
             ${d.ingresosAdicionales ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#64748b;">Ingresos adicionales</span><span style="font-weight:700;">${fmt(d.ingresosAdicionales)}</span></div>` : ''}
             <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid #e2e8f0;margin-top:4px;font-weight:800;"><span>Total ingresos</span><span style="color:#16a34a;">${fmt(totalIngresos)}</span></div>
           </div>
@@ -7478,12 +7496,12 @@ async function cargarReportes() {
       <div style="font-size:13px;line-height:2.2;">
         ${LOCALES.filter(l => {
           const d = datos[l];
-          const ti = d.utilCredito+d.utilContado+d.utilAccesorios+d.ingresosAdicionales;
+          const ti = d.utilCredito+d.utilContado+d.utilAccesorios+d.utilIphone+d.ingresosAdicionales;
           const te = d.gastosDiarios+d.egresosOperativos+d.abonosDeudas;
           return ti > 0 || te > 0;
         }).map(l => {
           const d = datos[l];
-          const ti = d.utilCredito+d.utilContado+d.utilAccesorios+d.ingresosAdicionales;
+          const ti = d.utilCredito+d.utilContado+d.utilAccesorios+d.utilIphone+d.ingresosAdicionales;
           const te = d.gastosDiarios+d.egresosOperativos+d.abonosDeudas;
           const res = ti - te;
           return `<div style="display:flex;justify-content:space-between;"><span style="color:#64748b;">🏪 ${l}</span>${fmtColor(res)}</div>`;
