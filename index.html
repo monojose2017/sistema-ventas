@@ -7133,8 +7133,6 @@ async function cargarReportes() {
     };
 
     const enRango = f => { const s = fmtFecha(f); return s >= desde && s <= hasta; };
-
-    // IMEIs liquidados
     const liqMap = {};
     if(liqSheet?.values?.length > 1) {
       for(let i=1;i<liqSheet.values.length;i++) {
@@ -7207,11 +7205,8 @@ async function cargarReportes() {
 
     // VENTAS_IPHONE → utilidad neta iPhone (col U = índice 20, estado col V = índice 21)
     if(iphoneVentas?.values?.length > 1) {
-      console.log('iPhone primera fila:', JSON.stringify(iphoneVentas.values[1]?.slice(0,5)));
-      console.log('Rango fechas:', desde, hasta);
       for(let i=1;i<iphoneVentas.values.length;i++) {
         const r = iphoneVentas.values[i];
-        console.log(`iPhone fila ${i}: fecha=${r[0]}, estado=${r[21]}, util=${r[20]}`);
         if(!enRango(r[0])) continue;
         if(r[21] === 'PENDIENTE' || r[21] === 'ANULADA') continue;
         const local = r[1]?.toString()||'';
