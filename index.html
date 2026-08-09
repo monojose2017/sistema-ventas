@@ -1047,6 +1047,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <!-- PROVEEDORES -->
     <div id="rep-bloque-proveedores" style="display:none;">
       <div class="rep-seccion">
+        <div class="rep-titulo">🍎 MOVISIM — iPhone Pendiente</div>
+        <div id="rep-prov-movisim-iphone"></div>
+      </div>
+      <div class="rep-seccion">
         <div class="rep-titulo">🏦 COMTEL — ET Claro</div>
         <div id="rep-prov-comtel"></div>
       </div>
@@ -7035,11 +7039,60 @@ async function cargarReporteProveedores() {
       }
       return null;
     };
-    const [liqSheet, control] = await Promise.all([fetchR('LIQUIDACIONES'), fetchR('CONTROL')]);
+    const [liqSheet, control, iphoneVentas] = await Promise.all([fetchR('LIQUIDACIONES'), fetchR('CONTROL'), fetchR('VENTAS_IPHONE')]);
     if(loading) loading.style.display = 'none';
 
     const enSemana = f => { const s=fmtFecha(f); return s>=provSemanaDesde && s<=provSemanaHasta; };
     const enSemanaPayjoy = f => { const s=fmtFecha(f); return s>=provSemanaPayjoyDesde && s<=provSemanaPayjoyHasta; };
+
+    // MOVISIM iPhone — pendientes de liquidar
+    let movIsimTotal = 0;
+    const movisimVentas = [];
+    if(iphoneVentas?.values?.length > 1) {
+      for(let i=1; i<iphoneVentas.values.length; i++) {
+        const r = iphoneVentas.values[i];
+        if(r[21] !== 'COMPLETA') continue; // solo completas
+        if(r[22] === 'SI') continue; // ya liquidadas
+        if(r[3] === 'CONTADO') continue; // contado no aplica
+        const financiera = r[3]?.toString()||'';
+        const vs = parseFloat(r[11])||0;
+        const cuotaSis = parseFloat(r[12])||0;
+        const costo = parseFloat(r[14])||0;
+        const tipo = r[15]?.toString()||'MIO';
+        if(!vs) continue;
+        const vsEf = financiera === 'OME-CREDIT' ? vs * 0.9 : vs;
+        const desc = financiera === 'OME-CREDIT' ? 300000 : 250000;
+        const desembolso = vsEf - cuotaSis;
+        const pagoMovisim = tipo === 'MIO' ? desembolso - desc : desembolso - costo - desc;
+        movIsimTotal += pagoMovisim;
+        movisimVentas.push({
+          fecha: normalizarFecha(r[0]), ref: r[2]||'', imei: r[4]||'',
+          nombre: r[6]||'', financiera, tipo, pagoMovisim
+        });
+      }
+    }
+
+    // Render MOVISIM iPhone
+    const elMovisimIphone = document.getElementById('rep-prov-movisim-iphone');
+    if(elMovisimIphone) {
+      if(movisimVentas.length === 0) {
+        elMovisimIphone.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">Sin iPhones pendientes de pago ✅</div>';
+      } else {
+        elMovisimIphone.innerHTML = `
+          <div style="background:${movIsimTotal>=0?'#dcfce7':'#fee2e2'};border-radius:12px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;">Total pendiente MOVISIM</span>
+            <span style="font-size:18px;font-weight:900;color:${movIsimTotal>=0?'#16a34a':'#dc2626'};">${fmt(movIsimTotal)}</span>
+          </div>
+          ${movisimVentas.map(v=>`
+            <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:12px;">
+              <div>
+                <div style="font-weight:700;">${v.ref}</div>
+                <div style="color:#64748b;">${v.fecha} · ${v.financiera} · ${v.tipo}${v.nombre?' · '+v.nombre:''}</div>
+              </div>
+              <span style="font-weight:800;color:${v.pagoMovisim>=0?'#16a34a':'#dc2626'};">${fmt(v.pagoMovisim)}</span>
+            </div>`).join('')}`;
+      }
+    }
 
     // COMTEL — ET_CLARO
     let comtelTotal=0, comtelVentas=[];
