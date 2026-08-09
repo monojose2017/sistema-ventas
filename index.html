@@ -2213,8 +2213,10 @@ function mostrarEstadoSync(estado, msg) {
   } else if(estado === 'guardando') {
     el.style.background = '#d97706';
     el.style.color = 'white';
+    el.style.fontSize = '13px';
+    el.style.padding = '8px';
     const pendientes = WB_COLA.length;
-    el.textContent = `⏳ Guardando${pendientes > 0 ? ' ('+pendientes+' pendiente'+(pendientes>1?'s':'')+')' : ''}...`;
+    el.textContent = `⏳ Guardando${pendientes > 0 ? ' ('+pendientes+' cambio'+(pendientes>1?'s':'')+' pendiente'+(pendientes>1?'s':'')+')' : ''}... NO CERRAR`;
   } else if(estado === 'listo') {
     const hora = new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
     el.style.background = '#16a34a';
@@ -2333,6 +2335,15 @@ async function procesarCola() {
 function iniciarWorker() {
   if(WB_WORKER) clearInterval(WB_WORKER);
   WB_WORKER = setInterval(procesarCola, 3000);
+
+  // Avisar si hay cambios pendientes al cerrar
+  window.addEventListener('beforeunload', e => {
+    if(WB_COLA.length > 0) {
+      const msg = '⚠️ Hay cambios sin guardar. ¿Seguro que quieres salir?';
+      e.returnValue = msg;
+      return msg;
+    }
+  });
 }
 
 // Encolar un cambio y aplicarlo inmediatamente en memoria
@@ -5910,7 +5921,7 @@ async function cargarVentasIphone() {
     if(data?.values?.length > 1) {
       iphoneVentas = data.values.slice(1).map((r,i) => ({
         idx: i,
-        fecha: r[0]||'', local: r[1]||'', ref: r[2]||'', financiera: r[3]||'',
+        fecha: normalizarFecha(r[0])||'', local: r[1]||'', ref: r[2]||'', financiera: r[3]||'',
         imei: r[4]||'', cedula: r[5]||'', nombre: r[6]||'',
         cuotaInicial: parseFloat(r[7])||0, metodoPago: r[8]||'',
         efectivo: parseFloat(r[9])||0, transfer: parseFloat(r[10])||0,
@@ -6269,7 +6280,7 @@ async function cargarLiquidaciones() {
           const key = normImei(r[0]);
           liquidados[key] = {
             imei: key, ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
-            fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
+            fecha: normalizarFecha(r[5]), pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
             costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
           };
         }
@@ -6292,7 +6303,7 @@ async function cargarLiquidaciones() {
         const cuotaFinal = parseFloat(r[8]) || 0;
         const cuotaSug = parseFloat(r[6]) || 0;
         window.LIQ_PENDIENTES.push({
-          fecha: r[0], local: r[1], tipo, ref: r[3], imei,
+          fecha: normalizarFecha(r[0]), local: r[1], tipo, ref: r[3], imei,
           porc: parseFloat(r[5]) || 0, cuotaFinal, cuotaSug, costo, rowIndex: i+1
         });
       }
