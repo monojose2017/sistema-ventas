@@ -1916,7 +1916,7 @@ let gerenciaAutenticada = false;
 
 function abrirExcelOnline() {
   const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const urlOnline = 'https://onedrive.live.com/edit?resid=C8E07BCB204A48B8A5C9E9ACF0974507';
+  const urlOnline = 'https://onedrive.live.com/personal/4f1600ecf5e10bfd/_layouts/15/Doc.aspx?sourcedoc=%7BC8E07BCB-204A-48B8-A5C9-E9ACF0974507%7D&action=default';
   const urlMovil = 'ms-excel:ofe|u|https://onedrive.live.com/download?resid=C8E07BCB204A48B8A5C9E9ACF0974507';
   const url = esCelular ? urlMovil : urlOnline;
   window.open(url, '_blank');
@@ -2580,7 +2580,7 @@ function setEstadoCarga(estado, detalle) {
     btn.style.color = 'white'; btn.style.boxShadow = '0 4px 12px rgba(220,38,38,.3)';
     btn.onclick = reintentarCarga;
     const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const urlExcelOnline = `https://onedrive.live.com/edit?resid=C8E07BCB204A48B8A5C9E9ACF0974507`;
+    const urlExcelOnline = `https://onedrive.live.com/personal/4f1600ecf5e10bfd/_layouts/15/Doc.aspx?sourcedoc=%7BC8E07BCB-204A-48B8-A5C9-E9ACF0974507%7D&action=default`;
     const urlDesbloquear = esCelular ? 'ms-excel:ofe|u|https://onedrive.live.com/download?resid=C8E07BCB204A48B8A5C9E9ACF0974507' : urlExcelOnline;
     const textoDesbloquear = esCelular ? '📱 Abrir Excel en el celular' : '🌐 Abrir Excel Online en PC';
     if(menuBloqueado) menuBloqueado.innerHTML = `
@@ -4538,6 +4538,26 @@ function getRegFechas() {
   return { desde: fmt(hoy), hasta: fmt(hoy) };
 }
 
+function normalizarFecha(f) {
+  if(!f) return '';
+  // Número serial de Excel
+  if(typeof f === 'number') {
+    const d = new Date(Math.round((f-25569)*86400*1000));
+    d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  }
+  const s = f.toString().trim();
+  // Ya está en YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+  // DD/MM/YYYY o DD-MM-YYYY
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // MM/DD/YYYY
+  const m2 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(m2) return s.substring(0,10);
+  return s.substring(0,10);
+}
+
 function fmtFechaExcel(f) {
   if(!f) return '';
   if(typeof f === 'number') {
@@ -4795,15 +4815,7 @@ async function iniciarMisRegistros() {
     const aperturas = WB ? leerHoja('APERTURA_CAJA')     : null;
     const iphoneData= WB ? leerHoja('VENTAS_IPHONE')     : null;
 
-    const fmtFecha = f => {
-      if(!f) return '';
-      if(typeof f === 'number') {
-        const d = new Date(Math.round((f-25569)*86400*1000));
-        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-        return d.toISOString().split('T')[0];
-      }
-      return f.toString();
-    };
+    const fmtFecha = f => normalizarFecha(f);
 
     MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[], iphone:[] };
 
@@ -6535,15 +6547,7 @@ function renderProyeccion() {
   const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
   const hoyStr = fechaHoyLocal();
 
-  const fmtFecha = f => {
-    if(!f) return '';
-    if(typeof f === 'number') {
-      const d = new Date(Math.round((f-25569)*86400*1000));
-      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-      return d.toISOString().split('T')[0];
-    }
-    return f.toString().substring(0,10);
-  };
+  const fmtFecha = f => normalizarFecha(f);
 
   const enMes = f => { const s=fmtFecha(f); return s>=inicioMes && s<=hoyStr; };
   const filtroLocal = r => proyLocalActual==='GENERAL' || r?.toString()===proyLocalActual;
@@ -6861,15 +6865,7 @@ async function cargarReporteProveedores() {
   const loading = document.getElementById('rep-loading');
   if(loading) loading.style.display = 'block';
 
-  const fmtFecha = f => {
-    if(!f) return '';
-    if(typeof f === 'number') {
-      const d = new Date(Math.round((f-25569)*86400*1000));
-      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-      return d.toISOString().split('T')[0];
-    }
-    return f.toString().substring(0,10);
-  };
+  const fmtFecha = f => normalizarFecha(f);
 
   try {
     const fetchR = async (hoja) => {
@@ -7129,15 +7125,7 @@ async function cargarReportes() {
       }
     }
 
-    const fmtFecha = f => {
-      if(!f) return '';
-      if(typeof f === 'number') {
-        const d = new Date(Math.round((f-25569)*86400*1000));
-        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-        return d.toISOString().split('T')[0];
-      }
-      return f.toString().substring(0,10);
-    };
+    const fmtFecha = f => normalizarFecha(f);
 
     const enRango = f => { const s = fmtFecha(f); return s >= desde && s <= hasta; };
     const liqMap = {};
