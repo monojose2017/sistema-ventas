@@ -2213,8 +2213,12 @@ async function descargarExcel() {
     }
     if(r.status === 400 || r.status === 423 || r.status === 501) {
       if(i < 2) {
-        console.log(`Archivo bloqueado, reintentando en ${(i+1)*3} segundos... (intento ${i+1}/3)`);
-        await new Promise(r => setTimeout(r, (i+1) * 3000));
+        const espera = (i+1)*3;
+        console.log(`Archivo bloqueado, reintentando en ${espera} segundos... (intento ${i+1}/3)`);
+        setEstadoCarga('cargando');
+        const btn = document.getElementById('btn-conectar');
+        if(btn) btn.textContent = `⏳ Archivo ocupado, reintentando en ${espera}s... (${i+1}/3)`;
+        await new Promise(r => setTimeout(r, espera * 1000));
         continue;
       }
       throw new Error('BLOQUEADO');
@@ -2296,7 +2300,7 @@ function leerHoja(hoja) {
   if(!WB) return null;
   const ws = WB.Sheets[hoja];
   if(!ws) return null;
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
   return { values: data };
 }
 
