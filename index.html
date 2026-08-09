@@ -2165,27 +2165,6 @@ function mensajeError(tipo) {
   return mensajes[tipo] || '❌ Error desconocido.';
 }
 
-async function desbloquearExcel() {
-  try {
-    const token = await getToken();
-    if(!token) return;
-    // Solo cerrar sesiones activas existentes
-    const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if(sesiones.ok) {
-      const data = await sesiones.json();
-      if(data.value && data.value.length > 0) {
-        for(const ses of data.value) {
-          await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
-            method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
-          });
-        }
-        console.log('Sesiones cerradas:', data.value.length);
-      }
-    }
-  } catch(e) { console.log('desbloquearExcel:', e.message); }
-}
 
 // =============================================
 // SISTEMA: SheetJS + Cola de operaciones
@@ -2735,20 +2714,8 @@ function iniciarRenovacionToken() {
 
 // Ping cada 20 minutos para mantener el archivo Excel activo y no se bloquee
 function iniciarPingExcel() {
-  setInterval(async () => {
-    if(!msAccount) return;
-    try {
-      const token = await getToken();
-      if(!token) return;
-      const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/worksheets`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if(r.ok) console.log('Ping Excel ✅ archivo activo');
-      else console.log('Ping Excel falló:', r.status);
-    } catch(e) {
-      console.log('Ping Excel error:', e.message);
-    }
-  }, 20 * 60 * 1000); // cada 20 minutos
+  // Ya no se usa — el nuevo sistema SheetJS no necesita mantener el archivo activo
+  // El ping a /workbook/worksheets causaba bloqueos del archivo
 }
 
 async function cargarTodo() {
