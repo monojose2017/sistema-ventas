@@ -2790,12 +2790,19 @@ async function cargarTodo() {
   } catch(e) {
     console.error('Error cargando datos:', e);
     if(e.message === 'BLOQUEADO') {
-      // Limpiar sesión y recargar automáticamente
-      console.log('Limpiando sesión y recargando...');
-      localStorage.clear();
-      try { sessionStorage.clear(); } catch(e) {}
-      setTimeout(() => location.reload(), 1500);
-      setEstadoCarga('error', 'El archivo estaba bloqueado. Recargando automáticamente...');
+      // Solo recargar una vez automáticamente
+      const yaRecargo = sessionStorage.getItem('auto_recargo');
+      if(!yaRecargo) {
+        console.log('Limpiando sesión y recargando...');
+        sessionStorage.setItem('auto_recargo', '1');
+        localStorage.clear();
+        setTimeout(() => location.reload(), 1500);
+        setEstadoCarga('error', 'El archivo estaba bloqueado. Recargando automáticamente...');
+      } else {
+        // Ya recargó y sigue bloqueado — mostrar botón
+        sessionStorage.removeItem('auto_recargo');
+        setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
+      }
     } else {
       setEstadoCarga('error', e.message || e.toString());
     }
