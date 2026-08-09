@@ -2302,6 +2302,7 @@ async function procesarCola() {
     await subirExcelInterno();
     WB_COLA = []; // Limpiar cola si subió bien
     WB_CAMBIOS_PENDIENTES = 0;
+    localStorage.removeItem('WB_COLA'); // Limpiar también del localStorage
     mostrarEstadoSync('listo');
   } catch(e) {
     console.log('Worker: error subiendo, reintentará:', e.message);
@@ -2309,6 +2310,22 @@ async function procesarCola() {
   } finally {
     WB_SUBIENDO = false;
   }
+}
+
+function restaurarColaPendiente() {
+  try {
+    const colaGuardada = localStorage.getItem('WB_COLA');
+    if(colaGuardada) {
+      const cola = JSON.parse(colaGuardada);
+      if(cola.length > 0) {
+        console.log(`Restaurando ${cola.length} cambios pendientes...`);
+        for(const op of cola) aplicarOperacion(op);
+        WB_COLA = cola;
+        WB_CAMBIOS_PENDIENTES = cola.length;
+        mostrarEstadoSync('guardando');
+      }
+    }
+  } catch(e) { localStorage.removeItem('WB_COLA'); }
 }
 
 function iniciarWorker() {
@@ -2331,6 +2348,8 @@ async function encolarCambio(op) {
   aplicarOperacion(op);
   WB_COLA.push(op);
   WB_CAMBIOS_PENDIENTES++;
+  // Guardar cola en localStorage para sobrevivir recargas
+  try { localStorage.setItem('WB_COLA', JSON.stringify(WB_COLA)); } catch(e) {}
   mostrarEstadoSync('guardando');
 }
 
@@ -2738,6 +2757,7 @@ async function cargarTodo() {
           iniciarRenovacionToken();
           iniciarPingExcel();
           iniciarWorker();
+          restaurarColaPendiente();
         }
         // Intentar actualizar desde OneDrive en background
         actualizarDesdeOneDrive();
@@ -2759,7 +2779,7 @@ async function cargarTodo() {
       window._tokenRenovacionIniciada = true;
       iniciarRenovacionToken();
       iniciarPingExcel();
-      iniciarWorker();
+      iniciarWorker(); restaurarColaPendiente();
     }
   } catch(e) {
     console.error('Error cargando datos:', e);
