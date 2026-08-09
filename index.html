@@ -2201,6 +2201,9 @@ async function descargarExcel() {
   const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
     headers: { 'Authorization': 'Bearer ' + token }
   });
+  if(r.status === 400 || r.status === 423 || r.status === 501) {
+    throw new Error('BLOQUEADO');
+  }
   if(!r.ok) throw new Error(`Error descargando Excel: ${r.status}`);
   WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
   const buffer = await r.arrayBuffer();
@@ -2759,7 +2762,11 @@ async function cargarTodo() {
     }
   } catch(e) {
     console.error('Error cargando datos:', e);
-    setEstadoCarga('error', e.message || e.toString());
+    if(e.message === 'BLOQUEADO') {
+      setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
+    } else {
+      setEstadoCarga('error', e.message || e.toString());
+    }
   }
 }
 
