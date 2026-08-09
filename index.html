@@ -2820,8 +2820,14 @@ async function actualizarDesdeOneDrive() {
 function guardarCache() {
   try {
     const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    localStorage.setItem('WB_CACHE', base64);
+    const uint8 = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for(let i = 0; i < uint8.length; i += chunkSize) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+    }
+    localStorage.setItem('WB_CACHE', btoa(binary));
+    console.log('Caché guardado ✅');
   } catch(e) {
     console.log('No se pudo guardar caché:', e.message);
   }
