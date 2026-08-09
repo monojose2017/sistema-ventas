@@ -813,7 +813,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div id="ci-resultados" style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:14px;display:none;">
       <div style="font-weight:800;color:#15803d;margin-bottom:10px;">📊 Cálculo automático</div>
       <div style="display:grid;gap:6px;font-size:13px;">
-        <div style="display:flex;justify-content:space-between;"><span>Cuota inicial real:</span><span id="ci-r-cuota-real" style="font-weight:700;"></span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Cuota recibida:</span><span id="ci-r-cuota-recibida" style="font-weight:700;"></span></div>
         <div style="display:flex;justify-content:space-between;"><span id="ci-label-pago">Pago MOVISIM:</span><span id="ci-r-pago-movisim" style="font-weight:700;color:#0891b2;"></span></div>
         <div style="display:flex;justify-content:space-between;border-top:1px solid #bbf7d0;padding-top:6px;"><span>Utilidad bruta:</span><span id="ci-r-util-bruta" style="font-weight:800;color:#15803d;"></span></div>
         <div style="display:flex;justify-content:space-between;"><span>Comisión trabajadora:</span><span id="ci-r-com-trab" style="font-weight:700;color:#dc2626;"></span></div>
@@ -2187,7 +2187,152 @@ async function desbloquearExcel() {
   } catch(e) { console.log('desbloquearExcel:', e.message); }
 }
 
+// =============================================
+// NUEVO SISTEMA: SheetJS + OneDrive directo
+// Sin sesiones de Excel — sin bloqueos
+// =============================================
+let WB = null;        // Workbook en memoria (SheetJS)
+let WB_ETAG = null;   // eTag del archivo para detectar conflictos
+let WB_SUBIENDO = false; // Evitar subidas simultáneas
+
+async function descargarExcel() {
+  const token = await getToken();
+  if(!token) throw new Error('Sin token');
+  const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if(!r.ok) throw new Error(`Error descargando Excel: ${r.status}`);
+  WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
+  const buffer = await r.arrayBuffer();
+  WB = XLSX.read(buffer, { type: 'array', cellDates: true });
+  console.log('Excel descargado ✅ eTag:', WB_ETAG);
+}
+
+async function subirExcel() {
+  if(WB_SUBIENDO) {
+    // Esperar a que termine la subida anterior
+    await new Promise(r => {
+      const check = setInterval(() => { if(!WB_SUBIENDO) { clearInterval(check); r(); } }, 200);
+    });
+  }
+  WB_SUBIENDO = true;
+  try {
+    const token = await getToken();
+    if(!token) throw new Error('Sin token');
+    const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const headers = {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    if(WB_ETAG) headers['If-Match'] = WB_ETAG;
+    const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
+      method: 'PUT', headers, body: blob
+    });
+    if(r.status === 412) {
+      // Conflicto — otro local subió antes. Descargar versión nueva y reintentar
+      console.log('⚠️ Conflicto detectado, sincronizando...');
+      mostrarMensajeSincronizando(true);
+      await descargarExcel();
+      mostrarMensajeSincronizando(false);
+      throw new Error('CONFLICT');
+    }
+    if(!r.ok) throw new Error(`Error subiendo Excel: ${r.status}`);
+    const data = await r.json();
+    WB_ETAG = data.eTag || data['@odata.etag'] || WB_ETAG;
+    console.log('Excel subido ✅');
+  } finally {
+    WB_SUBIENDO = false;
+  }
+}
+
+function mostrarMensajeSincronizando(mostrar) {
+  let el = document.getElementById('msg-sincronizando');
+  if(mostrar) {
+    if(!el) {
+      el = document.createElement('div');
+      el.id = 'msg-sincronizando';
+      el.style.cssText = 'position:fixed;top:0;left:0;width:100%;padding:10px;background:#d97706;color:white;text-align:center;font-weight:700;font-size:13px;z-index:9999;';
+      el.textContent = '⏳ Sincronizando con otro local... espera un momento';
+      document.body.appendChild(el);
+    }
+  } else {
+    if(el) el.remove();
+  }
+}
+
+// Leer una hoja completa desde memoria
+function leerHoja(hoja) {
+  if(!WB) return null;
+  const ws = WB.Sheets[hoja];
+  if(!ws) return null;
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  return { values: data };
+}
+
+// Agregar fila al final de una hoja
+async function agregarFilaWB(hoja, fila) {
+  if(!WB) throw new Error('Excel no cargado');
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  data.push(fila);
+  const wsNuevo = XLSX.utils.aoa_to_sheet(data);
+  WB.Sheets[hoja] = wsNuevo;
+  await subirExcel();
+}
+
+// Escribir valor en celda específica
+async function escribirCeldaWB(hoja, fila, col, valor) {
+  // fila y col son 0-based
+  if(!WB) throw new Error('Excel no cargado');
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  while(data.length <= fila) data.push([]);
+  while(data[fila].length <= col) data[fila].push('');
+  data[fila][col] = valor;
+  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+  await subirExcel();
+}
+
+// Escribir rango de celdas
+async function escribirRangoWB(hoja, filaIdx, colInicio, valores) {
+  // filaIdx 0-based, colInicio 0-based, valores = array de valores
+  if(!WB) throw new Error('Excel no cargado');
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  while(data.length <= filaIdx) data.push([]);
+  for(let i = 0; i < valores.length; i++) {
+    while(data[filaIdx].length <= colInicio + i) data[filaIdx].push('');
+    data[filaIdx][colInicio + i] = valores[i];
+  }
+  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+  await subirExcel();
+}
+
+// Eliminar fila de una hoja
+async function eliminarFilaWB(hoja, filaIdx) {
+  // filaIdx 0-based (0 = encabezado)
+  if(!WB) throw new Error('Excel no cargado');
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  data.splice(filaIdx, 1);
+  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+  await subirExcel();
+}
+
+// Compatibilidad — reemplaza graphGet para leer hojas del workbook
 async function graphGet(endpoint) {
+  // Detectar si es una lectura de hoja
+  const matchUsedRange = endpoint.match(/\/worksheets\/([^/]+)\/usedRange/);
+  if(matchUsedRange && WB) {
+    const hoja = decodeURIComponent(matchUsedRange[1]);
+    return leerHoja(hoja);
+  }
+  // Para otros endpoints (como /me) usar Graph API normal
   for(let i=0; i<3; i++) {
     const token = await getToken();
     if(!token) { setEstadoCarga('error'); return null; }
@@ -2198,50 +2343,47 @@ async function graphGet(endpoint) {
       if(r.ok) return await r.json();
       const tipo = clasificarError(r.status);
       if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
-      if((r.status === 400 || r.status === 501) && i === 0) {
-        console.log('Archivo bloqueado, desbloqueando automáticamente...');
-        await desbloquearExcel();
-        await new Promise(r=>setTimeout(r,2000));
-        continue;
-      }
-      console.error(`graphGet error ${r.status} (${tipo}):`, endpoint);
+      console.error(`graphGet error ${r.status}:`, endpoint);
       return null;
     } catch(e) {
-      console.error('graphGet sin conexión:', e);
       if(i < 2) await new Promise(r=>setTimeout(r,1000));
     }
   }
   return null;
 }
 
-async function graphPost(endpoint, body) {
-  for(let i=0; i<2; i++) {
-    const token = await getToken();
-    if(!token) throw new Error('🔑 No se pudo obtener token. Recarga la app.');
-    try {
-      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if(r.ok) return await r.json();
-      const tipo = clasificarError(r.status);
-      let errText = '';
-      try { errText = await r.text(); } catch(e) {}
-      console.error(`graphPost ${r.status} (${tipo}):`, errText);
-      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
-      // Mostrar código de error real para debugging
-      throw new Error(`${mensajeError(tipo)} (${r.status})`);
-    } catch(e) {
-      if(e.message.includes('🔑') || e.message.includes('🔒') || e.message.includes('🔍') || e.message.includes('🖥️') || e.message.includes('📶')) throw e;
-      if(i === 1) throw new Error('📶 Error de conexión. Verifica tu internet.');
-      await new Promise(r=>setTimeout(r,1000));
-    }
-  }
-  return null;
-}
-
+// Compatibilidad — reemplaza graphPatch
 async function graphPatch(endpoint, body) {
+  // Detectar escritura en celda/rango de hoja
+  const matchRange = endpoint.match(/\/worksheets\/([^/]+)\/range\(address='([^']+)'\)/);
+  if(matchRange && WB) {
+    const hoja = decodeURIComponent(matchRange[1]);
+    const addr = matchRange[2]; // ej: 'G5' o 'L5:X5'
+    const valores = body.values?.[0];
+    if(!valores) return null;
+    const ws = WB.Sheets[hoja];
+    if(!ws) return null;
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    // Parsear dirección
+    const parseAddr = a => {
+      const m = a.match(/([A-Z]+)(\d+)/);
+      if(!m) return null;
+      const col = m[1].split('').reduce((n,c) => n*26 + c.charCodeAt(0)-64, 0) - 1;
+      const fila = parseInt(m[2]) - 1;
+      return { col, fila };
+    };
+    const [inicio, fin] = addr.includes(':') ? addr.split(':').map(parseAddr) : [parseAddr(addr), parseAddr(addr)];
+    if(!inicio) return null;
+    while(data.length <= inicio.fila) data.push([]);
+    for(let c = 0; c < valores.length; c++) {
+      while(data[inicio.fila].length <= inicio.col + c) data[inicio.fila].push('');
+      data[inicio.fila][inicio.col + c] = valores[c];
+    }
+    WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+    await subirExcel();
+    return {};
+  }
+  // Fallback a Graph API
   for(let i=0; i<2; i++) {
     const token = await getToken();
     if(!token) return null;
@@ -2256,25 +2398,123 @@ async function graphPatch(endpoint, body) {
       if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
       throw new Error(mensajeError(tipo));
     } catch(e) {
-      if(i === 1 || e.message.includes('🔑') || e.message.includes('🔒') || e.message.includes('🖥️')) throw e;
+      if(i === 1) throw e;
       await new Promise(r=>setTimeout(r,1000));
     }
   }
   return null;
 }
 
+// Compatibilidad — reemplaza graphPost para agregar filas
+async function graphPost(endpoint, body) {
+  const matchTable = endpoint.match(/\/tables\/([^/]+)\/rows$/);
+  if(matchTable && WB) {
+    // Buscar la hoja de la tabla
+    const tablaToHoja = {
+      'TBL_VENTAS_CREDITOS': 'VENTAS_CREDITOS',
+      'TBL_VENTAS_CONTADO': 'VENTAS_CONTADO',
+      'TBL_VENTAS_ACCESORIOS': 'VENTAS_ACCESORIOS',
+      'TBL_GASTOS_DIARIOS': 'GASTOS_DIARIOS',
+      'TBL_EGRESOS_GERENCIA': 'EGRESOS_GERENCIA',
+      'TBL_INGRESOS_LOCAL': 'INGRESOS_LOCAL',
+      'TBL_INGRESOS_GERENCIA': 'INGRESOS_GERENCIA',
+      'TBL_DEUDAS': 'DEUDAS',
+      'TBL_ABONOS_DEUDAS': 'ABONOS_DEUDAS',
+      'TBL_INVENTARIO_TELEFONO': 'INVENTARIO_TELEFONO',
+      'TBL_INVENTARIO_ACCESORIOS': 'INVENTARIO_ACCESORIOS',
+      'TBL_LIQUIDACIONES': 'LIQUIDACIONES',
+      'TBL_RETIROS_CAJA': 'RETIROS_CAJA',
+      'TBL_APERTURA_CAJA': 'APERTURA_CAJA',
+      'TBL_VENTAS_IPHONE': 'VENTAS_IPHONE'
+    };
+    const tabla = matchTable[1];
+    const hoja = tablaToHoja[tabla];
+    if(!hoja) throw new Error(`Tabla ${tabla} no encontrada`);
+    const fila = body.values?.[0];
+    if(!fila) throw new Error('Sin datos');
+    await agregarFilaWB(hoja, fila);
+    return { values: [fila] };
+  }
+  // Fallback a Graph API
+  for(let i=0; i<2; i++) {
+    const token = await getToken();
+    if(!token) throw new Error('Sin token');
+    try {
+      const r = await fetch(`${GRAPH_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if(r.ok) return await r.json();
+      const tipo = clasificarError(r.status);
+      if(tipo === 'TOKEN_EXPIRADO' && i === 0) continue;
+      let errText = '';
+      try { errText = await r.text(); } catch(e) {}
+      throw new Error(`${mensajeError(tipo)} (${r.status})`);
+    } catch(e) {
+      if(i === 1) throw e;
+      await new Promise(r=>setTimeout(r,1000));
+    }
+  }
+  return null;
+}
+
+// Compatibilidad — reemplaza graphDelete
 async function graphDelete(endpoint) {
+  const matchItemAt = endpoint.match(/\/tables\/([^/]+)\/rows\/itemAt\(index=(\d+)\)/);
+  const matchTableRows = endpoint.match(/\/worksheets\/([^/]+)\/rows\/\$\/itemAt\(index=(\d+)\)/);
+  if((matchItemAt || matchTableRows) && WB) {
+    const tablaToHoja = {
+      'TBL_VENTAS_CREDITOS': 'VENTAS_CREDITOS', 'TBL_VENTAS_CONTADO': 'VENTAS_CONTADO',
+      'TBL_VENTAS_ACCESORIOS': 'VENTAS_ACCESORIOS', 'TBL_GASTOS_DIARIOS': 'GASTOS_DIARIOS',
+      'TBL_EGRESOS_GERENCIA': 'EGRESOS_GERENCIA', 'TBL_INGRESOS_LOCAL': 'INGRESOS_LOCAL',
+      'TBL_INGRESOS_GERENCIA': 'INGRESOS_GERENCIA', 'TBL_DEUDAS': 'DEUDAS',
+      'TBL_ABONOS_DEUDAS': 'ABONOS_DEUDAS', 'TBL_INVENTARIO_TELEFONO': 'INVENTARIO_TELEFONO',
+      'TBL_INVENTARIO_ACCESORIOS': 'INVENTARIO_ACCESORIOS', 'TBL_LIQUIDACIONES': 'LIQUIDACIONES',
+      'TBL_RETIROS_CAJA': 'RETIROS_CAJA', 'TBL_APERTURA_CAJA': 'APERTURA_CAJA',
+      'TBL_VENTAS_IPHONE': 'VENTAS_IPHONE'
+    };
+    let hoja, idx;
+    if(matchItemAt) {
+      hoja = tablaToHoja[matchItemAt[1]];
+      idx = parseInt(matchItemAt[2]) + 1; // +1 por encabezado (0-based sin encabezado → 1-based con encabezado)
+    } else {
+      hoja = matchTableRows[1];
+      idx = parseInt(matchTableRows[2]);
+    }
+    if(!hoja) return false;
+    await eliminarFilaWB(hoja, idx);
+    return true;
+  }
+  // Fallback
   const token = await getToken();
   if(!token) return false;
   try {
     const r = await fetch(`${GRAPH_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + token }
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
     });
     return r.ok;
-  } catch(e) {
-    return false;
-  }
+  } catch(e) { return false; }
+}
+
+// agregarFilaExcel ahora usa el nuevo sistema
+async function agregarFilaExcel(hoja, fila) {
+  if(!msAccount) { alert('⚠️ Conecta con Excel primero.'); return false; }
+  const tablaMap = {
+    'VENTAS_CREDITOS': 'TBL_VENTAS_CREDITOS', 'VENTAS_CONTADO': 'TBL_VENTAS_CONTADO',
+    'VENTAS_ACCESORIOS': 'TBL_VENTAS_ACCESORIOS', 'GASTOS_DIARIOS': 'TBL_GASTOS_DIARIOS',
+    'EGRESOS_GERENCIA': 'TBL_EGRESOS_GERENCIA', 'INGRESOS_LOCAL': 'TBL_INGRESOS_LOCAL',
+    'INGRESOS_GERENCIA': 'TBL_INGRESOS_GERENCIA', 'DEUDAS': 'TBL_DEUDAS',
+    'ABONOS_DEUDAS': 'TBL_ABONOS_DEUDAS', 'INVENTARIO_TELEFONO': 'TBL_INVENTARIO_TELEFONO',
+    'INVENTARIO_ACCESORIOS': 'TBL_INVENTARIO_ACCESORIOS', 'LIQUIDACIONES': 'TBL_LIQUIDACIONES',
+    'RETIROS_CAJA': 'TBL_RETIROS_CAJA', 'APERTURA_CAJA': 'TBL_APERTURA_CAJA',
+    'VENTAS_IPHONE': 'TBL_VENTAS_IPHONE'
+  };
+  const tabla = tablaMap[hoja];
+  console.log('Agregando a hoja:', hoja, 'fila:', JSON.stringify(fila));
+  if(!tabla) { console.error('Tabla no encontrada para hoja:', hoja); return false; }
+  await agregarFilaWB(hoja, fila);
+  return true;
 }
 
 window.onload = async function() {
@@ -2397,26 +2637,14 @@ async function cargarTodo() {
   if (!msAccount) return;
   setEstadoCarga('cargando');
 
-  // Desbloquear archivo automáticamente si está bloqueado
-  await desbloquearExcel();
-
-  // Función helper para reintentar una llamada hasta 3 veces
-  const fetchConReintento = async (endpoint) => {
-    for(let i=0; i<3; i++) {
-      const data = await graphGet(endpoint);
-      if(data) return data;
-      if(i<2) await new Promise(r => setTimeout(r, 800));
-    }
-    return null;
-  };
-
   try {
-    // Cargar las 3 fuentes en paralelo
-    const [inv, acc, cfg] = await Promise.all([
-      fetchConReintento(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`),
-      fetchConReintento(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`),
-      fetchConReintento(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/usedRange`)
-    ]);
+    // Descargar el Excel completo una sola vez
+    await descargarExcel();
+
+    // Leer hojas desde memoria
+    const inv = leerHoja('INVENTARIO_TELEFONO');
+    const acc = leerHoja('INVENTARIO_ACCESORIOS');
+    const cfg = leerHoja('CONFIG');
 
     // Procesar inventario teléfonos
     if (inv && inv.values) {
@@ -4521,7 +4749,6 @@ let MR_DATOS = null;
 let MR_CARGANDO = false;
 
 async function iniciarMisRegistros() {
-  // Cargar todos los datos una sola vez
   if(MR_CARGANDO) return;
   MR_CARGANDO = true;
   document.getElementById('mr-loading').style.display = 'block';
@@ -4529,25 +4756,15 @@ async function iniciarMisRegistros() {
   document.getElementById('mr-sin-filtro').style.display = 'none';
 
   try {
-    const fetchConReintento = async (hoja) => {
-      for(let i=0; i<3; i++) {
-        const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-        if(data && data.values) return data;
-        await new Promise(r => setTimeout(r, 800));
-      }
-      return null;
-    };
-
-    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas, iphoneData] = await Promise.all([
-      fetchConReintento('VENTAS_CREDITOS'),
-      fetchConReintento('VENTAS_CONTADO'),
-      fetchConReintento('VENTAS_ACCESORIOS'),
-      fetchConReintento('GASTOS_DIARIOS'),
-      fetchConReintento('INGRESOS_LOCAL'),
-      fetchConReintento('RETIROS_CAJA'),
-      fetchConReintento('APERTURA_CAJA'),
-      fetchConReintento('VENTAS_IPHONE')
-    ]);
+    // Leer directamente desde memoria (WB ya está descargado)
+    const creditos  = WB ? leerHoja('VENTAS_CREDITOS')   : null;
+    const contado   = WB ? leerHoja('VENTAS_CONTADO')    : null;
+    const accesorios= WB ? leerHoja('VENTAS_ACCESORIOS') : null;
+    const gastos    = WB ? leerHoja('GASTOS_DIARIOS')    : null;
+    const ingresos  = WB ? leerHoja('INGRESOS_LOCAL')    : null;
+    const retiros   = WB ? leerHoja('RETIROS_CAJA')      : null;
+    const aperturas = WB ? leerHoja('APERTURA_CAJA')     : null;
+    const iphoneData= WB ? leerHoja('VENTAS_IPHONE')     : null;
 
     const fmtFecha = f => {
       if(!f) return '';
@@ -5633,7 +5850,7 @@ function calcularUtilidad() {
     const utilNeta = utilBruta - comTrab - comEnc;
 
     document.getElementById('ci-resultados').style.display = 'block';
-    document.getElementById('ci-r-cuota-real').textContent = fmt(precioVenta);
+    document.getElementById('ci-r-cuota-recibida').textContent = fmt(precioVenta);
     document.getElementById('ci-r-pago-movisim').textContent = '—';
     document.getElementById('ci-r-util-bruta').textContent = fmt(utilBruta);    document.getElementById('ci-r-com-trab').textContent = fmt(comTrab);
     document.getElementById('ci-r-com-enc').textContent = fmt(comEnc);
@@ -5648,10 +5865,8 @@ function calcularUtilidad() {
   const cuotaSistema = getNumero('ci-cuota-sistema');
   const descuento = getNumero('ci-descuento');
   const financiera = v.financiera;
-  // La cuota real ES lo que recibió la niña (v.cuotaInicial)
-  // El descuento solo afecta la cuota del sistema para calcular el desembolso
+  // Cuota real = lo que recibió la niña (ya tiene o no tiene descuento)
   const cuotaReal = v.cuotaInicial;
-  const cuotaSistemaEfectiva = cuotaSistema - descuento; // lo que realmente pide el sistema
 
   if(!vs) { document.getElementById('ci-resultados').style.display = 'none'; return; }
 
@@ -5659,8 +5874,8 @@ function calcularUtilidad() {
   const vsEfectivo = financiera === 'OME-CREDIT' ? vs * 0.9 : vs;
   const descuentoMovisim = financiera === 'OME-CREDIT' ? 300000 : 250000;
 
-  // Pago que hace la financiera a MOVISIM (desembolsa VS - cuota sistema efectiva)
-  const pagoFinanciera = vsEfectivo - cuotaSistemaEfectiva;
+  // La financiera desembolsa VS - Cuota sistema (el descuento es entre tú y el cliente, la financiera no lo sabe)
+  const pagoFinanciera = vsEfectivo - cuotaSistema;
 
   // Pago neto que recibes de MOVISIM
   // iPhone mío: financiera paga a MOVISIM, MOVISIM descuenta $250k y te paga el resto
@@ -5687,7 +5902,7 @@ function calcularUtilidad() {
 
   // Mostrar resultados
   document.getElementById('ci-resultados').style.display = 'block';
-  document.getElementById('ci-r-cuota-real').textContent = fmt(cuotaReal);
+  document.getElementById('ci-r-cuota-recibida').textContent = fmt(cuotaReal);
   document.getElementById('ci-r-pago-movisim').textContent = fmt(pagoNetoMovisim);
   document.getElementById('ci-r-util-bruta').textContent = fmt(utilBruta);
   document.getElementById('ci-r-com-trab').textContent = fmt(comTrab);
