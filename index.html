@@ -5648,17 +5648,19 @@ function calcularUtilidad() {
   const cuotaSistema = getNumero('ci-cuota-sistema');
   const descuento = getNumero('ci-descuento');
   const financiera = v.financiera;
-  const cuotaReal = Math.max(0, v.cuotaInicial - descuento);
+  // La cuota real ES lo que recibió la niña (v.cuotaInicial)
+  // El descuento solo afecta la cuota del sistema para calcular el desembolso
+  const cuotaReal = v.cuotaInicial;
+  const cuotaSistemaEfectiva = cuotaSistema - descuento; // lo que realmente pide el sistema
 
   if(!vs) { document.getElementById('ci-resultados').style.display = 'none'; return; }
-
 
   // Calcular VS efectivo para OME-CREDIT
   const vsEfectivo = financiera === 'OME-CREDIT' ? vs * 0.9 : vs;
   const descuentoMovisim = financiera === 'OME-CREDIT' ? 300000 : 250000;
 
-  // Pago que hace la financiera a MOVISIM
-  const pagoFinanciera = vsEfectivo - cuotaSistema;
+  // Pago que hace la financiera a MOVISIM (desembolsa VS - cuota sistema efectiva)
+  const pagoFinanciera = vsEfectivo - cuotaSistemaEfectiva;
 
   // Pago neto que recibes de MOVISIM
   // iPhone mío: financiera paga a MOVISIM, MOVISIM descuenta $250k y te paga el resto
@@ -5799,6 +5801,7 @@ async function guardarPagoIphone(idx) {
     );
     document.getElementById('modal-pago-iphone')?.remove();
     await cargarVentasIphone();
+    setTabIphone('completas'); // Volver al tab completas para ver el cambio
     mostrarToastVerde('✅ Pago registrado correctamente');
   } catch(e) {
     alert('❌ Error al guardar: ' + e.message);
