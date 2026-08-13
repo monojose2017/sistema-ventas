@@ -1647,7 +1647,7 @@ async function agregarFilaExcel(hoja, fila) {
     obj.costo = parseFloat(obj.costo) || 0;
     obj.precio_venta = parseFloat(obj.precio_venta) || 0;
   }
-  console.log('Guardando en Firebase:', col, obj);
+  console.log('Guardando en Firebase:', col, JSON.stringify(obj));
   await fbAdd(col, obj);
   return true;
 }
