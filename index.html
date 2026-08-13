@@ -2002,8 +2002,8 @@ function autoRefContado(){
   if(sel && window.IMEIS_TODOS) {
     const imei = sel.split('|')[0];
     const found = window.IMEIS_TODOS.find(i => i.imei === imei);
-    if(found && found.precioVenta > 0) {
-      document.getElementById('ct-precio').value = '$' + found.precioVenta.toLocaleString('es-CO');
+    if(found && found.precio > 0) {
+      document.getElementById('ct-precio').value = '$' + found.precio.toLocaleString('es-CO');
       manejarPago('ct');
     }
   }
@@ -3115,7 +3115,7 @@ function editarTelefono(imei) {
   ubSel.innerHTML = '<option value="">Seleccionar...</option>';
   if(window.CONFIG_DATA) window.CONFIG_DATA.ubicaciones.forEach(u => ubSel.innerHTML += `<option${u===tel.ubicacion?' selected':''}>${u}</option>`);
   document.getElementById('edit-tel-costo').value = tel.costo > 0 ? '$' + tel.costo.toLocaleString('es-CO') : '';
-  document.getElementById('edit-tel-precio-venta').value = tel.precioVenta > 0 ? '$' + tel.precioVenta.toLocaleString('es-CO') : '';
+  document.getElementById('edit-tel-precio-venta').value = tel.precio > 0 ? '$' + tel.precio.toLocaleString('es-CO') : '';
   irA('editar-telefono');
 }
 
@@ -3320,7 +3320,7 @@ function renderInventario() {
             ${i.proveedor ? `<div style="font-size:12px;color:#64748b;">🏢 ${i.proveedor}</div>` : ''}
             <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;flex-wrap:wrap;">
               <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
-              <span>🏷️ Venta: <b style="color:${i.precioVenta>0?'#16a34a':'#dc2626'};">${i.precioVenta>0?'$'+i.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
+              <span>🏷️ Venta: <b style="color:${i.precio>0?'#16a34a':'#dc2626'};">${i.precio>0?'$'+i.precio.toLocaleString('es-CO'):'Sin precio'}</b></span>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-left:8px;">
@@ -3407,7 +3407,7 @@ function filtrarIMEIPrecio() {
   sel.innerHTML = '<option value="">Seleccionar teléfono...</option>';
   if(!window.IMEIS_TODOS) return;
   const filtrados = busqueda ? window.IMEIS_TODOS.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda)) : window.IMEIS_TODOS;
-  filtrados.forEach(i => { sel.innerHTML += `<option value="${i.imei}|${i.precioVenta}|${i.costo}">${i.imei} — ${i.ref}</option>`; });
+  filtrados.forEach(i => { sel.innerHTML += `<option value="${i.imei}|${i.precio}|${i.costo}">${i.imei} — ${i.ref}</option>`; });
   document.getElementById('cp-tel-info').style.display = 'none';
 }
 
@@ -3514,8 +3514,8 @@ function autoCompletarPrecioAccesorio() {
   const local = document.getElementById('a-local').value;
   if(!producto || !window.ACCESORIOS_EXCEL) return;
   const found = window.ACCESORIOS_EXCEL.find(a => a.producto === producto && a.local === local);
-  if(found && found.precioVenta > 0) {
-    document.getElementById('a-precio').value = '$' + found.precioVenta.toLocaleString('es-CO');
+  if(found && found.precio > 0) {
+    document.getElementById('a-precio').value = '$' + found.precio.toLocaleString('es-CO');
     manejarPago('a');
   }
 }
