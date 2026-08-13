@@ -1751,6 +1751,22 @@ async function cargarTodo() {
   }
 }
 
+async function cargarPrecios() {
+  if(preciosCargados) return;
+  try {
+    const preciosDocs = await fbGetAll('precios');
+    window.PRECIOS_DINAMICOS = {};
+    preciosDocs.forEach(d => {
+      if(!window.PRECIOS_DINAMICOS[d.tabla]) window.PRECIOS_DINAMICOS[d.tabla] = {};
+      if(!window.PRECIOS_DINAMICOS[d.tabla][d.referencia]) window.PRECIOS_DINAMICOS[d.tabla][d.referencia] = {};
+      window.PRECIOS_DINAMICOS[d.tabla][d.referencia][d.porcentaje] = d.valor;
+    });
+    preciosCargados = true;
+  } catch(e) {
+    console.error('Error cargando precios:', e);
+  }
+}
+
 async function initMSAL() {
   await cargarTodo();
 }
