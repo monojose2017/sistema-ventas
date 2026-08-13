@@ -1648,6 +1648,42 @@ async function agregarFilaExcel(hoja, fila) {
 // =============================================
 // CARGAR TODO DESDE FIREBASE
 // =============================================
+function setEstadoCarga(estado, detalle) {
+  const btn = document.getElementById('btn-conectar');
+  const menuBloqueado = document.getElementById('menu-bloqueado');
+  const menuPrincipal = document.getElementById('menu-principal');
+  if(!btn) return;
+  if(estado === 'cargando') {
+    btn.textContent = '⏳ Conectando con Firebase...';
+    btn.style.background = 'linear-gradient(135deg,#1a3c6e,#2563eb)';
+    btn.style.color = 'white';
+    btn.onclick = null;
+    if(menuBloqueado) menuBloqueado.style.display = 'none';
+    if(menuPrincipal) menuPrincipal.style.display = 'none';
+  } else if(estado === 'ok') {
+    btn.textContent = '✅ Todo cargado — listo para usar';
+    btn.style.background = 'linear-gradient(135deg,#16a34a,#15803d)';
+    btn.style.color = 'white';
+    btn.onclick = null;
+    if(menuBloqueado) menuBloqueado.style.display = 'none';
+    if(menuPrincipal) menuPrincipal.style.display = 'block';
+  } else if(estado === 'error') {
+    btn.textContent = '❌ Error al cargar — toca aqui para reintentar';
+    btn.style.background = 'linear-gradient(135deg,#dc2626,#b91c1c)';
+    btn.style.color = 'white';
+    btn.onclick = () => cargarTodo();
+    if(menuBloqueado) {
+      menuBloqueado.innerHTML = `
+        <div style="font-size:32px;margin-bottom:8px;">❌</div>
+        <div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div>
+        ${detalle ? `<div style="color:#7f1d1d;font-size:12px;margin-top:8px;background:#fee2e2;padding:8px 10px;border-radius:8px;">${detalle}</div>` : ''}
+        <button onclick="cargarTodo()" style="margin-top:14px;padding:10px 24px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Reintentar</button>`;
+      menuBloqueado.style.display = 'block';
+    }
+    if(menuPrincipal) menuPrincipal.style.display = 'none';
+  }
+}
+
 async function cargarTodo() {
   setEstadoCarga('cargando');
   try {
