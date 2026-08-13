@@ -1704,19 +1704,23 @@ async function cargarTodo() {
     // Inventario teléfonos
     window.IMEIS_TODOS_CON_ESTADO = {};
     window.INVENTARIO_REFS = [];
+    window.IMEIS_TODOS = []; // Para selector de ventas
     invDocs.forEach(d => {
       const imei = d.imei?.toString() || '';
       if(!imei) return;
       const estadoM = d.estado_especial?.toString().toUpperCase() || '';
       const estadoG = d.estado?.toString().toUpperCase() || 'DISPONIBLE';
       const estado = estadoM || estadoG;
-      window.IMEIS_TODOS_CON_ESTADO[imei] = {
+      const obj = {
         imei, ref: d.referencia||'', costo: parseFloat(d.costo)||0,
         estado, precio: parseFloat(d.precio_venta)||0,
-        ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'', id: d.id
+        ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'',
+        proveedor: d.proveedor||'', id: d.id
       };
+      window.IMEIS_TODOS_CON_ESTADO[imei] = obj;
       if(estado === 'DISPONIBLE') {
         window.INVENTARIO_REFS.push(`${imei}|${d.referencia}|${d.costo}|${d.precio_venta}`);
+        window.IMEIS_TODOS.push(obj);
       }
     });
     window.INVENTARIO_ACCESORIOS_DATA = accDocs;
@@ -2715,13 +2719,17 @@ async function enviarForm(tipo) {
         const docs = await fbQuery('inventario_telefono', 'imei', '==', nuevoImei);
         if(docs.length > 0) {
           const d = docs[0];
-          window.IMEIS_TODOS_CON_ESTADO[nuevoImei] = {
+          const obj = {
             imei: nuevoImei, ref: d.referencia||'', costo: parseFloat(d.costo)||0,
             estado: 'DISPONIBLE', precio: parseFloat(d.precio_venta)||0,
-            ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'', id: d.id
+            ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'',
+            proveedor: d.proveedor||'', id: d.id
           };
+          window.IMEIS_TODOS_CON_ESTADO[nuevoImei] = obj;
           window.INVENTARIO_REFS = window.INVENTARIO_REFS || [];
           window.INVENTARIO_REFS.push(`${nuevoImei}|${d.referencia}|${d.costo}|${d.precio_venta}`);
+          window.IMEIS_TODOS = window.IMEIS_TODOS || [];
+          window.IMEIS_TODOS.push(obj);
         }
       }
       mostrarExito('inventario');
@@ -3296,6 +3304,8 @@ function renderInventario() {
     const estadoFiltro = document.getElementById('inv-estado-filter')?.value || '';
     const provFiltro = document.getElementById('inv-prov-filter')?.value || '';
     const refFiltro = document.getElementById('inv-ref-filter')?.value || '';
+    console.log('Filtros:', {localFiltro, estadoFiltro, provFiltro, refFiltro, total: items.length});
+    console.log('Primer item:', items[0]);
     if(localFiltro) items = items.filter(i => i.ubicacion === localFiltro);
     if(estadoFiltro) items = items.filter(i => i.estado === estadoFiltro);
     if(provFiltro) items = items.filter(i => i.proveedor === provFiltro);
