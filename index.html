@@ -1621,7 +1621,9 @@ const COLS = {
 function arrayToObj(col, arr) {
   const nombres = COLS[col] || [];
   const obj = {};
-  arr.forEach((v, i) => { if(nombres[i] !== undefined) obj[nombres[i]] = v ?? ''; });
+  arr.forEach((v, i) => {
+    if(nombres[i] !== undefined) obj[nombres[i]] = (v === null || v === undefined) ? '' : v;
+  });
   return obj;
 }
 
