@@ -1713,6 +1713,16 @@ async function cargarTodo() {
       }
     });
     window.INVENTARIO_ACCESORIOS_DATA = accDocs;
+    // Mapear para compatibilidad con el resto del código
+    window.ACCESORIOS_EXCEL = accDocs.map(d => ({
+      local: d.local||'',
+      categoria: d.categoria||'',
+      producto: d.referencia||'',
+      stockActual: parseFloat(d.cantidad)||0,
+      costoUnit: parseFloat(d.costo)||0,
+      precioVenta: parseFloat(d.precio_venta)||0,
+      id: d.id
+    }));
 
     // Config
     window.CONFIG_DATA = {
@@ -2144,6 +2154,7 @@ function calcularCuota(){
   if(!ref || !porc) return;
 
   const porcKey = parseFloat(porc).toFixed(2);
+  const porcKey2 = String(parseFloat(porc)); // "0.2" en vez de "0.20"
 
   // RECOMPRA 30/35/40 → manual
   if(tipo==='RECOMPRA' && ['0.30','0.35','0.40'].includes(porcKey)){
@@ -2152,15 +2163,16 @@ function calcularCuota(){
     return;
   }
 
-  // Usar precios dinámicos del Google Sheets primero, luego los estáticos
+  // Usar precios dinámicos — buscar con ambos formatos de porcentaje
   const tabla = PRECIOS_DINAMICOS[tipo] || PRECIOS[tipo];
-  if(!tabla || !tabla[ref] || !tabla[ref][porcKey]){
+  const refData = tabla?.[ref];
+  const cuota = refData?.[porcKey] || refData?.[porcKey2] || refData?.[parseFloat(porc).toString()];
+  if(!tabla || !refData || !cuota){
     cuotaWrap.classList.remove('hidden');
     aviso.classList.add('visible');
     return;
   }
 
-  const cuota = tabla[ref][porcKey];
   document.getElementById('cuota-valor').textContent = '$' + cuota.toLocaleString('es-CO');
   document.getElementById('cuota-detalle').textContent = ref + ' · ' + (parseFloat(porc)*100) + '%';
   cuotaBox.classList.add('visible');
@@ -2373,32 +2385,65 @@ async function escribirFormulasInventario(imei) {
   return;
 }
 
-async function marcarVendidoExcel(imei, tipoVenta) {
-  if (!imei) return true;
-  for(let intento = 1; intento <= 3; intento++) {
-    try {
-      const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-      if (!inv || !inv.values) {
-        if(intento < 3) await new Promise(r => setTimeout(r, 1000));
-        continue;
-      }
-      for (let i = 1; i < inv.values.length; i++) {
-        if (inv.values[i][0] && inv.values[i][0].toString().trim() === imei.toString().trim()) {
-          const fila = i + 1;
-          const result = await graphPatch(
-            `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${fila}:H${fila}')`,
-            { values: [['VENDIDO', tipoVenta]] }
-          );
-          if(result) return true;
-          break;
+// Helper Firebase para actualizar estado de teléfono por IMEI
+async function fbActualizarEstadoTel(imei, campo, valor) {
+  if(!imei) return false;
+  try {
+    const dato = window.IMEIS_TODOS_CON_ESTADO?.[imei.toString().trim()];
+    if(dato && dato.id) {
+      await fbUpdate('inventario_telefono', dato.id, { [campo]: valor });
+      if(window.IMEIS_TODOS_CON_ESTADO[imei]) {
+        window.IMEIS_TODOS_CON_ESTADO[imei][campo] = valor;
+        if(campo === 'estado_especial') {
+          window.IMEIS_TODOS_CON_ESTADO[imei].estado = valor || window.IMEIS_TODOS_CON_ESTADO[imei].estado;
         }
       }
-    } catch(e) {
-      console.error(`marcarVendido intento ${intento}:`, e);
+      return true;
     }
-    if(intento < 3) await new Promise(r => setTimeout(r, 1000));
+    const docs = await fbQuery('inventario_telefono', 'imei', '==', imei.toString().trim());
+    if(docs.length > 0) {
+      await fbUpdate('inventario_telefono', docs[0].id, { [campo]: valor });
+      return true;
+    }
+    return false;
+  } catch(e) {
+    console.error('fbActualizarEstadoTel error:', e);
+    return false;
   }
-  return false;
+}
+
+async function marcarVendidoExcel(imei, tipoVenta) {
+  if(!imei) return true;
+  try {
+    // Buscar en IMEIS_TODOS_CON_ESTADO que se cargó de Firebase
+    const dato = window.IMEIS_TODOS_CON_ESTADO?.[imei.toString().trim()];
+    if(dato && dato.id) {
+      await fbUpdate('inventario_telefono', dato.id, {
+        estado: 'VENDIDO',
+        tipo_venta: tipoVenta
+      });
+      // Actualizar memoria local
+      if(window.IMEIS_TODOS_CON_ESTADO[imei]) {
+        window.IMEIS_TODOS_CON_ESTADO[imei].estado = 'VENDIDO';
+      }
+      // Quitar del inventario disponible
+      window.INVENTARIO_REFS = (window.INVENTARIO_REFS||[]).filter(r => !r.startsWith(imei+'|'));
+      return true;
+    }
+    // Si no tiene id, buscar en Firebase
+    const docs = await fbQuery('inventario_telefono', 'imei', '==', imei.toString().trim());
+    if(docs.length > 0) {
+      await fbUpdate('inventario_telefono', docs[0].id, {
+        estado: 'VENDIDO',
+        tipo_venta: tipoVenta
+      });
+      return true;
+    }
+    return false;
+  } catch(e) {
+    console.error('marcarVendido error:', e);
+    return false;
+  }
 }
 
 async function eliminarUltimaFilaVenta(hoja) {
@@ -2969,19 +3014,24 @@ async function ejecutarEliminarTelefono() {
 
   if(!imeiAEliminar) return;
   try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    if(!inv || !inv.values) { alert('❌ Error'); return; }
-    for(let i=1; i<inv.values.length; i++) {
-      if(inv.values[i][0]?.toString() === imeiAEliminar) {
-        // Eliminar la fila
-        await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/TBL_INVENTARIO_TELEFONO/rows/itemAt(index=${i-1})`);
-        await cargarTodo();
-        verInventario();
-        mostrarToastVerde('✅ IMEI eliminado correctamente');
-        return;
-      }
+    const dato = window.IMEIS_TODOS_CON_ESTADO?.[imeiAEliminar];
+    if(dato && dato.id) {
+      await fbDelete('inventario_telefono', dato.id);
+      delete window.IMEIS_TODOS_CON_ESTADO[imeiAEliminar];
+      window.INVENTARIO_REFS = (window.INVENTARIO_REFS||[]).filter(r => !r.startsWith(imeiAEliminar+'|'));
+      verInventario();
+      mostrarToastVerde('✅ IMEI eliminado correctamente');
+      return;
     }
-    alert('❌ IMEI no encontrado');
+    // Buscar en Firebase
+    const docs = await fbQuery('inventario_telefono', 'imei', '==', imeiAEliminar);
+    if(docs.length > 0) {
+      await fbDelete('inventario_telefono', docs[0].id);
+      verInventario();
+      mostrarToastVerde('✅ IMEI eliminado correctamente');
+    } else {
+      alert('❌ IMEI no encontrado');
+    }
   } catch(e) {
     alert('❌ Error al eliminar');
     console.error(e);
@@ -3058,18 +3108,21 @@ async function guardarEdicionTelefono() {
   const proveedor = document.getElementById('edit-tel-proveedor').value;
   const ubicacion = document.getElementById('edit-tel-ubicacion').value;
   try {
-    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='B${editTelRowIndex}:C${editTelRowIndex}')`, { values: [[ref, costo]] });
-    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='E${editTelRowIndex}')`, { values: [[proveedor]] });
-    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='J${editTelRowIndex}')`, { values: [[ubicacion]] });
-    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='K${editTelRowIndex}')`, { values: [[precioVenta]] });
-    // Restaurar botón ANTES de redirigir
+    // editTelRowIndex ahora es el ID de Firebase
+    await fbUpdate('inventario_telefono', editTelRowIndex, {
+      referencia: ref, costo, precio_venta: precioVenta,
+      proveedor, ubicacion
+    });
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
-    // Actualizar datos locales inmediatamente
-    const tel = window.IMEIS_TODOS_CON_ESTADO.find(i => i.rowIndex === editTelRowIndex);
-    if(tel) { tel.ref = ref; tel.costo = costo; tel.precioVenta = precioVenta; tel.proveedor = proveedor; tel.ubicacion = ubicacion; }
+    // Actualizar memoria local
+    const imei = Object.keys(window.IMEIS_TODOS_CON_ESTADO||{}).find(k => window.IMEIS_TODOS_CON_ESTADO[k].id === editTelRowIndex);
+    if(imei && window.IMEIS_TODOS_CON_ESTADO[imei]) {
+      window.IMEIS_TODOS_CON_ESTADO[imei].ref = ref;
+      window.IMEIS_TODOS_CON_ESTADO[imei].costo = costo;
+      window.IMEIS_TODOS_CON_ESTADO[imei].precio = precioVenta;
+    }
     editTelRowIndex = null;
     mostrarExito('ver-inventario');
-    cargarTodo(); // Recarga en segundo plano
   } catch(e) {
     alert('❌ Error al guardar');
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
@@ -3366,20 +3419,12 @@ async function actualizarPrecioTelefono() {
   if(btn) { btn.textContent = 'Actualizando...'; btn.disabled = true; }
   const imei = val.split('|')[0];
   try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    if(!inv || !inv.values) { alert('❌ Error'); return; }
-    for(let i=1; i<inv.values.length; i++) {
-      if(inv.values[i][0] && inv.values[i][0].toString() === imei) {
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='K${i+1}')`, { values: [[precioNuevo]] });
-        await cargarTodo();
-        mostrarExito('cambiar-precios');
-        return;
-      }
-    }
-    alert('❌ IMEI no encontrado');
+    await fbActualizarEstadoTel(imei, 'precio_venta', precioNuevo);
+    if(window.IMEIS_TODOS_CON_ESTADO[imei]) window.IMEIS_TODOS_CON_ESTADO[imei].precio = precioNuevo;
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
-  } catch(e) { 
-    alert('❌ Error al actualizar'); 
+    mostrarExito('cambiar-precios');
+  } catch(e) {
+    alert('❌ Error al actualizar');
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
   }
 }
@@ -3943,25 +3988,9 @@ async function anularCredito() {
       console.log('Respuesta patch:', JSON.stringify(r));
     }
 
-    // 2. Liberar IMEI en INVENTARIO_TELEFONO
-    // Columnas: A=IMEI, B=REFERENCIA, C=COSTO, D=FECHA, E=PROVEEDOR, F=ORIGEN, G=ESTADO(col 7), H=TIPO_VENTA(col 8)
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    let filaImei = -1;
-    if(inv && inv.values) {
-      for(let i=1; i<inv.values.length; i++) {
-        if(!inv.values[i][0]) continue; // saltar filas vacías
-        if(inv.values[i][0].toString().trim() === imei.trim()) {
-          filaImei = i+1; // i=1 → fila 2 en Excel
-          console.log('IMEI encontrado en inventario, filaExcel='+filaImei);
-          break;
-        }
-      }
-    }
-
-    if(filaImei > 0) {
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='G${filaImei}')`, { values: [['DISPONIBLE']] });
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${filaImei}')`, { values: [['']] });
-    }
+    // 2. Liberar IMEI en inventario Firebase
+    await fbActualizarEstadoTel(imei, 'estado', 'DISPONIBLE');
+    await fbActualizarEstadoTel(imei, 'estado_especial', '');
 
     // Eliminar de LIQUIDACIONES si existe
     const liq = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
@@ -4086,49 +4115,36 @@ async function cargarRegistros() {
   document.getElementById('reg-totales').style.display = 'none';
 
   try {
-    const hoja = regTipo === 'ingresos' ? 'INGRESOS_GERENCIA' : 'EGRESOS_GERENCIA';
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
+    const esIngreso = regTipo === 'ingresos';
+    const col = esIngreso ? 'ingresos_gerencia' : 'egresos_gerencia';
+    const docs = await fbGetAll(col);
     document.getElementById('reg-loading').style.display = 'none';
 
-    if(!data || !data.values || data.values.length <= 1) {
+    if(!docs || docs.length === 0) {
       document.getElementById('reg-lista').innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:600;">No hay registros en este período</div>';
       return;
     }
 
-    const esIngreso = regTipo === 'ingresos';
     regDatosCompletos = [];
-
-    for(let i = 1; i < data.values.length; i++) {
-      const r = data.values[i];
-      if(!r[0]) continue;
-      let fechaStr = '', fechaComp = '';
-      if(typeof r[0] === 'number') {
-        const d = new Date(Math.round((r[0] - 25569) * 86400 * 1000));
-        d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
-        fechaStr = d.toLocaleDateString('es-CO');
-        fechaComp = d.toISOString().split('T')[0];
-      } else {
-        fechaStr = r[0].toString();
-        fechaComp = r[0].toString();
-      }
+    for(const d of docs) {
+      if(!d.fecha) continue;
+      const fechaComp = d.fecha.toString().substring(0,10);
       if(fechaComp < desde || fechaComp > hasta) continue;
+      const fechaStr = new Date(fechaComp+'T12:00:00').toLocaleDateString('es-CO');
 
       if(esIngreso) {
-        // FECHA, TIPO, PROVEEDOR, DESCRIPCION, LOCAL, VALOR, METODO_PAGO, EFECTIVO, TRANSFERENCIA
         regDatosCompletos.push({
-          fecha: fechaStr, fechaComp,
-          tipo: r[1]||'', proveedor: r[2]||'', desc: r[3]||'',
-          local: r[4]||'', valor: parseFloat(r[5])||0,
-          metodo: r[6]||'', efectivo: parseFloat(r[7])||0, transfer: parseFloat(r[8])||0
+          fecha: fechaStr, fechaComp, id: d.id,
+          tipo: d.tipo||'', proveedor: d.proveedor||'', desc: d.concepto||'',
+          local: d.local||'', valor: parseFloat(d.valor)||0,
+          metodo: d.metodo_pago||'', efectivo: parseFloat(d.efectivo)||0,
+          transfer: parseFloat(d.transferencia)||0
         });
       } else {
-        // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO_PAGO, EFECTIVO, TRANSFERENCIA, CONTROL, RESPONSABLE
         regDatosCompletos.push({
-          fecha: fechaStr, fechaComp,
-          tipo: r[1]||'', cat: r[2]||'', desc: r[3]||'',
-          local: r[4]||'', valor: parseFloat(r[5])||0,
-          metodo: r[6]||'', efectivo: parseFloat(r[7])||0, transfer: parseFloat(r[8])||0,
-          resp: r[10]||''
+          fecha: fechaStr, fechaComp, id: d.id,
+          concepto: d.concepto||'', valor: parseFloat(d.valor)||0,
+          metodo: d.metodo_pago||'', resp: d.responsable||''
         });
       }
     }
@@ -4541,15 +4557,7 @@ async function registrarPrestamoSaliente() {
   const imei=prestamoTelefonoActual.imei;
   const observacion=`PRESTADO A: ${aQuien}${obs?' — '+obs:''} | ${tipoPrestamo==='OFICINA'?'No reponen':'Deben reponer'}`;
   try {
-    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    for(let i=1;i<inv.values.length;i++){
-      const r=inv.values[i];
-      if(r[0]&&r[0].toString().trim()===imei){
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['PRESTADO']]});
-        break;
-      }
-    }
-    await cargarTodo();
+    await fbActualizarEstadoTel(imei, 'estado_especial', 'PRESTADO');
     mostrarToastVerde('✅ Préstamo registrado correctamente');
     document.getElementById('ps-imei').value='';document.getElementById('ps-info').style.display='none';
     document.getElementById('ps-campos').style.display='none';document.getElementById('ps-a-quien').value='';
@@ -4602,17 +4610,8 @@ async function enviarGarantia() {
   const obs=document.getElementById('genv-obs').value.trim();
   if(!motivo){alert('⚠️ Indica el motivo');return;}
   const imei=garantiaTelefonoActual.imei;
-  const observacion=`GARANTÍA: ${motivo}${obs?' — '+obs:''}`;
   try {
-    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    for(let i=1;i<inv.values.length;i++){
-      const r=inv.values[i];
-      if(r[0]&&r[0].toString().trim()===imei){
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['EN GARANTIA']]});
-        break;
-      }
-    }
-    await cargarTodo();
+    await fbActualizarEstadoTel(imei, 'estado_especial', 'EN GARANTIA');
     mostrarToastVerde('✅ Teléfono enviado a garantía');
     document.getElementById('genv-imei').value='';document.getElementById('genv-info').style.display='none';
     document.getElementById('genv-campos').style.display='none';garantiaTelefonoActual=null;irA('garantia');
@@ -4647,20 +4646,10 @@ function seleccionarRecuperar(idx) {
 
 async function recuperarGarantia() {
   if(!garantiaRecuperarActual){alert('⚠️ Selecciona un teléfono');return;}
-  const obs=document.getElementById('grec-obs').value.trim();
   const imei=garantiaRecuperarActual.imei;
   try {
-    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    for(let i=1;i<inv.values.length;i++){
-      const r=inv.values[i];
-      if(r[0]&&r[0].toString().trim()===imei){
-        const obsActual=r[7]?r[7].toString():'';
-        const nuevaObs=obs?`${obsActual} | RECUPERADO: ${obs}`:`${obsActual} | RECUPERADO`;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['']]});
-        break;
-      }
-    }
-    await cargarTodo();
+    await fbActualizarEstadoTel(imei, 'estado_especial', '');
+    await fbActualizarEstadoTel(imei, 'estado', 'DISPONIBLE');
     mostrarToastVerde('✅ Teléfono recuperado y disponible para vender');
     garantiaRecuperarActual=null;
     document.getElementById('grec-lista').style.display='block';
@@ -4691,19 +4680,17 @@ async function ejecutarCambioImei() {
   const imeiMalo=cambioImeiFila.imei;
   const hoy=fechaHoyLocal();
   try {
-    const inv=await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/usedRange`);
-    for(let i=1;i<inv.values.length;i++){
-      const r=inv.values[i];
-      if(r[0]&&r[0].toString().trim()===imeiMalo){
-        const obsGarantia=`CAMBIO IMEI: ${motivo}${obs?' — '+obs:''} | IMEI nuevo: ${imeiNuevo}`;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_TELEFONO/range(address='M${i+1}')`,{values:[['EN GARANTIA']]});
-        break;
-      }
-    }
+    // Marcar IMEI malo como EN GARANTIA
+    await fbActualizarEstadoTel(imeiMalo, 'estado_especial', 'EN GARANTIA');
+    // Agregar nuevo IMEI al inventario
     const obsNuevo=`CAMBIO DE IMEI — reemplaza: ${imeiMalo} | ${motivo}`;
-    const filaNueva=[imeiNuevo,cambioImeiFila.ref,cambioImeiFila.costo,hoy,cambioImeiFila.proveedor,obsNuevo,'VENDIDO','CAMBIO IMEI','',cambioImeiFila.ubicacion,cambioImeiFila.precioVenta||0,'',''];
-    await agregarFilaExcel('INVENTARIO_TELEFONO',filaNueva);
-    await cargarTodo();
+    await fbAdd('inventario_telefono', {
+      imei: imeiNuevo, referencia: cambioImeiFila.ref, costo: cambioImeiFila.costo,
+      fecha_ingreso: hoy, proveedor: cambioImeiFila.proveedor||'',
+      origen: obsNuevo, estado: 'VENDIDO', tipo_venta: 'CAMBIO IMEI',
+      ubicacion: cambioImeiFila.ubicacion||'', precio_venta: cambioImeiFila.precio||0,
+      estado_especial: ''
+    });
     mostrarToastVerde('✅ Cambio de IMEI registrado correctamente');
     ['ci-imei-malo','ci-imei-nuevo','ci-motivo','ci-obs'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('ci-info-malo').style.display='none';
@@ -4899,24 +4886,41 @@ async function setTablaActual(hoja) {
     btn.style.color = t === hoja ? 'white' : '#7c3aed';
   });
 
-  // Siempre recargar para asegurar datos frescos
   document.getElementById('tablas-loading').style.display = 'block';
   document.getElementById('tablas-contenido').innerHTML = '';
 
   try {
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-    console.log(`Tabla ${hoja}:`, data?.values?.length, 'filas');
-    if(data?.values?.length > 1) {
-      tablaDatos[hoja] = data;
-    } else {
+    // Leer precios de Firebase
+    const docs = await fbQuery('precios', 'tabla', '==', hoja);
+    
+    if(docs.length === 0) {
       tablaDatos[hoja] = null;
+      document.getElementById('tablas-loading').style.display = 'none';
+      renderTabla(hoja);
+      return;
     }
+
+    // Convertir a formato values[][] compatible con renderTabla
+    const refs = [...new Set(docs.map(d => d.referencia))].sort();
+    const porcs = [...new Set(docs.map(d => d.porcentaje))].sort();
+    
+    const headers = ['REFERENCIA', ...porcs];
+    const rows = refs.map(ref => {
+      const row = [ref];
+      porcs.forEach(p => {
+        const doc = docs.find(d => d.referencia === ref && d.porcentaje === p);
+        row.push(doc ? doc.valor : 0);
+      });
+      return row;
+    });
+
+    tablaDatos[hoja] = { values: [headers, ...rows], docs };
     document.getElementById('tablas-loading').style.display = 'none';
     renderTabla(hoja);
   } catch(e) {
     console.error('Error cargando tabla', hoja, e);
     document.getElementById('tablas-loading').style.display = 'none';
-    document.getElementById('tablas-contenido').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error cargando ${hoja}: ${e.message}</div>`;
+    document.getElementById('tablas-contenido').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
 }
 
@@ -6563,59 +6567,35 @@ async function cargarReportes() {
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
   const fmtColor = n => `<span style="font-weight:800;color:${n>=0?'#16a34a':'#dc2626'}">${n>=0?'+':''}${fmt(n)}</span>`;
 
-  const fetchConReintento = async (hoja) => {
-    for(let i=0;i<3;i++) {
-      const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-      if(d && d.values) return d;
-      await new Promise(r=>setTimeout(r,800));
-    }
-    return null;
+  const fetchConReintento = async (col) => {
+    const docs = await fbGetAll(col);
+    return docs;
   };
 
   try {
-    const [control, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqSheet, creditos, deudas, iphoneVentas] = await Promise.all([
-      fetchConReintento('CONTROL'),
-      fetchConReintento('VENTAS_CONTADO'),
-      fetchConReintento('VENTAS_ACCESORIOS'),
-      fetchConReintento('GASTOS_DIARIOS'),
-      fetchConReintento('EGRESOS_GERENCIA'),
-      fetchConReintento('INGRESOS_LOCAL'),
-      fetchConReintento('ABONOS_DEUDAS'),
-      fetchConReintento('LIQUIDACIONES'),
-      fetchConReintento('VENTAS_CREDITOS'),
-      fetchConReintento('DEUDAS'),
-      fetchConReintento('VENTAS_IPHONE')
+    const [creditos, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqDocs, deudas, iphoneVentas] = await Promise.all([
+      fetchConReintento('ventas_creditos'),
+      fetchConReintento('ventas_contado'),
+      fetchConReintento('ventas_accesorios'),
+      fetchConReintento('gastos_diarios'),
+      fetchConReintento('egresos_gerencia'),
+      fetchConReintento('ingresos_local'),
+      fetchConReintento('abonos_deudas'),
+      fetchConReintento('liquidaciones'),
+      fetchConReintento('deudas'),
+      fetchConReintento('ventas_iphone')
     ]);
 
-    // Mapa acreedor → propósito (columna K = índice 10)
+    const enRango = f => { if(!f) return false; const s = f.toString().substring(0,10); return s >= desde && s <= hasta; };
+
+    // Mapa acreedor → propósito
     const propositoDeuda = {};
-    if(deudas?.values?.length > 1) {
-      for(let i=1;i<deudas.values.length;i++) {
-        const r = deudas.values[i];
-        if(r[1]) propositoDeuda[r[1].toString().trim()] = r[10]?.toString()||'OPERATIVA';
-      }
-    }
+    deudas.forEach(d => { if(d.acreedor) propositoDeuda[d.acreedor.trim()] = d.proposito||'OPERATIVA'; });
 
-    const fmtFecha = f => {
-      if(!f) return '';
-      if(typeof f === 'number') {
-        const d = new Date(Math.round((f-25569)*86400*1000));
-        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-        return d.toISOString().split('T')[0];
-      }
-      return f.toString().substring(0,10);
-    };
-
-    const enRango = f => { const s = fmtFecha(f); return s >= desde && s <= hasta; };
     const liqMap = {};
-    if(liqSheet?.values?.length > 1) {
-      for(let i=1;i<liqSheet.values.length;i++) {
-        const r = liqSheet.values[i];
-        if(r[0]) liqMap[r[0].toString().trim()] = parseFloat(r[6])||0;
-      }
-    }
+    liqDocs.forEach(d => { if(d.imei) liqMap[d.imei.trim()] = parseFloat(d.pago_financiera)||0; });
 
-    const LOCALES = window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'];
+    const LOCALES = window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA'];
     const datos = {};
     LOCALES.forEach(l => datos[l] = {
       utilCredito:0, utilContado:0, utilAccesorios:0, utilIphone:0,
@@ -6624,166 +6604,104 @@ async function cargarReportes() {
       sinLiquidar:[]
     });
 
-    // CONTROL → utilidad crédito por local
-    // Columnas: A=FECHA(0), B=LOCAL(1), ... T=UTILIDAD(19), N=ESTADO(13)
-    if(control?.values?.length > 1) {
-      for(let i=1;i<control.values.length;i++) {
-        const r = control.values[i];
-        if(!enRango(r[0])) continue;
-        if(r[13]==='ANULADO') continue;
-        const local = r[1]?.toString()||'';
-        if(!datos[local]) continue;
-        const util = parseFloat(r[19])||0;
-        // Verificar si la utilidad está calculada (no es 0 ni vacía)
-        if(util !== 0) {
-          datos[local].utilCredito += util;
-          datos[local].ventasCredito++;
-        } else {
-          // Puede ser venta sin liquidar
-          const imei = r[4]?.toString().trim()||'';
-          const tipo = r[2]?.toString()||'';
-          const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
-          if(tiposLiquidables.includes(tipo) && !liqMap[imei]) {
-            datos[local].sinLiquidar.push({ ref:r[3]||'', imei, tipo, fecha:fmtFecha(r[0]) });
-          } else {
-            datos[local].utilCredito += util;
-            datos[local].ventasCredito++;
-          }
-        }
+    // VENTAS_CREDITOS → utilidad crédito (calculada al registrar)
+    creditos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      if(d.estado === 'ANULADO') return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      const util = parseFloat(d.utilidad)||0;
+      const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
+      if(util !== 0) {
+        datos[local].utilCredito += util;
+        datos[local].ventasCredito++;
+      } else if(tiposLiquidables.includes(d.tipo) && !liqMap[d.imei]) {
+        datos[local].sinLiquidar.push({ ref:d.referencia||'', imei:d.imei||'', tipo:d.tipo||'', fecha:d.fecha||'' });
+      } else {
+        datos[local].utilCredito += util;
+        datos[local].ventasCredito++;
       }
-    }
+    });
 
     // VENTAS_CONTADO → utilidad contado
-    if(contado?.values?.length > 1) {
-      for(let i=1;i<contado.values.length;i++) {
-        const r = contado.values[i];
-        if(!enRango(r[0])) continue;
-        const local = r[1]?.toString()||'';
-        if(!datos[local]) continue;
-        datos[local].utilContado += parseFloat(r[6])||0;
-        datos[local].ventasContado++;
-      }
-    }
+    contado.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      datos[local].utilContado += parseFloat(d.utilidad)||0;
+      datos[local].ventasContado++;
+    });
 
     // VENTAS_ACCESORIOS → utilidad accesorios
-    if(accesorios?.values?.length > 1) {
-      for(let i=1;i<accesorios.values.length;i++) {
-        const r = accesorios.values[i];
-        if(!enRango(r[0])) continue;
-        const local = r[1]?.toString()||'';
-        if(!datos[local]) continue;
-        datos[local].utilAccesorios += parseFloat(r[12])||0;
-        datos[local].ventasAccesorios++;
-      }
-    }
+    accesorios.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      datos[local].utilAccesorios += parseFloat(d.utilidad)||0;
+      datos[local].ventasAccesorios++;
+    });
 
-    // VENTAS_IPHONE → utilidad neta iPhone (col U = índice 20, estado col V = índice 21)
-    if(iphoneVentas?.values?.length > 1) {
-      for(let i=1;i<iphoneVentas.values.length;i++) {
-        const r = iphoneVentas.values[i];
-        if(!enRango(r[0])) continue;
-        if(r[21] === 'PENDIENTE' || r[21] === 'ANULADA') continue;
-        const local = r[1]?.toString()||'';
-        if(!datos[local]) continue;
-        const util = parseFloat(r[20])||0;
-        if(util !== 0) {
-          datos[local].utilIphone += util;
-          datos[local].ventasIphone++;
-        }
-      }
-    }
+    // VENTAS_IPHONE → utilidad iPhone
+    iphoneVentas.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      if(d.estado === 'PENDIENTE' || d.estado === 'ANULADA') return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      const util = parseFloat(d.utilidad_neta)||0;
+      if(util !== 0) { datos[local].utilIphone += util; datos[local].ventasIphone++; }
+    });
 
-    // INGRESOS_LOCAL → ingresos adicionales
-    if(ingresosLoc?.values?.length > 1) {
-      for(let i=1;i<ingresosLoc.values.length;i++) {
-        const r = ingresosLoc.values[i];
-        if(!enRango(r[0])) continue;
-        const local = r[1]?.toString()||'';
-        if(!datos[local]) continue;
-        datos[local].ingresosAdicionales += parseFloat(r[4])||0;
-      }
-    }
+    // GASTOS_DIARIOS
+    gastos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      datos[local].gastosDiarios += parseFloat(d.valor)||0;
+    });
 
-    // GASTOS_DIARIOS → gastos por local
-    if(gastos?.values?.length > 1) {
-      for(let i=1;i<gastos.values.length;i++) {
-        const r = gastos.values[i];
-        if(!enRango(r[0])) continue;
-        const local = r[1]?.toString()||'';
-        if(!datos[local]) continue;
-        datos[local].gastosDiarios += parseFloat(r[4])||0;
-      }
-    }
+    // EGRESOS_GERENCIA
+    egresos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const prop = propositoDeuda[d.concepto?.trim()||''] || 'OPERATIVA';
+      LOCALES.forEach(l => { if(datos[l]) datos[l].egresosOperativos += (parseFloat(d.valor)||0) / LOCALES.length; });
+    });
 
-    // EGRESOS_GERENCIA → solo OPERATIVO con local asignado
-    let egresosGeneral = 0;
-    let abonosGeneral = 0;
-    const detalleEgresosGeneral = [];
+    // INGRESOS_LOCAL
+    ingresosLoc.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      datos[local].ingresosAdicionales += parseFloat(d.valor)||0;
+    });
 
-    if(egresos?.values?.length > 1) {
-      for(let i=1;i<egresos.values.length;i++) {
-        const r = egresos.values[i];
-        if(!enRango(r[0])) continue;
-        const tipo = r[1]?.toString()||'';
-        if(tipo !== 'OPERATIVO') continue; // Solo operativos
-        const local = r[4]?.toString()||'';
-        const valor = parseFloat(r[5])||0;
-        if(local && datos[local]) {
-          datos[local].egresosOperativos += valor;
-        } else {
-          egresosGeneral += valor;
-          detalleEgresosGeneral.push({ fecha:fmtFecha(r[0]), cat:r[2]||'', desc:r[3]||'', valor });
-        }
-      }
-    }
+    // ABONOS_DEUDAS
+    abonosDeudas.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!datos[local]) return;
+      datos[local].abonosDeudas += parseFloat(d.valor)||0;
+    });
 
-    // ABONOS_DEUDAS — solo OPERATIVAS (cruzar con tabla DEUDAS)
-    if(abonosDeudas?.values?.length > 1) {
-      for(let i=1;i<abonosDeudas.values.length;i++) {
-        const r = abonosDeudas.values[i];
-        if(!enRango(r[0])) continue;
-        // Verificar propósito cruzando con DEUDAS
-        const acreedor = r[1]?.toString().trim()||'';
-        const proposito = propositoDeuda[acreedor] || 'OPERATIVA';
-        if(proposito === 'INVENTARIO') continue; // No afecta rentabilidad operativa
-        const local = r[7]?.toString()||'';
-        const valor = parseFloat(r[3])||0;
-        if(local && datos[local]) {
-          datos[local].abonosDeudas += valor;
-        } else {
-          abonosGeneral += valor;
-          detalleEgresosGeneral.push({ fecha:fmtFecha(r[0]), cat:'ABONO DEUDA', desc:r[2]||r[1]||'', valor });
-        }
-      }
-    }
 
     // ---- VENTAS POR LOCAL Y TIPO ----
     const ventasLocales = {};
     LOCALES.forEach(l => ventasLocales[l] = { credito:{}, contado:0 });
 
-    // Créditos por tipo
-    if(creditos?.values?.length > 1) {
-      for(let i=1;i<creditos.values.length;i++) {
-        const r = creditos.values[i];
-        if(!enRango(r[0])) continue;
-        if(r[13]==='ANULADO') continue;
-        const local = r[1]?.toString()||'';
-        const tipo = r[2]?.toString()||'';
-        if(!ventasLocales[local]) continue;
-        ventasLocales[local].credito[tipo] = (ventasLocales[local].credito[tipo]||0) + 1;
-      }
-    }
+    creditos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      if(d.estado === 'ANULADO') return;
+      const local = d.local||'';
+      const tipo = d.tipo||'';
+      if(!ventasLocales[local]) return;
+      ventasLocales[local].credito[tipo] = (ventasLocales[local].credito[tipo]||0) + 1;
+    });
 
-    // Contado por local
-    if(contado?.values?.length > 1) {
-      for(let i=1;i<contado.values.length;i++) {
-        const r = contado.values[i];
-        if(!enRango(r[0])) continue;
-        const local = r[1]?.toString()||'';
-        if(!ventasLocales[local]) continue;
-        ventasLocales[local].contado++;
-      }
-    }
+    contado.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!ventasLocales[local]) return;
+      ventasLocales[local].contado++;
+    });
 
     // Render ventas por local
     // Total general de ventas
