@@ -1745,6 +1745,29 @@ async function cargarTodo() {
 
     setEstadoCarga('ok');
     console.log('✅ Firebase cargado correctamente');
+
+    // Actualizar todos los selectores de local con datos de Firebase
+    const locales = window.CONFIG_LISTAS?.locales || [];
+    if(locales.length > 0) {
+      const selectoresLocal = ['c-local','ct-local','a-local','ga-local','g-local','il-local','ig-local','mr-local'];
+      selectoresLocal.forEach(id => {
+        const sel = document.getElementById(id);
+        if(!sel) return;
+        sel.innerHTML = '<option value="">Seleccionar...</option>';
+        locales.forEach(l => sel.innerHTML += `<option>${l}</option>`);
+      });
+    }
+
+    // Actualizar selectores de responsables
+    const responsables = window.CONFIG_LISTAS?.responsables || [];
+    if(responsables.length > 0) {
+      ['ga-responsable','g-responsable'].forEach(id => {
+        const sel = document.getElementById(id);
+        if(!sel) return;
+        sel.innerHTML = '<option value="">Seleccionar...</option>';
+        responsables.forEach(r => sel.innerHTML += `<option>${r}</option>`);
+      });
+    }
   } catch(e) {
     console.error('Error Firebase:', e);
     setEstadoCarga('error', 'Error conectando: ' + e.message);
