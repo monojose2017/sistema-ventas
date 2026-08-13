@@ -2703,6 +2703,22 @@ async function enviarForm(tipo) {
         await escribirFormulasInventario(window._pendingFormulaIMEI);
         window._pendingFormulaIMEI = null;
       }
+      // Actualizar memoria con el nuevo teléfono
+      const nuevoImei = fila[0]?.toString();
+      if(nuevoImei && window.IMEIS_TODOS_CON_ESTADO) {
+        // Buscar en Firebase el doc recién creado para obtener su id
+        const docs = await fbQuery('inventario_telefono', 'imei', '==', nuevoImei);
+        if(docs.length > 0) {
+          const d = docs[0];
+          window.IMEIS_TODOS_CON_ESTADO[nuevoImei] = {
+            imei: nuevoImei, ref: d.referencia||'', costo: parseFloat(d.costo)||0,
+            estado: 'DISPONIBLE', precio: parseFloat(d.precio_venta)||0,
+            ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'', id: d.id
+          };
+          window.INVENTARIO_REFS = window.INVENTARIO_REFS || [];
+          window.INVENTARIO_REFS.push(`${nuevoImei}|${d.referencia}|${d.costo}|${d.precio_venta}`);
+        }
+      }
       mostrarExito('inventario');
     } else if(tipo === 'ingreso-accesorio') {
       mostrarExito('inventario');
