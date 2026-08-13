@@ -1863,16 +1863,10 @@ function irA(s){
 function volver(){irA('inicio');}
 
 // Cargar IMEIs al iniciar
-window.onload = function() {
-  // Cargar IMEIs
-  ['c-imei','ct-imei'].forEach(id => {
-    const sel = document.getElementById(id);
-    if(!sel) return;
-    sel.innerHTML = '<option value="">Seleccionar IMEI disponible...</option>';
-    IMEIS.forEach(i => {
-      sel.innerHTML += `<option value="${i.imei}|${i.ref}">${i.imei} — ${i.ref}</option>`;
-    });
-  });
+window.onload = async function() {
+  // Inicializar Firebase y cargar datos
+  await initMSAL();
+
   // Poner fecha de hoy en todos los formularios
   const hoy = fechaHoyLocal();
   ['c-fecha','ct-fecha','a-fecha','ga-fecha','g-fecha','il-fecha','ig-fecha','it-fecha','vi-fecha'].forEach(id => {
