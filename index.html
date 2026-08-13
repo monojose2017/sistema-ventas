@@ -3067,6 +3067,8 @@ async function ejecutarEliminarTelefono() {
     const docs = await fbQuery('inventario_telefono', 'imei', '==', imeiAEliminar);
     if(docs.length > 0) {
       await fbDelete('inventario_telefono', docs[0].id);
+      delete window.IMEIS_TODOS_CON_ESTADO[imeiAEliminar];
+      window.INVENTARIO_REFS = (window.INVENTARIO_REFS||[]).filter(r => !r.startsWith(imeiAEliminar+'|'));
       verInventario();
       mostrarToastVerde('✅ IMEI eliminado correctamente');
     } else {
