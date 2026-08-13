@@ -1571,7 +1571,6 @@ const db = firebase.firestore();
 const CLAVE = "0707";
 let msAccount = true; // Siempre conectado con Firebase
 let preciosCargados = false;
-let PRECIOS_DINAMICOS = {};
 let gerenciaAutenticada = false;
 
 // =============================================
@@ -2185,8 +2184,9 @@ function calcularCuota(){
     return;
   }
 
-  // Usar precios dinámicos — buscar con ambos formatos de porcentaje
-  const tabla = PRECIOS_DINAMICOS[tipo] || PRECIOS[tipo];
+  // Usar precios dinámicos de Firebase
+  const PD = window.PRECIOS_DINAMICOS || PRECIOS_DINAMICOS;
+  const tabla = PD[tipo] || PRECIOS[tipo];
   const refData = tabla?.[ref];
   const cuota = refData?.[porcKey] || refData?.[porcKey2] || refData?.[parseFloat(porc).toString()];
   if(!tabla || !refData || !cuota){
