@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Sistema de Ventas</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1047,10 +1048,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <!-- PROVEEDORES -->
     <div id="rep-bloque-proveedores" style="display:none;">
       <div class="rep-seccion">
-        <div class="rep-titulo">🍎 MOVISIM — iPhone Pendiente</div>
-        <div id="rep-prov-movisim-iphone"></div>
-      </div>
-      <div class="rep-seccion">
         <div class="rep-titulo">🏦 COMTEL — ET Claro</div>
         <div id="rep-prov-comtel"></div>
       </div>
@@ -1541,7 +1538,192 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 </div>
 
 <script>
+// =============================================
+// FIREBASE CONFIG
+// =============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyA3VE9M_5Pej2i6E3MRUSaI6kcRq0JpBKo",
+  authDomain: "sistema-ventas-4d5cb.firebaseapp.com",
+  projectId: "sistema-ventas-4d5cb",
+  storageBucket: "sistema-ventas-4d5cb.firebasestorage.app",
+  messagingSenderId: "779472647244",
+  appId: "1:779472647244:web:6fc8cd2bce50fc6eb3f0e9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// =============================================
+// VARIABLES GLOBALES
+// =============================================
 const CLAVE = "0707";
+let msAccount = true; // Siempre conectado con Firebase
+let preciosCargados = false;
+let PRECIOS_DINAMICOS = {};
+let gerenciaAutenticada = false;
+
+// =============================================
+// FIREBASE CRUD
+// =============================================
+async function fbAdd(col, data) {
+  const ref = await db.collection(col).add({...data, _ts: firebase.firestore.FieldValue.serverTimestamp()});
+  return ref.id;
+}
+async function fbGetAll(col) {
+  const snap = await db.collection(col).get();
+  return snap.docs.map(d => ({id: d.id, ...d.data()}));
+}
+async function fbUpdate(col, id, data) {
+  await db.collection(col).doc(id).update(data);
+}
+async function fbDelete(col, id) {
+  await db.collection(col).doc(id).delete();
+}
+async function fbQuery(col, field, op, val) {
+  const snap = await db.collection(col).where(field, op, val).get();
+  return snap.docs.map(d => ({id: d.id, ...d.data()}));
+}
+async function fbSet(col, id, data) {
+  await db.collection(col).doc(id).set(data, {merge: true});
+}
+
+// Mapeo de columnas para guardar datos
+const COLS = {
+  ventas_creditos: ['fecha','local','tipo','referencia','imei','porcentaje','cuota','descuento','cuota_neta','metodo_pago','efectivo','transferencia','estado','activo'],
+  ventas_contado: ['fecha','local','imei','referencia','precio','costo','utilidad','metodo_pago','efectivo','transferencia','estado','tipo_venta'],
+  ventas_accesorios: ['fecha','local','producto','categoria','cantidad','precio_unit','total','costo','utilidad','metodo_pago','efectivo','transferencia','estado'],
+  gastos_diarios: ['fecha','local','tipo','descripcion','valor','metodo_pago','responsable'],
+  egresos_gerencia: ['fecha','concepto','valor','metodo_pago','responsable'],
+  ingresos_local: ['fecha','local','concepto','valor','metodo_pago'],
+  ingresos_gerencia: ['fecha','concepto','valor','metodo_pago'],
+  deudas: ['fecha','acreedor','concepto','valor','estado','local','proposito','vencimiento'],
+  abonos_deudas: ['fecha','deuda_id','valor','metodo_pago','local'],
+  inventario_telefono: ['imei','referencia','costo','fecha_ingreso','proveedor','origen','estado','tipo_venta','alerta','ubicacion','precio_venta','alerta_reposicion','estado_especial'],
+  inventario_accesorios: ['referencia','categoria','cantidad','costo','precio_venta','proveedor','ubicacion','alerta','estado'],
+  liquidaciones: ['imei','referencia','tipo_venta','porcentaje','costo','fecha','pago_financiera','observacion','fecha_actualizacion','costo_claro','valor_sistema'],
+  retiros_caja: ['fecha','local','valor','concepto','responsable'],
+  apertura_caja: ['fecha','local','saldo','responsable'],
+  ventas_iphone: ['fecha','local','referencia','financiera','imei','cedula','nombre','cuota_inicial','metodo_pago','efectivo','transferencia','vs','cuota_sistema','descuento','costo','tipo','comision_trabajadora','porc_encargada','utilidad_bruta','comision_encargada','utilidad_neta','estado','liquidado','pago_financiera']
+};
+
+function arrayToObj(col, arr) {
+  const nombres = COLS[col] || [];
+  const obj = {};
+  arr.forEach((v, i) => { if(nombres[i] !== undefined) obj[nombres[i]] = v ?? ''; });
+  return obj;
+}
+
+// Función principal para guardar registros
+async function agregarFilaExcel(hoja, fila) {
+  const colMap = {
+    'VENTAS_CREDITOS':'ventas_creditos','VENTAS_CONTADO':'ventas_contado',
+    'VENTAS_ACCESORIOS':'ventas_accesorios','GASTOS_DIARIOS':'gastos_diarios',
+    'EGRESOS_GERENCIA':'egresos_gerencia','INGRESOS_LOCAL':'ingresos_local',
+    'INGRESOS_GERENCIA':'ingresos_gerencia','DEUDAS':'deudas',
+    'ABONOS_DEUDAS':'abonos_deudas','INVENTARIO_TELEFONO':'inventario_telefono',
+    'INVENTARIO_ACCESORIOS':'inventario_accesorios','LIQUIDACIONES':'liquidaciones',
+    'RETIROS_CAJA':'retiros_caja','APERTURA_CAJA':'apertura_caja',
+    'VENTAS_IPHONE':'ventas_iphone'
+  };
+  const col = colMap[hoja];
+  if(!col) { console.error('Colección no encontrada:', hoja); return false; }
+  const obj = arrayToObj(col, fila);
+  console.log('Guardando en Firebase:', col, obj);
+  await fbAdd(col, obj);
+  return true;
+}
+
+// =============================================
+// CARGAR TODO DESDE FIREBASE
+// =============================================
+async function cargarTodo() {
+  setEstadoCarga('cargando');
+  try {
+    const [invDocs, accDocs, cfgDocs, preciosDocs] = await Promise.all([
+      fbGetAll('inventario_telefono'),
+      fbGetAll('inventario_accesorios'),
+      fbGetAll('config'),
+      fbGetAll('precios')
+    ]);
+
+    // Inventario teléfonos
+    window.IMEIS_TODOS_CON_ESTADO = {};
+    window.INVENTARIO_REFS = [];
+    invDocs.forEach(d => {
+      const imei = d.imei?.toString() || '';
+      if(!imei) return;
+      const estadoM = d.estado_especial?.toString().toUpperCase() || '';
+      const estadoG = d.estado?.toString().toUpperCase() || 'DISPONIBLE';
+      const estado = estadoM || estadoG;
+      window.IMEIS_TODOS_CON_ESTADO[imei] = {
+        imei, ref: d.referencia||'', costo: parseFloat(d.costo)||0,
+        estado, precio: parseFloat(d.precio_venta)||0,
+        ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'', id: d.id
+      };
+      if(estado === 'DISPONIBLE') {
+        window.INVENTARIO_REFS.push(`${imei}|${d.referencia}|${d.costo}|${d.precio_venta}`);
+      }
+    });
+    window.INVENTARIO_ACCESORIOS_DATA = accDocs;
+
+    // Config
+    window.CONFIG_DATA = {
+      locales:[], ubicaciones:[], proveedores:[], referencias:[],
+      responsables:[], categorias:[], categoriasAcc:[], tipoGastos:[],
+      proveedoresPago:[], referenciasIphone:[]
+    };
+    window.CONFIG_LISTAS = {locales:[]};
+    cfgDocs.forEach(d => {
+      const v = d.valor;
+      if(d.tipo==='local'){window.CONFIG_DATA.locales.push(v);window.CONFIG_LISTAS.locales.push(v);}
+      else if(d.tipo==='ubicacion') window.CONFIG_DATA.ubicaciones.push(v);
+      else if(d.tipo==='proveedor') window.CONFIG_DATA.proveedores.push(v);
+      else if(d.tipo==='referencia') window.CONFIG_DATA.referencias.push(v);
+      else if(d.tipo==='responsable') window.CONFIG_DATA.responsables.push(v);
+      else if(d.tipo==='categoria') window.CONFIG_DATA.categorias.push(v);
+      else if(d.tipo==='categoria_acc') window.CONFIG_DATA.categoriasAcc.push(v);
+      else if(d.tipo==='tipo_gasto') window.CONFIG_DATA.tipoGastos.push(v);
+      else if(d.tipo==='proveedor_pago') window.CONFIG_DATA.proveedoresPago.push(v);
+      else if(d.tipo==='referencia_iphone') window.CONFIG_DATA.referenciasIphone.push(v);
+    });
+
+    // Precios / tablas de cuotas
+    window.PRECIOS_DINAMICOS = {};
+    preciosDocs.forEach(d => {
+      if(!window.PRECIOS_DINAMICOS[d.tabla]) window.PRECIOS_DINAMICOS[d.tabla] = {};
+      if(!window.PRECIOS_DINAMICOS[d.tabla][d.referencia]) window.PRECIOS_DINAMICOS[d.tabla][d.referencia] = {};
+      window.PRECIOS_DINAMICOS[d.tabla][d.referencia][d.porcentaje] = d.valor;
+    });
+
+    setEstadoCarga('ok');
+    console.log('✅ Firebase cargado correctamente');
+  } catch(e) {
+    console.error('Error Firebase:', e);
+    setEstadoCarga('error', 'Error conectando: ' + e.message);
+  }
+}
+
+async function initMSAL() {
+  await cargarTodo();
+}
+
+function actualizarBotonConexion() {}
+async function conectarMicrosoft() {}
+async function getToken() { return 'firebase'; }
+async function iniciarRenovacionToken() {}
+async function iniciarPingExcel() {}
+async function iniciarWorker() {}
+function restaurarColaPendiente() {}
+function mostrarEstadoSync() {}
+function guardarCache() {}
+async function actualizarDesdeOneDrive() {}
+async function descargarExcel() {}
+async function subirExcel() {}
+function leerHoja() { return null; }
+async function graphGet(endpoint) { return null; }
+async function graphPost(endpoint, body) { return null; }
+async function graphPatch(endpoint, body) { return null; }
+async function graphDelete(endpoint) { return false; }
+
 
 const PRECIOS = {
   "OFICINA":{"SAMSUNG A06 128GB /4":{"0.15":70000,"0.20":90000,"0.25":110000,"0.30":150000,"0.35":195000,"0.40":230000},"SAMSUNG A07 128GB /6":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":170000,"0.35":210000,"0.40":250000},"SAMSUNG A16 128/6":{"0.15":80000,"0.20":100000,"0.25":130000,"0.30":180000,"0.35":225000,"0.40":270000},"SAMSUNG A16 256GB":{"0.15":120000,"0.20":175000,"0.25":230000,"0.30":285000,"0.35":340000,"0.40":395000},"SAMSUNG A17 256GB":{"0.15":120000,"0.20":180000,"0.25":240000,"0.30":300000,"0.35":360000,"0.40":420000},"REDMI 15C 128GB/4":{"0.15":100000,"0.20":140000,"0.25":185000,"0.30":220000,"0.35":265000,"0.40":305000},"REDMI 15C 256GB/8":{"0.15":110000,"0.20":155000,"0.25":200000,"0.30":245000,"0.35":290000,"0.40":330000},"REDMI 15 256GB/8":{"0.15":110000,"0.20":180000,"0.25":210000,"0.30":260000,"0.35":310000,"0.40":360000},"REDMI NOTE 14 256GB/8":{"0.15":135000,"0.20":190000,"0.25":245000,"0.30":300000,"0.35":355000,"0.40":410000},"TECNO SPARK GO 2 128GB/4":{"0.15":60000,"0.20":70000,"0.25":90000,"0.30":130000,"0.35":170000,"0.40":205000},"TECNO SPARK GO 2 256GB/4":{"0.15":70000,"0.20":100000,"0.25":130000,"0.30":170000,"0.35":210000,"0.40":250000},"TECNO SPARK GO 3 128GB/4":{"0.15":60000,"0.20":70000,"0.25":100000,"0.30":140000,"0.35":180000,"0.40":220000},"TECNO SPARK 40 256GB/4":{"0.15":70000,"0.20":110000,"0.25":150000,"0.30":190000,"0.35":230000,"0.40":270000},"TECNO SPARK 30 PRO 256GB/8":{"0.15":80000,"0.20":120000,"0.25":170000,"0.30":220000,"0.35":270000,"0.40":320000},"TECNO SPARK 40 PRO 256GB/8":{"0.15":90000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000},"INFINIX SMART 10 256GB/4":{"0.15":60000,"0.20":80000,"0.25":110000,"0.30":150000,"0.35":190000,"0.40":230000},"INFINIX 60I 256GB/4":{"0.15":85000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000},"INFINIX 60I 5G 256GB/8":{"0.15":85000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":330000},"HONOR X6C 256GB/8":{"0.15":80000,"0.20":90000,"0.25":110000,"0.30":130000,"0.35":180000,"0.40":230000},"HONOR PLAY 9C 256GB/6":{"0.15":70000,"0.20":80000,"0.25":90000,"0.30":110000,"0.35":150000,"0.40":200000},"HONOR 200 SMART 5G 256GB/8":{"0.15":90000,"0.20":130000,"0.25":180000,"0.30":230000,"0.35":280000,"0.40":325000},"HONOR 400 SMART 5G 256GB/16":{"0.15":100000,"0.20":145000,"0.25":210000,"0.30":275000,"0.35":340000,"0.40":405000}},
@@ -1916,11 +2098,10 @@ function filtrarAccesorios(){
   found.forEach(a=>{sel.innerHTML+=`<option value="${a.producto}">${a.producto} (Stock: ${a.stock})</option>`;});
 }
 
-let gerenciaAutenticada = false;
 
 function abrirExcelOnline() {
   const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const urlOnline = 'https://onedrive.live.com/personal/4f1600ecf5e10bfd/_layouts/15/Doc.aspx?sourcedoc=%7BC8E07BCB-204A-48B8-A5C9-E9ACF0974507%7D&action=default';
+  const urlOnline = 'https://onedrive.live.com/edit?resid=C8E07BCB204A48B8A5C9E9ACF0974507';
   const urlMovil = 'ms-excel:ofe|u|https://onedrive.live.com/download?resid=C8E07BCB204A48B8A5C9E9ACF0974507';
   const url = esCelular ? urlMovil : urlOnline;
   window.open(url, '_blank');
@@ -2061,14 +2242,7 @@ function validarMixto(prefijo) {
   return true;
 }
 // ===== CONFIGURACIÓN MICROSOFT ONEDRIVE =====
-const MS_CLIENT_ID = '1c3a5663-3ecb-4d9b-bdb6-bec271a857a5';
-const MS_FILE_ID = 'C8E07BCB-204A-48B8-A5C9-E9ACF0974507';
-const MS_SCOPES = ['Files.ReadWrite', 'User.Read'];
-const GRAPH_URL = 'https://graph.microsoft.com/v1.0';
 
-let msalApp = null;
-let msAccount = null;
-let PRECIOS_DINAMICOS = {};
 
 // Inicializar MSAL
 async function initMSAL() {
@@ -2169,212 +2343,88 @@ function mensajeError(tipo) {
   return mensajes[tipo] || '❌ Error desconocido.';
 }
 
-
-// =============================================
-// SISTEMA: SheetJS + Cola de operaciones
-// Los cambios se acumulan y suben en background
-// =============================================
-let WB = null;
-let WB_ETAG = null;
-let WB_COLA = [];        // Cola de cambios pendientes
-let WB_WORKER = null;    // Timer del worker
-let WB_SUBIENDO = false;
-let WB_CAMBIOS_PENDIENTES = 0;
-
-// Mostrar estado de sincronización
-function mostrarEstadoSync(estado, msg) {
-  let el = document.getElementById('sync-status');
-  if(!el) {
-    el = document.createElement('div');
-    el.id = 'sync-status';
-    el.style.cssText = 'position:fixed;bottom:70px;left:0;right:0;text-align:center;font-size:12px;font-weight:700;padding:6px;z-index:8888;transition:all 0.3s;';
-    document.body.appendChild(el);
-  }
-  if(estado === 'ok') {
-    el.style.background = 'transparent';
-    el.textContent = '';
-  } else if(estado === 'guardando') {
-    el.style.background = '#d97706';
-    el.style.color = 'white';
-    el.style.fontSize = '13px';
-    el.style.padding = '8px';
-    const pendientes = WB_COLA.length;
-    el.textContent = `⏳ Guardando${pendientes > 0 ? ' ('+pendientes+' cambio'+(pendientes>1?'s':'')+' pendiente'+(pendientes>1?'s':'')+')' : ''}... NO CERRAR`;
-  } else if(estado === 'listo') {
-    const hora = new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
-    el.style.background = '#16a34a';
-    el.style.color = 'white';
-    el.textContent = `✅ Guardado a las ${hora}`;
-    localStorage.setItem('ultima_sync', hora);
-    setTimeout(() => mostrarEstadoSync('ok'), 3000);
-  } else if(estado === 'error') {
-    el.style.background = '#dc2626';
-    el.style.color = 'white';
-    el.textContent = '⚠️ ' + (msg || 'Reintentando...');
-  } else if(estado === 'cache') {
-    el.style.background = '#0891b2';
-    el.style.color = 'white';
-    const ultimaSync = localStorage.getItem('ultima_sync');
-    el.textContent = ultimaSync ? `📱 Usando datos guardados (últ. sync: ${ultimaSync})` : '📱 Usando datos guardados';
-    setTimeout(() => mostrarEstadoSync('ok'), 5000);
-  }
+async function desbloquearExcel() {
+  try {
+    const token = await getToken();
+    if(!token) return;
+    // Solo cerrar sesiones activas existentes
+    const sesiones = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if(sesiones.ok) {
+      const data = await sesiones.json();
+      if(data.value && data.value.length > 0) {
+        for(const ses of data.value) {
+          await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/sessions/${ses.id}`, {
+            method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+          });
+        }
+        console.log('Sesiones cerradas:', data.value.length);
+      }
+    }
+  } catch(e) { console.log('desbloquearExcel:', e.message); }
 }
+
+// =============================================
+// NUEVO SISTEMA: SheetJS + OneDrive directo
+// Sin sesiones de Excel — sin bloqueos
+// =============================================
+let WB = null;        // Workbook en memoria (SheetJS)
+let WB_ETAG = null;   // eTag del archivo para detectar conflictos
+let WB_SUBIENDO = false; // Evitar subidas simultáneas
 
 async function descargarExcel() {
   const token = await getToken();
   if(!token) throw new Error('Sin token');
-  for(let i = 0; i < 3; i++) {
-    const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if(r.ok) {
-      WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
-      const buffer = await r.arrayBuffer();
-      WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
-      console.log('Excel descargado ✅');
-      return;
-    }
-    if(r.status === 400 || r.status === 423 || r.status === 501) {
-      if(i < 2) {
-        const espera = (i+1)*3;
-        const btn = document.getElementById('btn-conectar');
-        if(btn) btn.textContent = `⏳ Archivo ocupado, reintentando en ${espera}s... (${i+1}/3)`;
-        await new Promise(r => setTimeout(r, espera * 1000));
-        continue;
-      }
-      throw new Error('BLOQUEADO');
-    }
-    throw new Error(`Error descargando Excel: ${r.status}`);
-  }
-}
-
-async function subirExcelInterno() {
-  const token = await getToken();
-  if(!token) throw new Error('Sin token');
-  const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const headers = {
-    'Authorization': 'Bearer ' + token,
-    'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  };
-  if(WB_ETAG) headers['If-Match'] = WB_ETAG;
   const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
-    method: 'PUT', headers, body: blob
+    headers: { 'Authorization': 'Bearer ' + token }
   });
-  if(r.status === 412) {
-    // Conflicto — otro local subió antes
-    console.log('⚠️ Conflicto, descargando versión nueva...');
-    await descargarExcel();
-    // Re-aplicar operaciones pendientes encima de la versión nueva
-    for(const op of WB_COLA) aplicarOperacion(op);
-    return await subirExcelInterno();
-  }
   if(r.status === 400 || r.status === 423 || r.status === 501) {
-    throw new Error('BLOQUEADO_SUBIDA');
+    throw new Error('BLOQUEADO');
   }
-  if(!r.ok) throw new Error(`Error subiendo: ${r.status}`);
-  const data = await r.json();
-  WB_ETAG = data.eTag || data['@odata.etag'] || WB_ETAG;
-  console.log('Excel subido ✅');
-}
-
-// Aplicar una operación al WB en memoria
-function aplicarOperacion(op) {
-  const ws = WB.Sheets[op.hoja];
-  if(!ws) return;
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
-  if(op.tipo === 'agregar') {
-    data.push(op.fila);
-  } else if(op.tipo === 'patch') {
-    while(data.length <= op.filaIdx) data.push([]);
-    for(let i = 0; i < op.valores.length; i++) {
-      while(data[op.filaIdx].length <= op.colIdx + i) data[op.filaIdx].push('');
-      data[op.filaIdx][op.colIdx + i] = op.valores[i];
-    }
-  } else if(op.tipo === 'eliminar') {
-    data.splice(op.filaIdx, 1);
-  }
-  WB.Sheets[op.hoja] = XLSX.utils.aoa_to_sheet(data);
-}
-
-// Worker que procesa la cola cada 3 segundos
-async function procesarCola() {
-  if(WB_SUBIENDO || WB_COLA.length === 0) return;
-  WB_SUBIENDO = true;
-  mostrarEstadoSync('guardando', `Guardando ${WB_COLA.length} cambio(s)...`);
-  try {
-    await subirExcelInterno();
-    WB_COLA = []; // Limpiar cola si subió bien
-    WB_CAMBIOS_PENDIENTES = 0;
-    localStorage.removeItem('WB_COLA'); // Limpiar también del localStorage
-    mostrarEstadoSync('listo');
-  } catch(e) {
-    console.log('Worker: error subiendo, reintentará:', e.message);
-    mostrarEstadoSync('error', 'Reintentando...');
-  } finally {
-    WB_SUBIENDO = false;
-  }
-}
-
-function restaurarColaPendiente() {
-  try {
-    const colaGuardada = localStorage.getItem('WB_COLA');
-    if(colaGuardada) {
-      const cola = JSON.parse(colaGuardada);
-      if(cola.length > 0) {
-        console.log(`Restaurando ${cola.length} cambios pendientes...`);
-        for(const op of cola) aplicarOperacion(op);
-        WB_COLA = cola;
-        WB_CAMBIOS_PENDIENTES = cola.length;
-        mostrarEstadoSync('guardando');
-      }
-    }
-  } catch(e) { localStorage.removeItem('WB_COLA'); }
-}
-
-function iniciarWorker() {
-  if(WB_WORKER) clearInterval(WB_WORKER);
-  WB_WORKER = setInterval(procesarCola, 3000);
-
-  // Avisar si hay cambios pendientes al cerrar
-  window.addEventListener('beforeunload', e => {
-    if(WB_COLA.length > 0) {
-      const msg = '⚠️ Hay cambios sin guardar. ¿Seguro que quieres salir?';
-      e.returnValue = msg;
-      return msg;
-    }
-  });
-}
-
-// Encolar un cambio y aplicarlo inmediatamente en memoria
-async function encolarCambio(op) {
-  if(!WB) throw new Error('Excel no cargado');
-  aplicarOperacion(op);
-  WB_COLA.push(op);
-  WB_CAMBIOS_PENDIENTES++;
-  // Guardar cola en localStorage para sobrevivir recargas
-  try { localStorage.setItem('WB_COLA', JSON.stringify(WB_COLA)); } catch(e) {}
-  mostrarEstadoSync('guardando');
+  if(!r.ok) throw new Error(`Error descargando Excel: ${r.status}`);
+  WB_ETAG = r.headers.get('ETag') || r.headers.get('etag') || null;
+  const buffer = await r.arrayBuffer();
+  WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
+  console.log('Excel descargado ✅ eTag:', WB_ETAG);
 }
 
 async function subirExcel() {
-  // Compatibilidad — ahora solo encola
-  await procesarCola();
-}
-
-async function agregarFilaWB(hoja, fila) {
-  if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'agregar', hoja, fila });
-}
-
-async function escribirRangoWB(hoja, filaIdx, colInicio, valores) {
-  if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'patch', hoja, filaIdx, colIdx: colInicio, valores });
-}
-
-async function eliminarFilaWB(hoja, filaIdx) {
-  if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'eliminar', hoja, filaIdx });
+  if(WB_SUBIENDO) {
+    // Esperar a que termine la subida anterior
+    await new Promise(r => {
+      const check = setInterval(() => { if(!WB_SUBIENDO) { clearInterval(check); r(); } }, 200);
+    });
+  }
+  WB_SUBIENDO = true;
+  try {
+    const token = await getToken();
+    if(!token) throw new Error('Sin token');
+    const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const headers = {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+    if(WB_ETAG) headers['If-Match'] = WB_ETAG;
+    const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/content`, {
+      method: 'PUT', headers, body: blob
+    });
+    if(r.status === 412) {
+      // Conflicto — otro local subió antes. Descargar versión nueva y reintentar
+      console.log('⚠️ Conflicto detectado, sincronizando...');
+      mostrarMensajeSincronizando(true);
+      await descargarExcel();
+      mostrarMensajeSincronizando(false);
+      throw new Error('CONFLICT');
+    }
+    if(!r.ok) throw new Error(`Error subiendo Excel: ${r.status}`);
+    const data = await r.json();
+    WB_ETAG = data.eTag || data['@odata.etag'] || WB_ETAG;
+    console.log('Excel subido ✅');
+  } finally {
+    WB_SUBIENDO = false;
+  }
 }
 
 function mostrarMensajeSincronizando(mostrar) {
@@ -2397,7 +2447,7 @@ function leerHoja(hoja) {
   if(!WB) return null;
   const ws = WB.Sheets[hoja];
   if(!ws) return null;
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false, dateNF: 'yyyy-mm-dd' });
   return { values: data };
 }
 
@@ -2427,25 +2477,42 @@ function prepararFila(fila) {
 // Agregar fila al final de una hoja
 async function agregarFilaWB(hoja, fila) {
   if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'agregar', hoja, fila: prepararFila(fila) });
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+  data.push(prepararFila(fila));
+  const wsNuevo = XLSX.utils.aoa_to_sheet(data);
+  WB.Sheets[hoja] = wsNuevo;
+  await subirExcel();
 }
 
 // Escribir valor en celda específica
-async function escribirCeldaWB(hoja, filaIdx, colIdx, valor) {
+async function escribirCeldaWB(hoja, fila, col, valor) {
+  // fila y col son 0-based
   if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'patch', hoja, filaIdx, colIdx, valores: [valor] });
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+  while(data.length <= fila) data.push([]);
+  while(data[fila].length <= col) data[fila].push('');
+  data[fila][col] = valor;
+  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+  await subirExcel();
 }
 
 // Escribir rango de celdas
 async function escribirRangoWB(hoja, filaIdx, colInicio, valores) {
   if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'patch', hoja, filaIdx, colIdx: colInicio, valores });
-}
-
-// Eliminar fila de una hoja
-async function eliminarFilaWB(hoja, filaIdx) {
-  if(!WB) throw new Error('Excel no cargado');
-  await encolarCambio({ tipo: 'eliminar', hoja, filaIdx });
+  const ws = WB.Sheets[hoja];
+  if(!ws) throw new Error(`Hoja ${hoja} no encontrada`);
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+  while(data.length <= filaIdx) data.push([]);
+  for(let i = 0; i < valores.length; i++) {
+    while(data[filaIdx].length <= colInicio + i) data[filaIdx].push('');
+    data[filaIdx][colInicio + i] = valores[i];
+  }
+  WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+  await subirExcel();
 }
 
 // Eliminar fila de una hoja
@@ -2490,12 +2557,17 @@ async function graphGet(endpoint) {
 
 // Compatibilidad — reemplaza graphPatch
 async function graphPatch(endpoint, body) {
+  // Detectar escritura en celda/rango de hoja
   const matchRange = endpoint.match(/\/worksheets\/([^/]+)\/range\(address='([^']+)'\)/);
   if(matchRange && WB) {
     const hoja = decodeURIComponent(matchRange[1]);
-    const addr = matchRange[2];
+    const addr = matchRange[2]; // ej: 'G5' o 'L5:X5'
     const valores = body.values?.[0];
     if(!valores) return null;
+    const ws = WB.Sheets[hoja];
+    if(!ws) return null;
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+    // Parsear dirección
     const parseAddr = a => {
       const m = a.match(/([A-Z]+)(\d+)/);
       if(!m) return null;
@@ -2503,9 +2575,15 @@ async function graphPatch(endpoint, body) {
       const fila = parseInt(m[2]) - 1;
       return { col, fila };
     };
-    const inicio = parseAddr(addr.includes(':') ? addr.split(':')[0] : addr);
+    const [inicio, fin] = addr.includes(':') ? addr.split(':').map(parseAddr) : [parseAddr(addr), parseAddr(addr)];
     if(!inicio) return null;
-    await encolarCambio({ tipo: 'patch', hoja, filaIdx: inicio.fila, colIdx: inicio.col, valores });
+    while(data.length <= inicio.fila) data.push([]);
+    for(let c = 0; c < valores.length; c++) {
+      while(data[inicio.fila].length <= inicio.col + c) data[inicio.fila].push('');
+      data[inicio.fila][inicio.col + c] = valores[c];
+    }
+    WB.Sheets[hoja] = XLSX.utils.aoa_to_sheet(data);
+    await subirExcel();
     return {};
   }
   // Fallback a Graph API
@@ -2679,12 +2757,17 @@ function setEstadoCarga(estado, detalle) {
     btn.style.background = 'linear-gradient(135deg,#dc2626,#b91c1c)';
     btn.style.color = 'white'; btn.style.boxShadow = '0 4px 12px rgba(220,38,38,.3)';
     btn.onclick = reintentarCarga;
+    const esCelular = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const urlExcelOnline = `https://onedrive.live.com/edit?resid=C8E07BCB204A48B8A5C9E9ACF0974507`;
+    const urlDesbloquear = esCelular ? 'ms-excel:ofe|u|https://onedrive.live.com/download?resid=C8E07BCB204A48B8A5C9E9ACF0974507' : urlExcelOnline;
+    const textoDesbloquear = esCelular ? '📱 Abrir Excel en el celular' : '🌐 Abrir Excel Online en PC';
     if(menuBloqueado) menuBloqueado.innerHTML = `
       <div style="font-size:32px;margin-bottom:8px;">❌</div>
       <div style="font-weight:800;color:#dc2626;font-size:15px;">No se pudieron cargar los datos</div>
       ${detalle ? `<div style="color:#7f1d1d;font-size:12px;margin-top:8px;background:#fee2e2;padding:8px 10px;border-radius:8px;word-break:break-all;text-align:left;">${detalle}</div>` : ''}
+      <a href="${urlDesbloquear}" id="btn-desbloquear" onclick="iniciarConteoDesbloqueo()" style="display:block;margin-top:14px;padding:12px;background:#d97706;color:white;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none;text-align:center;" ${esCelular?'':'target="_blank"'}>${textoDesbloquear}</a>
       <div id="conteo-desbloqueo" style="color:#64748b;font-size:13px;margin-top:10px;display:none;font-weight:700;"></div>
-      <button onclick="reintentarCarga()" style="margin-top:14px;padding:10px 24px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Reintentar</button>`;
+      <button onclick="reintentarCarga()" style="margin-top:10px;padding:10px 24px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">🔄 Reintentar</button>`;
     if(menuBloqueado) menuBloqueado.style.display = 'block';
     if(menuPrincipal) menuPrincipal.style.display = 'none';
   }
@@ -2737,8 +2820,20 @@ function iniciarRenovacionToken() {
 
 // Ping cada 20 minutos para mantener el archivo Excel activo y no se bloquee
 function iniciarPingExcel() {
-  // Ya no se usa — el nuevo sistema SheetJS no necesita mantener el archivo activo
-  // El ping a /workbook/worksheets causaba bloqueos del archivo
+  setInterval(async () => {
+    if(!msAccount) return;
+    try {
+      const token = await getToken();
+      if(!token) return;
+      const r = await fetch(`${GRAPH_URL}/me/drive/items/${MS_FILE_ID}/workbook/worksheets`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(r.ok) console.log('Ping Excel ✅ archivo activo');
+      else console.log('Ping Excel falló:', r.status);
+    } catch(e) {
+      console.log('Ping Excel error:', e.message);
+    }
+  }, 20 * 60 * 1000); // cada 20 minutos
 }
 
 async function cargarTodo() {
@@ -2746,96 +2841,9 @@ async function cargarTodo() {
   setEstadoCarga('cargando');
 
   try {
-    // Intentar cargar desde caché primero para abrir rápido
-    const cache = localStorage.getItem('WB_CACHE');
-    if(cache && !WB) {
-      try {
-        const buffer = Uint8Array.from(atob(cache), c => c.charCodeAt(0)).buffer;
-        WB = XLSX.read(buffer, { type: 'array', cellDates: false, cellText: false });
-        console.log('Cargado desde caché ✅');
-        procesarDatosWB();
-        setEstadoCarga('ok');
-        mostrarEstadoSync('cache');
-        if(!window._tokenRenovacionIniciada) {
-          window._tokenRenovacionIniciada = true;
-          iniciarRenovacionToken();
-          iniciarPingExcel();
-          iniciarWorker();
-          restaurarColaPendiente();
-        }
-        // Intentar actualizar desde OneDrive en background
-        actualizarDesdeOneDrive();
-        return;
-      } catch(e) {
-        console.log('Caché inválido, descargando desde OneDrive...');
-        localStorage.removeItem('WB_CACHE');
-      }
-    }
-
-    // Sin caché — descargar desde OneDrive
+    // Descargar el Excel completo una sola vez
     await descargarExcel();
-    // Guardar en caché
-    guardarCache();
-    procesarDatosWB();
-    setEstadoCarga('ok');
-    console.log('Todo cargado desde OneDrive ✅');
-    if(!window._tokenRenovacionIniciada) {
-      window._tokenRenovacionIniciada = true;
-      iniciarRenovacionToken();
-      iniciarPingExcel();
-      iniciarWorker(); restaurarColaPendiente();
-    }
-  } catch(e) {
-    console.error('Error cargando datos:', e);
-    if(e.message === 'BLOQUEADO') {
-      const yaRecargo = sessionStorage.getItem('auto_recargo');
-      if(!yaRecargo) {
-        sessionStorage.setItem('auto_recargo', '1');
-        localStorage.clear();
-        setTimeout(() => location.reload(), 1500);
-        setEstadoCarga('error', 'El archivo estaba bloqueado. Recargando automáticamente...');
-      } else {
-        sessionStorage.removeItem('auto_recargo');
-        setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
-      }
-    } else {
-      setEstadoCarga('error', e.message || e.toString());
-    }
-  }
-}
 
-// Actualizar desde OneDrive en background sin bloquear la app
-async function actualizarDesdeOneDrive() {
-  try {
-    await descargarExcel();
-    guardarCache();
-    procesarDatosWB();
-    console.log('Actualizado desde OneDrive ✅');
-  } catch(e) {
-    console.log('No se pudo actualizar desde OneDrive:', e.message);
-    // Reintentar en 30 segundos
-    setTimeout(actualizarDesdeOneDrive, 30000);
-  }
-}
-
-// Guardar WB en localStorage como caché
-function guardarCache() {
-  try {
-    const buffer = XLSX.write(WB, { type: 'array', bookType: 'xlsx' });
-    const uint8 = new Uint8Array(buffer);
-    let binary = '';
-    const chunkSize = 8192;
-    for(let i = 0; i < uint8.length; i += chunkSize) {
-      binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
-    }
-    localStorage.setItem('WB_CACHE', btoa(binary));
-    console.log('Caché guardado ✅');
-  } catch(e) {
-    console.log('No se pudo guardar caché:', e.message);
-  }
-}
-
-function procesarDatosWB() {
     // Leer hojas desde memoria
     const inv = leerHoja('INVENTARIO_TELEFONO');
     const acc = leerHoja('INVENTARIO_ACCESORIOS');
@@ -2924,16 +2932,22 @@ function procesarDatosWB() {
     }
 
     setEstadoCarga('ok');
-    console.log('Datos procesados ✅');
+    console.log('Todo cargado desde OneDrive ✅');
     if(!window._tokenRenovacionIniciada) {
       window._tokenRenovacionIniciada = true;
       iniciarRenovacionToken();
-      iniciarPingExcel();
-      iniciarWorker();
+      iniciarPingExcel(); // Mantener archivo activo
     }
-} // fin procesarDatosWB
+  } catch(e) {
+    console.error('Error cargando datos:', e);
+    if(e.message === 'BLOQUEADO') {
+      setEstadoCarga('error', 'El archivo Excel está bloqueado. Ábrelo en Excel Online y vuelve a intentar.');
+    } else {
+      setEstadoCarga('error', e.message || e.toString());
+    }
+  }
+}
 
-let preciosCargados = false;
 
 async function cargarPrecios() {
   if(preciosCargados) return;
@@ -4701,26 +4715,6 @@ function getRegFechas() {
   return { desde: fmt(hoy), hasta: fmt(hoy) };
 }
 
-function normalizarFecha(f) {
-  if(!f) return '';
-  // Número serial de Excel
-  if(typeof f === 'number') {
-    const d = new Date(Math.round((f-25569)*86400*1000));
-    d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-    return d.toISOString().split('T')[0];
-  }
-  const s = f.toString().trim();
-  // Ya está en YYYY-MM-DD
-  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
-  // DD/MM/YYYY o DD-MM-YYYY
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  // MM/DD/YYYY
-  const m2 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  if(m2) return s.substring(0,10);
-  return s.substring(0,10);
-}
-
 function fmtFechaExcel(f) {
   if(!f) return '';
   if(typeof f === 'number') {
@@ -4978,7 +4972,15 @@ async function iniciarMisRegistros() {
     const aperturas = WB ? leerHoja('APERTURA_CAJA')     : null;
     const iphoneData= WB ? leerHoja('VENTAS_IPHONE')     : null;
 
-    const fmtFecha = f => normalizarFecha(f);
+    const fmtFecha = f => {
+      if(!f) return '';
+      if(typeof f === 'number') {
+        const d = new Date(Math.round((f-25569)*86400*1000));
+        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+      }
+      return f.toString();
+    };
 
     MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[], iphone:[] };
 
@@ -5912,7 +5914,7 @@ async function cargarVentasIphone() {
     if(data?.values?.length > 1) {
       iphoneVentas = data.values.slice(1).map((r,i) => ({
         idx: i,
-        fecha: normalizarFecha(r[0])||'', local: r[1]||'', ref: r[2]||'', financiera: r[3]||'',
+        fecha: r[0]||'', local: r[1]||'', ref: r[2]||'', financiera: r[3]||'',
         imei: r[4]||'', cedula: r[5]||'', nombre: r[6]||'',
         cuotaInicial: parseFloat(r[7])||0, metodoPago: r[8]||'',
         efectivo: parseFloat(r[9])||0, transfer: parseFloat(r[10])||0,
@@ -6271,7 +6273,7 @@ async function cargarLiquidaciones() {
           const key = normImei(r[0]);
           liquidados[key] = {
             imei: key, ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
-            fecha: normalizarFecha(r[5]), pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
+            fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
             costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
           };
         }
@@ -6294,7 +6296,7 @@ async function cargarLiquidaciones() {
         const cuotaFinal = parseFloat(r[8]) || 0;
         const cuotaSug = parseFloat(r[6]) || 0;
         window.LIQ_PENDIENTES.push({
-          fecha: normalizarFecha(r[0]), local: r[1], tipo, ref: r[3], imei,
+          fecha: r[0], local: r[1], tipo, ref: r[3], imei,
           porc: parseFloat(r[5]) || 0, cuotaFinal, cuotaSug, costo, rowIndex: i+1
         });
       }
@@ -6710,7 +6712,15 @@ function renderProyeccion() {
   const inicioMes = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-01`;
   const hoyStr = fechaHoyLocal();
 
-  const fmtFecha = f => normalizarFecha(f);
+  const fmtFecha = f => {
+    if(!f) return '';
+    if(typeof f === 'number') {
+      const d = new Date(Math.round((f-25569)*86400*1000));
+      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+      return d.toISOString().split('T')[0];
+    }
+    return f.toString().substring(0,10);
+  };
 
   const enMes = f => { const s=fmtFecha(f); return s>=inicioMes && s<=hoyStr; };
   const filtroLocal = r => proyLocalActual==='GENERAL' || r?.toString()===proyLocalActual;
@@ -7028,7 +7038,15 @@ async function cargarReporteProveedores() {
   const loading = document.getElementById('rep-loading');
   if(loading) loading.style.display = 'block';
 
-  const fmtFecha = f => normalizarFecha(f);
+  const fmtFecha = f => {
+    if(!f) return '';
+    if(typeof f === 'number') {
+      const d = new Date(Math.round((f-25569)*86400*1000));
+      d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+      return d.toISOString().split('T')[0];
+    }
+    return f.toString().substring(0,10);
+  };
 
   try {
     const fetchR = async (hoja) => {
@@ -7039,60 +7057,11 @@ async function cargarReporteProveedores() {
       }
       return null;
     };
-    const [liqSheet, control, iphoneVentas] = await Promise.all([fetchR('LIQUIDACIONES'), fetchR('CONTROL'), fetchR('VENTAS_IPHONE')]);
+    const [liqSheet, control] = await Promise.all([fetchR('LIQUIDACIONES'), fetchR('CONTROL')]);
     if(loading) loading.style.display = 'none';
 
     const enSemana = f => { const s=fmtFecha(f); return s>=provSemanaDesde && s<=provSemanaHasta; };
     const enSemanaPayjoy = f => { const s=fmtFecha(f); return s>=provSemanaPayjoyDesde && s<=provSemanaPayjoyHasta; };
-
-    // MOVISIM iPhone — pendientes de liquidar
-    let movIsimTotal = 0;
-    const movisimVentas = [];
-    if(iphoneVentas?.values?.length > 1) {
-      for(let i=1; i<iphoneVentas.values.length; i++) {
-        const r = iphoneVentas.values[i];
-        if(r[21] !== 'COMPLETA') continue; // solo completas
-        if(r[22] === 'SI') continue; // ya liquidadas
-        if(r[3] === 'CONTADO') continue; // contado no aplica
-        const financiera = r[3]?.toString()||'';
-        const vs = parseFloat(r[11])||0;
-        const cuotaSis = parseFloat(r[12])||0;
-        const costo = parseFloat(r[14])||0;
-        const tipo = r[15]?.toString()||'MIO';
-        if(!vs) continue;
-        const vsEf = financiera === 'OME-CREDIT' ? vs * 0.9 : vs;
-        const desc = financiera === 'OME-CREDIT' ? 300000 : 250000;
-        const desembolso = vsEf - cuotaSis;
-        const pagoMovisim = tipo === 'MIO' ? desembolso - desc : desembolso - costo - desc;
-        movIsimTotal += pagoMovisim;
-        movisimVentas.push({
-          fecha: normalizarFecha(r[0]), ref: r[2]||'', imei: r[4]||'',
-          nombre: r[6]||'', financiera, tipo, pagoMovisim
-        });
-      }
-    }
-
-    // Render MOVISIM iPhone
-    const elMovisimIphone = document.getElementById('rep-prov-movisim-iphone');
-    if(elMovisimIphone) {
-      if(movisimVentas.length === 0) {
-        elMovisimIphone.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">Sin iPhones pendientes de pago ✅</div>';
-      } else {
-        elMovisimIphone.innerHTML = `
-          <div style="background:${movIsimTotal>=0?'#dcfce7':'#fee2e2'};border-radius:12px;padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-weight:700;">Total pendiente MOVISIM</span>
-            <span style="font-size:18px;font-weight:900;color:${movIsimTotal>=0?'#16a34a':'#dc2626'};">${fmt(movIsimTotal)}</span>
-          </div>
-          ${movisimVentas.map(v=>`
-            <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:12px;">
-              <div>
-                <div style="font-weight:700;">${v.ref}</div>
-                <div style="color:#64748b;">${v.fecha} · ${v.financiera} · ${v.tipo}${v.nombre?' · '+v.nombre:''}</div>
-              </div>
-              <span style="font-weight:800;color:${v.pagoMovisim>=0?'#16a34a':'#dc2626'};">${fmt(v.pagoMovisim)}</span>
-            </div>`).join('')}`;
-      }
-    }
 
     // COMTEL — ET_CLARO
     let comtelTotal=0, comtelVentas=[];
@@ -7337,7 +7306,15 @@ async function cargarReportes() {
       }
     }
 
-    const fmtFecha = f => normalizarFecha(f);
+    const fmtFecha = f => {
+      if(!f) return '';
+      if(typeof f === 'number') {
+        const d = new Date(Math.round((f-25569)*86400*1000));
+        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+      }
+      return f.toString().substring(0,10);
+    };
 
     const enRango = f => { const s = fmtFecha(f); return s >= desde && s <= hasta; };
     const liqMap = {};
