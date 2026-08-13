@@ -1642,6 +1642,11 @@ async function agregarFilaExcel(hoja, fila) {
   const col = colMap[hoja];
   if(!col) { console.error('Colección no encontrada:', hoja); return false; }
   const obj = arrayToObj(col, fila);
+  // Asegurar que campos numéricos se guarden aunque sean 0
+  if(col === 'inventario_telefono') {
+    obj.costo = parseFloat(obj.costo) || 0;
+    obj.precio_venta = parseFloat(obj.precio_venta) || 0;
+  }
   console.log('Guardando en Firebase:', col, obj);
   await fbAdd(col, obj);
   return true;
