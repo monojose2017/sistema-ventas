@@ -5070,7 +5070,14 @@ function abrirAgregarFila(hoja) {
     <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;">
       <div style="font-weight:800;font-size:15px;margin-bottom:4px;">+ Nueva referencia</div>
       <div style="font-size:12px;color:#64748b;margin-bottom:16px;">${hoja}</div>
-      <div class="field"><label>Referencia</label><input type="text" id="tbl-edit-ref" placeholder="Nombre del teléfono" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;"></div>
+      <div class="field"><label>Referencia</label>
+        <div class="select-wrap">
+          <select id="tbl-edit-ref" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:14px;">
+            <option value="">Seleccionar referencia...</option>
+            ${(window.CONFIG_DATA?.referencias||[]).map(r=>`<option value="${r}">${r}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       ${headers.map((h, j) => `
         <div class="field">
           <label>${fmtPorc(h)}</label>
@@ -6006,16 +6013,29 @@ async function cargarReporteProyeccion() {
   if(loading) loading.style.display = 'block';
 
   try {
-    const fetchR = async (hoja) => {
-      for(let i=0;i<3;i++) {
-        const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-        if(d && d.values) return d;
-        await new Promise(r=>setTimeout(r,800));
-      }
-      return null;
-    };
-    const [control, contado, accesorios, iphoneVentasData] = await Promise.all([fetchR('CONTROL'), fetchR('VENTAS_CONTADO'), fetchR('VENTAS_ACCESORIOS'), fetchR('VENTAS_IPHONE')]);
+    const [creditos, contado, accesorios, iphoneVentasData] = await Promise.all([
+      fbGetAll('ventas_creditos'),
+      fbGetAll('ventas_contado'),
+      fbGetAll('ventas_accesorios'),
+      fbGetAll('ventas_iphone')
+    ]);
     if(loading) loading.style.display = 'none';
+
+    // Convertir a formato compatible con renderProyeccion
+    const control = { values: [['FECHA','LOCAL','TIPO','REF','IMEI','','','','','','','','','ESTADO','','','','','','UTILIDAD'],
+      ...creditos.map(d => [d.fecha,d.local,d.tipo,d.referencia,d.imei,'','','','','','','','',d.estado||'OK','','','','','',parseFloat(d.utilidad)||0])
+    ]};
+    const contadoData = { values: [['FECHA','LOCAL','IMEI','REF','PRECIO','COSTO','UTILIDAD'],
+      ...contado.map(d => [d.fecha,d.local,d.imei,d.referencia,parseFloat(d.precio)||0,parseFloat(d.costo)||0,parseFloat(d.utilidad)||0])
+    ]};
+    const accesoriosData = { values: [['FECHA','LOCAL','CAT','PROD','CANT','PUNIT','TOTAL','PAGO','EF','TR','','COSTO','UTILIDAD'],
+      ...accesorios.map(d => [d.fecha,d.local,d.categoria,d.producto,d.cantidad,d.precio_unit,d.total,d.metodo_pago,d.efectivo,d.transferencia,'',parseFloat(d.costo)||0,parseFloat(d.utilidad)||0])
+    ]};
+    const iphoneData = { values: [['FECHA','LOCAL','REF','FIN','IMEI','','','','','','','','','','','','','','','','UTIL_NETA','ESTADO'],
+      ...iphoneVentasData.map(d => [d.fecha,d.local,d.referencia,d.financiera,d.imei,'','','','','','','','','','','','','','','',parseFloat(d.utilidad_neta)||0,d.estado||'PENDIENTE'])
+    ]};
+
+    window._proyData = { control, contado: contadoData, accesorios: accesoriosData, iphoneVentasData: iphoneData };
 
     // Construir botones de locales
     const LOCALES_PROY = ['GENERAL', ...(window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA','RUTA'])];
@@ -6029,10 +6049,7 @@ async function cargarReporteProyeccion() {
           font-weight:700;cursor:pointer;font-size:12px;">${l==='GENERAL'?'🌐 General':l}</button>
       `).join('');
     }
-
-    window._proyData = { control, contado, accesorios, iphoneVentasData };
     renderProyeccion();
-
   } catch(e) {
     if(loading) loading.style.display = 'none';
     console.error('Error proyeccion:', e);
@@ -6180,35 +6197,26 @@ async function cargarReporteInventario() {
   const loading = document.getElementById('rep-loading');
   if(loading) loading.style.display = 'block';
   try {
-    const fetchR = async (hoja) => {
-      for(let i=0;i<3;i++) {
-        const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-        if(d && d.values) return d;
-        await new Promise(r=>setTimeout(r,800));
-      }
-      return null;
-    };
-    const [invTel, invAcc] = await Promise.all([fetchR('INVENTARIO_TELEFONO'), fetchR('INVENTARIO_ACCESORIOS')]);
+    const [invTelDocs, invAccDocs] = await Promise.all([
+      fbGetAll('inventario_telefono'),
+      fbGetAll('inventario_accesorios')
+    ]);
     if(loading) loading.style.display = 'none';
 
-    // Teléfonos
+    // Teléfonos desde Firebase
     let telDisp=0, costoTel=0, pvpTel=0;
     let telGar=0, telPrest=0, telVend=0;
-    if(invTel?.values?.length > 1) {
-      for(let i=1;i<invTel.values.length;i++) {
-        const r = invTel.values[i];
-        if(!r[0]) continue;
-        const estadoG = (r[6]?.toString()||'').toUpperCase();
-        const estadoM = (r[12]?.toString()||'').toUpperCase();
-        const estado = estadoM || estadoG;
-        const costo = parseFloat(r[2])||0;
-        const pvp = parseFloat(r[10])||0;
-        if(estado === 'DISPONIBLE') { telDisp++; costoTel+=costo; pvpTel+=pvp; }
-        else if(estado === 'EN GARANTIA') telGar++;
-        else if(estado === 'PRESTADO') telPrest++;
-        else if(estado === 'VENDIDO') telVend++;
-      }
-    }
+    invTelDocs.forEach(d => {
+      const estadoM = (d.estado_especial||'').toUpperCase();
+      const estadoG = (d.estado||'').toUpperCase();
+      const estado = estadoM || estadoG;
+      const costo = parseFloat(d.costo)||0;
+      const pvp = parseFloat(d.precio_venta)||0;
+      if(estado === 'DISPONIBLE') { telDisp++; costoTel+=costo; pvpTel+=pvp; }
+      else if(estado === 'EN GARANTIA') telGar++;
+      else if(estado === 'PRESTADO') telPrest++;
+      else if(estado === 'VENDIDO') telVend++;
+    });
 
     document.getElementById('rep-inv-telefono').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -6246,24 +6254,20 @@ async function cargarReporteInventario() {
     // Accesorios
     let accItems=0, costoAcc=0, pvpAcc=0;
     const porCategoria = {};
-    if(invAcc?.values?.length > 1) {
-      for(let i=1;i<invAcc.values.length;i++) {
-        const r = invAcc.values[i];
-        if(!r[0]||!r[2]) continue;
-        const stock = parseInt(r[6])||parseInt(r[3])||0;
-        if(stock <= 0) continue;
-        const costo = parseFloat(r[4])||0;
-        const pvp = parseFloat(r[5])||0;
-        const cat = r[1]?.toString()||'Sin categoría';
-        accItems += stock;
-        costoAcc += stock*costo;
-        pvpAcc += stock*pvp;
-        if(!porCategoria[cat]) porCategoria[cat] = { unidades:0, costo:0, pvp:0 };
-        porCategoria[cat].unidades += stock;
-        porCategoria[cat].costo += stock*costo;
-        porCategoria[cat].pvp += stock*pvp;
-      }
-    }
+    invAccDocs.forEach(d => {
+      const stock = parseFloat(d.cantidad)||0;
+      if(stock <= 0) return;
+      const costo = parseFloat(d.costo)||0;
+      const pvp = parseFloat(d.precio_venta)||0;
+      const cat = d.categoria||'Sin categoría';
+      accItems += stock;
+      costoAcc += stock*costo;
+      pvpAcc += stock*pvp;
+      if(!porCategoria[cat]) porCategoria[cat] = { unidades:0, costo:0, pvp:0 };
+      porCategoria[cat].unidades += stock;
+      porCategoria[cat].costo += stock*costo;
+      porCategoria[cat].pvp += stock*pvp;
+    });
 
     document.getElementById('rep-inv-accesorios').innerHTML = `
       <div style="display:flex;justify-content:space-between;padding:10px;background:#f8fafc;border-radius:10px;margin-bottom:6px;">
@@ -6400,33 +6404,27 @@ async function cargarReporteProveedores() {
   };
 
   try {
-    const fetchR = async (hoja) => {
-      for(let i=0;i<3;i++) {
-        const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-        if(d && d.values) return d;
-        await new Promise(r=>setTimeout(r,800));
-      }
-      return null;
-    };
-    const [liqSheet, control] = await Promise.all([fetchR('LIQUIDACIONES'), fetchR('CONTROL')]);
+    const [liqDocs, creditosDocs, iphoneDocs] = await Promise.all([
+      fbGetAll('liquidaciones'),
+      fbGetAll('ventas_creditos'),
+      fbGetAll('ventas_iphone')
+    ]);
     if(loading) loading.style.display = 'none';
 
+    const fmtFecha = f => f ? f.toString().substring(0,10) : '';
     const enSemana = f => { const s=fmtFecha(f); return s>=provSemanaDesde && s<=provSemanaHasta; };
     const enSemanaPayjoy = f => { const s=fmtFecha(f); return s>=provSemanaPayjoyDesde && s<=provSemanaPayjoyHasta; };
 
-    // COMTEL — ET_CLARO
+    // COMTEL — ET_CLARO desde liquidaciones Firebase
     let comtelTotal=0, comtelVentas=[];
-    if(liqSheet?.values?.length > 1) {
-      for(let i=1;i<liqSheet.values.length;i++) {
-        const r = liqSheet.values[i];
-        if(!enSemana(r[5])) continue; // fecha de la venta
-        if(r[2]?.toString()==='ET_CLARO') {
-          const pago = parseFloat(r[6])||0;
-          comtelTotal += pago;
-          comtelVentas.push({ ref:r[1]||'', imei:r[0]||'', pago });
-        }
+    liqDocs.forEach(d => {
+      if(!enSemana(d.fecha)) return;
+      if(d.tipo_venta === 'ET_CLARO') {
+        const pago = parseFloat(d.pago_financiera)||0;
+        comtelTotal += pago;
+        comtelVentas.push({ ref:d.referencia||'', imei:d.imei||'', pago });
       }
-    }
+    });
 
     document.getElementById('rep-prov-comtel').innerHTML = `
       <div style="display:flex;justify-content:space-between;padding:12px;background:#dbeafe;border-radius:12px;margin-bottom:10px;">
@@ -6441,19 +6439,16 @@ async function cargarReporteProveedores() {
         </div>`).join('')}
       ${comtelVentas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin liquidaciones esta semana</div>':''}`;
 
-    // MOVISIM ET_OFICINA — columna Q de CONTROL (índice 16) + $30.000 comisión por venta
+    // MOVISIM ET_OFICINA — ventas_creditos Firebase
     let movisimEtTotal=0, movisimEtVentas=[];
-    if(control?.values?.length > 1) {
-      for(let i=1;i<control.values.length;i++) {
-        const r = control.values[i];
-        if(!enSemana(r[0])) continue;
-        if(r[13]==='ANULADO') continue;
-        if(r[2]?.toString() !== 'ET_OFICINA') continue;
-        const pago = (parseFloat(r[16])||0) + 30000; // Q + $30.000 comisión
-        movisimEtTotal += pago;
-        movisimEtVentas.push({ ref:r[3]||'', imei:r[4]||'', pago });
-      }
-    }
+    creditosDocs.forEach(d => {
+      if(!enSemana(d.fecha)) return;
+      if(d.estado==='ANULADO') return;
+      if(d.tipo !== 'ET_OFICINA') return;
+      const pago = (parseFloat(d.pago_financiera)||0) + 30000;
+      movisimEtTotal += pago;
+      movisimEtVentas.push({ ref:d.referencia||'', imei:d.imei||'', pago });
+    });
 
     document.getElementById('rep-prov-movisim-et').innerHTML = `
       <div style="display:flex;justify-content:space-between;padding:12px;background:#f0fdf4;border-radius:12px;margin-bottom:10px;">
@@ -6471,50 +6466,41 @@ async function cargarReporteProveedores() {
     // MOVISIM OFICINA, RECOMPRA — diferencia col O (índice 14)
     // ALO_CREDIT, PAYJOY — de LIQUIDACIONES
     const tiposMovisimDif = ['OFICINA','RECOMPRA','ALO_CREDIT'];
-    const tiposLiqProv = ['PAYJOY'];
-
-    // OFICINA, RECOMPRA, ALO_CREDIT — diferencia col O, filtro MENSUAL
     const hoyProv = new Date();
     const inicioMesProv = `${hoyProv.getFullYear()}-${String(hoyProv.getMonth()+1).padStart(2,'0')}-01`;
     const finMesProv = `${hoyProv.getFullYear()}-${String(hoyProv.getMonth()+1).padStart(2,'0')}-${String(new Date(hoyProv.getFullYear(), hoyProv.getMonth()+1, 0).getDate()).padStart(2,'0')}`;
-    const enMesProv = f => { const s=fmtFecha(f); return s>=inicioMesProv && s<=finMesProv; };
+    const enMesProv = f => { const s=f?f.toString().substring(0,10):''; return s>=inicioMesProv && s<=finMesProv; };
 
     const movData = {
       OFICINA:    { dif:0, ventas:[] },
       RECOMPRA:   { dif:0, ventas:[] },
       ALO_CREDIT: { dif:0, ventas:[] }
     };
-    if(control?.values?.length > 1) {
-      for(let i=1;i<control.values.length;i++) {
-        const r = control.values[i];
-        if(!enMesProv(r[0])) continue; // filtro mensual
-        if(r[13]==='ANULADO') continue;
-        const tipo = r[2]?.toString()||'';
-        if(!tiposMovisimDif.includes(tipo)) continue;
-        const dif = parseFloat(r[14])||0;
-        movData[tipo].dif += dif;
-        movData[tipo].ventas.push({ ref:r[3]||'', tipo, dif });
-      }
-    }
+    creditosDocs.forEach(d => {
+      if(!enMesProv(d.fecha)) return;
+      if(d.estado==='ANULADO') return;
+      const tipo = d.tipo||'';
+      if(!tiposMovisimDif.includes(tipo)) return;
+      const dif = parseFloat(d.utilidad)||0;
+      movData[tipo].dif += dif;
+      movData[tipo].ventas.push({ ref:d.referencia||'', tipo, dif });
+    });
 
     const liqData = { PAYJOY:{ total:0, ventas:[] }, ADDI:{ total:0, ventas:[] } };
-    if(liqSheet?.values?.length > 1) {
-      for(let i=1;i<liqSheet.values.length;i++) {
-        const r = liqSheet.values[i];
-        const tipo = r[2]?.toString()||'';
-        if(tipo === 'PAYJOY') {
-          if(!enSemanaPayjoy(r[5])) continue; // martes-lunes
-          const pago = parseFloat(r[6])||0;
-          liqData.PAYJOY.total += pago;
-          liqData.PAYJOY.ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
-        } else if(tipo === 'ADDI') {
-          if(!enSemana(r[5])) continue; // lunes-domingo
-          const pago = parseFloat(r[6])||0;
-          liqData.ADDI.total += pago;
-          liqData.ADDI.ventas.push({ ref:r[1]||'', imei:r[0]||'', pago });
-        }
+    liqDocs.forEach(d => {
+      const tipo = d.tipo_venta||'';
+      if(tipo === 'PAYJOY') {
+        if(!enSemanaPayjoy(d.fecha)) return;
+        const pago = parseFloat(d.pago_financiera)||0;
+        liqData.PAYJOY.total += pago;
+        liqData.PAYJOY.ventas.push({ ref:d.referencia||'', imei:d.imei||'', pago });
+      } else if(tipo === 'ADDI') {
+        if(!enSemana(d.fecha)) return;
+        const pago = parseFloat(d.pago_financiera)||0;
+        liqData.ADDI.total += pago;
+        liqData.ADDI.ventas.push({ ref:d.referencia||'', imei:d.imei||'', pago });
       }
-    }
+    });
 
     // Render helper para diferencia MOVISIM
     const renderMovisimDif = (tipo, data, containerId) => {
@@ -6903,6 +6889,20 @@ async function cargarReportes() {
 
     // ---- RENDER ----
     document.getElementById('rep-loading').style.display = 'none';
+
+    // Variables de egresos generales
+    let egresosGeneral = 0;
+    let abonosGeneral = 0;
+    let detalleEgresosGeneral = [];
+
+    // Egresos gerencia que no tienen local asignado van a general
+    egresos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      egresosGeneral += parseFloat(d.valor)||0;
+      detalleEgresosGeneral.push({
+        fecha: d.fecha, cat: 'EGRESO', desc: d.concepto||'', valor: parseFloat(d.valor)||0
+      });
+    });
 
     // RENTABILIDAD POR LOCAL
     let sumaLocales = 0;
