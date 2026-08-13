@@ -1755,6 +1755,7 @@ async function cargarTodo() {
 
     setEstadoCarga('ok');
     console.log('✅ Firebase cargado correctamente');
+    llenarSelectsDesdeConfig();
 
     // Actualizar todos los selectores de local con datos de Firebase
     const locales = window.CONFIG_LISTAS?.locales || [];
