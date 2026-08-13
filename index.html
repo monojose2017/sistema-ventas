@@ -4315,90 +4315,27 @@ async function iniciarMisRegistros() {
   document.getElementById('mr-sin-filtro').style.display = 'none';
 
   try {
-    // Leer directamente desde memoria (WB ya está descargado)
-    const creditos  = WB ? leerHoja('VENTAS_CREDITOS')   : null;
-    const contado   = WB ? leerHoja('VENTAS_CONTADO')    : null;
-    const accesorios= WB ? leerHoja('VENTAS_ACCESORIOS') : null;
-    const gastos    = WB ? leerHoja('GASTOS_DIARIOS')    : null;
-    const ingresos  = WB ? leerHoja('INGRESOS_LOCAL')    : null;
-    const retiros   = WB ? leerHoja('RETIROS_CAJA')      : null;
-    const aperturas = WB ? leerHoja('APERTURA_CAJA')     : null;
-    const iphoneData= WB ? leerHoja('VENTAS_IPHONE')     : null;
-
-    const fmtFecha = f => {
-      if(!f) return '';
-      if(typeof f === 'number') {
-        const d = new Date(Math.round((f-25569)*86400*1000));
-        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
-        return d.toISOString().split('T')[0];
-      }
-      return f.toString();
-    };
+    const [creditos, contado, accesorios, gastos, ingresos, retiros, aperturas, iphoneData] = await Promise.all([
+      fbGetAll('ventas_creditos'),
+      fbGetAll('ventas_contado'),
+      fbGetAll('ventas_accesorios'),
+      fbGetAll('gastos_diarios'),
+      fbGetAll('ingresos_local'),
+      fbGetAll('retiros_caja'),
+      fbGetAll('apertura_caja'),
+      fbGetAll('ventas_iphone')
+    ]);
 
     MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[], iphone:[] };
 
-    if(creditos?.values?.length > 1) {
-      for(let i=1;i<creditos.values.length;i++) {
-        const r = creditos.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.creditos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', ref:r[3]||'', imei:r[4]||'', cuota:parseFloat(r[8])||0, pago:r[9]||'', efectivo:parseFloat(r[10])||0, estado:r[13]||'' });
-      }
-    }
-    if(contado?.values?.length > 1) {
-      for(let i=1;i<contado.values.length;i++) {
-        const r = contado.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.contado.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', imei:r[2]||'', ref:r[3]||'', precio:parseFloat(r[4])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
-      }
-    }
-    if(accesorios?.values?.length > 1) {
-      for(let i=1;i<accesorios.values.length;i++) {
-        const r = accesorios.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.accesorios.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', cat:r[2]||'', prod:r[3]||'', cant:parseInt(r[4])||0, total:parseFloat(r[6])||0, pago:r[7]||'', efectivo:parseFloat(r[8])||0 });
-      }
-    }
-    if(gastos?.values?.length > 1) {
-      for(let i=1;i<gastos.values.length;i++) {
-        const r = gastos.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.gastos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0, metodo:r[5]?.toString()||'EFECTIVO' });
-      }
-    }
-    if(ingresos?.values?.length > 1) {
-      for(let i=1;i<ingresos.values.length;i++) {
-        const r = ingresos.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.ingresos.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', tipo:r[2]||'', desc:r[3]||'', valor:parseFloat(r[4])||0 });
-      }
-    }
-    if(retiros?.values?.length > 1) {
-      for(let i=1;i<retiros.values.length;i++) {
-        const r = retiros.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.retiros.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', valor:parseFloat(r[2])||0, desc:r[3]||'', resp:r[4]||'' });
-      }
-    }
-    if(aperturas?.values?.length > 1) {
-      for(let i=1;i<aperturas.values.length;i++) {
-        const r = aperturas.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.aperturas.push({ fecha:fmtFecha(r[0]), local:r[1]?.toString()||'', saldo:parseFloat(r[2])||0 });
-      }
-    }
-    if(iphoneData?.values?.length > 1) {
-      for(let i=1;i<iphoneData.values.length;i++) {
-        const r = iphoneData.values[i];
-        if(!r[0]) continue;
-        MR_DATOS.iphone.push({
-          fecha:fmtFecha(r[0]), local:r[1]?.toString()||'',
-          ref:r[2]||'', financiera:r[3]||'', imei:r[4]||'',
-          nombre:r[6]||'', cuota:parseFloat(r[7])||0,
-          pago:r[8]||'', efectivo:parseFloat(r[9])||0,
-          transfer:parseFloat(r[10])||0, estado:r[21]||'PENDIENTE'
-        });
-      }
-    }
+    creditos.forEach(d => { if(d.fecha) MR_DATOS.creditos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', ref:d.referencia||'', imei:d.imei||'', cuota:parseFloat(d.cuota)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0, estado:d.estado||'' }); });
+    contado.forEach(d => { if(d.fecha) MR_DATOS.contado.push({ fecha:d.fecha, local:d.local||'', imei:d.imei||'', ref:d.referencia||'', precio:parseFloat(d.precio)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
+    accesorios.forEach(d => { if(d.fecha) MR_DATOS.accesorios.push({ fecha:d.fecha, local:d.local||'', cat:d.categoria||'', prod:d.producto||'', cant:parseInt(d.cantidad)||0, total:parseFloat(d.total)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
+    gastos.forEach(d => { if(d.fecha) MR_DATOS.gastos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', desc:d.descripcion||'', valor:parseFloat(d.valor)||0, metodo:d.metodo_pago||'EFECTIVO' }); });
+    ingresos.forEach(d => { if(d.fecha) MR_DATOS.ingresos.push({ fecha:d.fecha, local:d.local||'', tipo:d.concepto||'', desc:d.concepto||'', valor:parseFloat(d.valor)||0 }); });
+    retiros.forEach(d => { if(d.fecha) MR_DATOS.retiros.push({ fecha:d.fecha, local:d.local||'', valor:parseFloat(d.valor)||0, desc:d.concepto||'', resp:d.responsable||'' }); });
+    aperturas.forEach(d => { if(d.fecha) MR_DATOS.aperturas.push({ fecha:d.fecha, local:d.local||'', saldo:parseFloat(d.saldo)||0 }); });
+    iphoneData.forEach(d => { if(d.fecha) MR_DATOS.iphone.push({ fecha:d.fecha, local:d.local||'', ref:d.referencia||'', financiera:d.financiera||'', imei:d.imei||'', nombre:d.nombre||'', cuota:parseFloat(d.cuota_inicial)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0, transfer:parseFloat(d.transferencia)||0, estado:d.estado||'PENDIENTE' }); });
 
     document.getElementById('mr-loading').style.display = 'none';
     MR_CARGANDO = false;
