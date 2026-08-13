@@ -2172,7 +2172,11 @@ function calcularCuota(){
   if(!ref || !porc) return;
 
   const porcKey = parseFloat(porc).toFixed(2);
-  const porcKey2 = String(parseFloat(porc)); // "0.2" en vez de "0.20"
+  const porcKey2 = String(parseFloat(porc));
+
+  console.log('calcularCuota:', {tipo, ref, porc, porcKey, porcKey2});
+  console.log('PRECIOS_DINAMICOS[tipo]:', PRECIOS_DINAMICOS[tipo]);
+  console.log('ref en tabla:', PRECIOS_DINAMICOS[tipo]?.[ref]);
 
   // RECOMPRA 30/35/40 → manual
   if(tipo==='RECOMPRA' && ['0.30','0.35','0.40'].includes(porcKey)){
