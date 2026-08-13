@@ -2089,7 +2089,7 @@ function validarIMEIDuplicado() {
   const aviso = document.getElementById('it-imei-aviso');
   if(!aviso) return;
   if(imei.length < 10) { aviso.style.display='none'; return; }
-  const existe = window.IMEIS_TODOS_CON_ESTADO?.find(t => t.imei === imei);
+  const existe = findImei(imei);
   if(existe) {
     aviso.style.display='block';
     aviso.style.background='#fee2e2';
@@ -2393,6 +2393,16 @@ async function escribirFormulasInventario(imei) {
 }
 
 // Helper Firebase para actualizar estado de teléfono por IMEI
+// Helpers para IMEIS_TODOS_CON_ESTADO (objeto, no array)
+function findImei(imei) {
+  if(!imei || !window.IMEIS_TODOS_CON_ESTADO) return null;
+  return window.IMEIS_TODOS_CON_ESTADO[imei.toString().trim()] || null;
+}
+function filterImeis(fn) {
+  if(!window.IMEIS_TODOS_CON_ESTADO) return [];
+  return Object.values(window.IMEIS_TODOS_CON_ESTADO).filter(fn);
+}
+
 async function fbActualizarEstadoTel(imei, campo, valor) {
   if(!imei) return false;
   try {
@@ -2572,7 +2582,7 @@ async function enviarForm(tipo) {
     const imeiNuevo = getVal('it-imei').trim();
     // Validar que no exista ya en inventario
     if(imeiNuevo && window.IMEIS_TODOS_CON_ESTADO) {
-      const existe = window.IMEIS_TODOS_CON_ESTADO.find(t => t.imei === imeiNuevo);
+      const existe = findImei(imeiNuevo);
       if(existe) {
         alert(`⚠️ Este IMEI ya está registrado en el inventario.\n\n📱 ${existe.ref||'Sin referencia'}\n📊 Estado: ${existe.estado||'Desconocido'}\n📍 Ubicación: ${existe.ubicacion||'Sin ubicación'}\n\nVerifica el IMEI antes de continuar.`);
         return;
@@ -3063,7 +3073,7 @@ let editAccLocal = null;
 let editAccProducto = null;
 
 function editarTelefono(imei) {
-  const tel = window.IMEIS_TODOS_CON_ESTADO.find(i => i.imei === imei);
+  const tel = findImei(imei);
   if(!tel) return;
   editTelRowIndex = tel.rowIndex;
   document.getElementById('edit-tel-imei').value = tel.imei;
@@ -3252,11 +3262,12 @@ function renderInventario() {
   const lista = document.getElementById('inv-lista');
 
   if(invTab === 'tel') {
-    if(!window.IMEIS_TODOS_CON_ESTADO || window.IMEIS_TODOS_CON_ESTADO.length === 0) {
+    const todosImeis = Object.values(window.IMEIS_TODOS_CON_ESTADO || {});
+    if(!todosImeis.length) {
       lista.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay teléfonos</div>';
       return;
     }
-    let items = window.IMEIS_TODOS_CON_ESTADO;
+    let items = todosImeis;
     const estadoFiltro = document.getElementById('inv-estado-filter')?.value || '';
     const provFiltro = document.getElementById('inv-prov-filter')?.value || '';
     const refFiltro = document.getElementById('inv-ref-filter')?.value || '';
@@ -3264,7 +3275,7 @@ function renderInventario() {
     if(estadoFiltro) items = items.filter(i => i.estado === estadoFiltro);
     if(provFiltro) items = items.filter(i => i.proveedor === provFiltro);
     if(refFiltro) items = items.filter(i => i.ref === refFiltro);
-    if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || i.ref.toLowerCase().includes(busqueda));
+    if(busqueda) items = items.filter(i => i.imei.includes(busqueda) || (i.ref||'').toLowerCase().includes(busqueda));
 
     // Contador
     const disponibles = items.filter(i => i.estado !== 'VENDIDO').length;
@@ -4544,7 +4555,7 @@ let prestamoTelefonoActual = null;
 async function buscarTelefonoPrestamo() {
   const imei = document.getElementById('ps-imei').value.trim();
   if(imei.length<10) return;
-  const tel = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei);
+  const tel = findImei(imei);
   if(!tel){document.getElementById('ps-info').style.display='none';document.getElementById('ps-campos').style.display='none';return;}
   prestamoTelefonoActual=tel;
   document.getElementById('ps-ref').textContent=tel.ref||'';
@@ -4602,7 +4613,7 @@ let cambioImeiFila = null;
 async function buscarTelefonoGarantia() {
   const imei=document.getElementById('genv-imei').value.trim();
   if(imei.length<10) return;
-  const tel=window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei);
+  const tel=findImei(imei);
   if(!tel){document.getElementById('genv-info').style.display='none';document.getElementById('genv-campos').style.display='none';return;}
   garantiaTelefonoActual=tel;
   document.getElementById('genv-ref').textContent=tel.ref||'';
@@ -4629,7 +4640,7 @@ async function cargarTelefonosEnGarantia() {
   document.getElementById('grec-loading').style.display='block';
   document.getElementById('grec-lista').innerHTML='';document.getElementById('grec-campos').style.display='none';
   document.getElementById('grec-lista').style.display='block';
-  const tels=window.IMEIS_TODOS_CON_ESTADO?.filter(t=>t.estado==='EN GARANTIA')||[];
+  const tels=filterImeis(t=>t.estado==='EN GARANTIA');
   document.getElementById('grec-loading').style.display='none';
   if(!tels.length){document.getElementById('grec-lista').innerHTML='<div style="text-align:center;padding:30px;color:#16a34a;font-weight:700;">✅ No hay teléfonos en garantía</div>';return;}
   window.TELS_GARANTIA=tels;
@@ -4668,7 +4679,7 @@ async function recuperarGarantia() {
 async function buscarTelefonoCambio() {
   const imei=document.getElementById('ci-imei-malo').value.trim();
   if(imei.length<10){document.getElementById('ci-info-malo').style.display='none';document.getElementById('ci-btn-wrap').style.display='none';return;}
-  const tel=window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei);
+  const tel=findImei(imei);
   if(!tel){document.getElementById('ci-info-malo').style.display='none';return;}
   cambioImeiFila=tel;
   document.getElementById('ci-ref-malo').textContent=tel.ref||'';
@@ -5593,7 +5604,7 @@ async function cargarLiquidaciones() {
         const imei = normImei(r[4]);
         if(!imei) continue;
         if(liquidados[imei]) continue;
-        const costo = window.IMEIS_TODOS_CON_ESTADO?.find(t=>t.imei===imei)?.costo || 0;
+        const costo = findImei(imei)?.costo || 0;
         const cuotaFinal = parseFloat(r[8]) || 0;
         const cuotaSug = parseFloat(r[6]) || 0;
         window.LIQ_PENDIENTES.push({
