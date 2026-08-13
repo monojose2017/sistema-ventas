@@ -1745,6 +1745,12 @@ async function cargarTodo() {
       else if(d.tipo==='referencia_iphone') window.CONFIG_DATA.referenciasIphone.push(v);
     });
 
+    // Ordenar alfabéticamente
+    Object.keys(window.CONFIG_DATA).forEach(k => {
+      if(Array.isArray(window.CONFIG_DATA[k])) window.CONFIG_DATA[k].sort();
+    });
+    window.CONFIG_LISTAS.locales.sort();
+
     // Precios / tablas de cuotas
     window.PRECIOS_DINAMICOS = {};
     preciosDocs.forEach(d => {
