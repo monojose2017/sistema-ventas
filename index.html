@@ -2274,8 +2274,8 @@ function abrirCorregirRegistros() {
     sel.innerHTML = '<option value="">Todos los locales</option>';
     window.CONFIG_DATA.locales.forEach(l => sel.innerHTML += `<option>${l}</option>`);
   }
-  // Poner fecha de hoy
-  document.getElementById('corr-fecha').value = fechaHoyLocal();
+  // Dejar fecha vacía para mostrar todos
+  document.getElementById('corr-fecha').value = '';
   document.getElementById('corr-lista').innerHTML = '';
   irA('corregir-registros');
 }
@@ -2291,10 +2291,12 @@ async function corregirCargar() {
 
   try {
     let docs = await fbGetAll(tipo);
-    // Filtrar por fecha
-    if(fecha) docs = docs.filter(d => d.fecha?.toString().substring(0,10) === fecha);
-    // Filtrar por local
+    // Filtrar por fecha solo si se especificó
+    if(fecha) docs = docs.filter(d => normalizarFecha(d.fecha) === fecha);
+    // Filtrar por local solo si se especificó
     if(local) docs = docs.filter(d => d.local === local);
+    // Ordenar por fecha descendente
+    docs.sort((a,b) => (normalizarFecha(b.fecha)||'').localeCompare(normalizarFecha(a.fecha)||''));
 
     document.getElementById('corr-loading').style.display = 'none';
 
@@ -4252,7 +4254,7 @@ async function cargarRegistros() {
     regDatosCompletos = [];
     for(const d of docs) {
       if(!d.fecha) continue;
-      const fechaComp = d.fecha.toString().substring(0,10);
+      const fechaComp = normalizarFecha(d.fecha);
       if(fechaComp < desde || fechaComp > hasta) continue;
       const fechaStr = new Date(fechaComp+'T12:00:00').toLocaleDateString('es-CO');
 
