@@ -5805,7 +5805,11 @@ function calcEtOficina() {
   const cuotaIni = Math.round(vs * porc);
   const pagaMovisim = vs - cuotaIni - 230000;
   document.getElementById('calc-eto-cuota').textContent = '$'+cuotaIni.toLocaleString('es-CO');
-  document.getElementById('calc-eto-paga').textContent = '$'+pagaMovisim.toLocaleString('es-CO');
+  // Mostrar con signo: negativo = ellos me deben, positivo = yo debo
+  const signo = pagaMovisim < 0 ? 'Me deben: ' : 'Yo debo: ';
+  const color = pagaMovisim < 0 ? '#16a34a' : '#dc2626';
+  document.getElementById('calc-eto-paga').textContent = (pagaMovisim < 0 ? '-' : '') + '$'+Math.abs(pagaMovisim).toLocaleString('es-CO');
+  document.getElementById('calc-eto-paga').style.color = color;
   document.getElementById('calc-etoficina-result').style.display = 'block';
 }
 
@@ -5837,16 +5841,22 @@ function calcPayjoy() {
 function usarResultadoCalc(tipo) {
   let val = 0;
   if(tipo === 'etoficina') {
-    val = getNumero('calc-eto-paga');
+    const texto = document.getElementById('calc-eto-paga').textContent;
+    console.log('texto calc-eto-paga:', texto);
+    val = parseInt(texto.replace(/[^0-9]/g,'')) || 0;
+    if(texto.includes('-')) val = -Math.abs(val);
+    console.log('val calculado:', val);
   } else if(tipo === 'etclaro') {
     val = parseInt(document.getElementById('calc-paga-claro').textContent.replace(/[^0-9]/g,'')) || 0;
   } else if(tipo === 'payjoy') {
     val = parseInt(document.getElementById('calc-paga-payjoy').textContent.replace(/[^0-9]/g,'')) || 0;
   }
-  if(val > 0) {
-    document.getElementById('liq-pago-financiera').value = '$'+val.toLocaleString('es-CO');
-    mostrarPreviewUtilidad(val);
+  const campo = document.getElementById('liq-pago-financiera');
+  if(campo) {
+    campo.value = val >= 0 ? '$'+val.toLocaleString('es-CO') : '-$'+Math.abs(val).toLocaleString('es-CO');
+    console.log('campo actualizado:', campo.value);
   }
+  mostrarPreviewUtilidad(val);
 }
 
 function mostrarPreviewUtilidad(pagoFinanciera) {
