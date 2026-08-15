@@ -2248,12 +2248,14 @@ function filtrarAccesorios(){
   const sel = document.getElementById('a-producto');
   sel.innerHTML = '';
   if(!local || !cat){sel.innerHTML='<option value="">Primero elige local y categoría...</option>';return;}
-  // Usar accesorios del Excel si están disponibles
-  const fuente = window.ACCESORIOS_EXCEL || ACCESORIOS;
-  const found = fuente.filter(a=>a.local===local && a.cat===cat && a.stock>0);
+  const fuente = window.ACCESORIOS_EXCEL || [];
+  const found = fuente.filter(a => a.local===local && (a.categoria||a.cat)===cat && (a.stockActual||a.stock||0)>0);
   if(!found.length){sel.innerHTML='<option value="">Sin stock disponible en este local</option>';return;}
   sel.innerHTML='<option value="">Seleccionar...</option>';
-  found.forEach(a=>{sel.innerHTML+=`<option value="${a.producto}">${a.producto} (Stock: ${a.stock})</option>`;});
+  found.forEach(a=>{
+    const stock = a.stockActual||a.stock||0;
+    sel.innerHTML+=`<option value="${a.producto}">${a.producto} (Stock: ${stock})</option>`;
+  });
 }
 
 
