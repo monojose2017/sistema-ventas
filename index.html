@@ -1600,9 +1600,9 @@ async function fbSet(col, id, data) {
 
 // Mapeo de columnas para guardar datos
 const COLS = {
-  ventas_creditos: ['fecha','local','tipo','referencia','imei','porcentaje','cuota','descuento','cuota_neta','metodo_pago','efectivo','transferencia','estado','activo'],
+  ventas_creditos: ['fecha','local','tipo','referencia','imei','porcentaje','cuota','descuento','cuota_neta','metodo_pago','efectivo','transferencia','estado','activo','utilidad','pago_financiera','cuota_real_oficina'],
   ventas_contado: ['fecha','local','imei','referencia','precio','costo','utilidad','metodo_pago','efectivo','transferencia','estado','tipo_venta'],
-  ventas_accesorios: ['fecha','local','producto','categoria','cantidad','precio_unit','total','costo','utilidad','metodo_pago','efectivo','transferencia','estado'],
+  ventas_accesorios: ['fecha','local','categoria','producto','cantidad','precio_unit','total','metodo_pago','efectivo','transferencia','estado','costo','utilidad'],
   gastos_diarios: ['fecha','local','tipo','descripcion','valor','metodo_pago','responsable'],
   egresos_gerencia: ['fecha','concepto','valor','metodo_pago','responsable'],
   ingresos_local: ['fecha','local','concepto','valor','metodo_pago'],
@@ -2479,24 +2479,9 @@ async function marcarVendidoExcel(imei, tipoVenta) {
 }
 
 async function eliminarUltimaFilaVenta(hoja) {
-  try {
-    const tablaMap = {
-      'VENTAS_CREDITOS': 'TBL_VENTAS_CREDITOS',
-      'VENTAS_CONTADO': 'TBL_VENTAS_CONTADO'
-    };
-    const tabla = tablaMap[hoja];
-    if(!tabla) return;
-    // Obtener filas de la tabla
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/tables/${tabla}/rows`);
-    if(!data || !data.value || !data.value.length) return;
-    const ultimaFila = data.value[data.value.length - 1];
-    if(ultimaFila && ultimaFila.index !== undefined) {
-      await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/${tabla}/rows/itemAt(index=${ultimaFila.index})`);
-      console.log('Última fila eliminada de', tabla);
-    }
-  } catch(e) {
-    console.error('Error eliminando última fila:', e);
-  }
+  // Con Firebase no hay rollback por tabla — el documento se elimina por ID
+  // Esta función se llama cuando falla marcarVendido — en Firebase no es necesaria
+  console.log('eliminarUltimaFilaVenta: no aplica con Firebase');
 }
 
 function getNumero(id) {
@@ -2544,13 +2529,38 @@ async function enviarForm(tipo) {
     const cuotaManual = getNumero('c-cuota');
     const cuota = cuotaAuto || cuotaManual;
     const descuento = getNumero('c-descuento');
-    // Para PAYJOY: porcentaje = cuota sugerida, cuota = cuota sugerida, descuento = descuento
     const cuotaSug = tipoVenta === 'PAYJOY' ? getNumero('c-cuota-sug') : 0;
     const porcFinal = tipoVenta === 'PAYJOY' ? 0 : parseFloat(getVal('c-porc'))||0;
     const cuotaFinal = tipoVenta === 'PAYJOY' ? cuotaSug : cuota;
+    const cuotaNeta = cuotaFinal - descuento; // lo que realmente recibió la niña
+    const COMISION_OFICINA = 80000;
+    const EXTRA_OFICINA = 30000;
+
+    // Calcular utilidad para OFICINA y RECOMPRA
+    let utilidad = 0;
+    let cuotaRealOficina = 0; // cuota que liquida la oficina (sin el extra)
+    let pagoFinanciera = 0; // diferencia con la oficina (+ ellos deben, - yo debo)
+
+    if(tipoVenta === 'OFICINA') {
+      cuotaRealOficina = Math.max(0, cuota - EXTRA_OFICINA);
+      // Si negativo → ellos me deben. Si positivo → yo debo
+      pagoFinanciera = cuotaRealOficina - COMISION_OFICINA;
+      utilidad = cuotaNeta - cuotaRealOficina + COMISION_OFICINA;
+    } else if(tipoVenta === 'RECOMPRA') {
+      const PD = window.PRECIOS_DINAMICOS || {};
+      const ref = getVal('c-ref');
+      const porcKey = parseFloat(porcFinal).toFixed(2);
+      const porcKey2 = String(parseFloat(porcFinal));
+      const tablaReal = PD['RECOMPRA_REAL']?.[ref];
+      cuotaRealOficina = tablaReal?.[porcKey] || tablaReal?.[porcKey2] || cuota;
+      // Si negativo → ellos me deben. Si positivo → yo debo
+      pagoFinanciera = cuotaRealOficina - COMISION_OFICINA;
+      utilidad = cuotaNeta - cuotaRealOficina + COMISION_OFICINA;
+    }
+
     hoja = 'VENTAS_CREDITOS';
-    window._tipoVentaGuardado = tipoVenta; // Guardar antes de que se limpie el formulario
-    fila = [getVal('c-fecha')||fecha, getVal('c-local'), tipoVenta, getVal('c-ref'), imei, porcFinal, cuotaFinal, descuento, cuotaFinal-descuento, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO'];
+    window._tipoVentaGuardado = tipoVenta;
+    fila = [getVal('c-fecha')||fecha, getVal('c-local'), tipoVenta, getVal('c-ref'), imei, porcFinal, cuotaFinal, descuento, cuotaNeta, getVal('c-pago'), getNumero('c-efectivo'), getNumero('c-transfer'), 'OK', 'ACTIVO', utilidad, pagoFinanciera, cuotaRealOficina];
 
   } else if(tipo === 'venta-iphone') {
     if(!getVal('vi-local')) { alert('⚠️ Selecciona el local'); if(btn){btn.disabled=false;btn.textContent='Registrar Venta iPhone ✓';} return; }
@@ -2584,7 +2594,7 @@ async function enviarForm(tipo) {
     let costoUnitario = 0;
     if(window.ACCESORIOS_EXCEL) {
       const found = window.ACCESORIOS_EXCEL.find(a => a.producto === productoSel && a.local === localSel);
-      if(found) costoUnitario = found.costo || 0;
+      if(found) costoUnitario = found.costoUnit || found.costo || 0;
     }
     const costoTotal = costoUnitario * cant;
     const utilidad = (cant * precio) - costoTotal;
@@ -2691,7 +2701,26 @@ async function enviarForm(tipo) {
       }
       await cargarTodo();
     }
-    if(ok && tipo === 'accesorios') await cargarTodo();
+    if(ok && tipo === 'accesorios') {
+      // Reducir stock en Firebase
+      const cant = parseInt(getVal('a-cant'))||1;
+      const productoSel = getVal('a-producto');
+      const localSel = getVal('a-local');
+      const catSel = getVal('a-cat');
+      try {
+        const docs = await fbQuery('inventario_accesorios', 'referencia', '==', productoSel);
+        const doc = docs.find(d => d.local === localSel);
+        if(doc) {
+          const nuevoStock = Math.max(0, (parseFloat(doc.cantidad)||0) - cant);
+          await fbUpdate('inventario_accesorios', doc.id, { cantidad: nuevoStock });
+          // Actualizar memoria local
+          if(window.ACCESORIOS_EXCEL) {
+            const acc = window.ACCESORIOS_EXCEL.find(a => a.producto === productoSel && a.local === localSel);
+            if(acc) acc.stockActual = nuevoStock;
+          }
+        }
+      } catch(e) { console.error('Error reduciendo stock:', e); }
+    }
     if(ok && tipo === 'abono-deuda') {
       const idx = document.getElementById('ab-acreedor').value;
       if(idx !== '') {
@@ -2738,6 +2767,19 @@ async function enviarForm(tipo) {
       }
       mostrarExito('inventario');
     } else if(tipo === 'ingreso-accesorio') {
+      // Actualizar memoria local con el nuevo accesorio
+      const localAcc = getVal('ia-local');
+      const productoAcc = getVal('ia-producto').toUpperCase().trim();
+      const catAcc = getVal('ia-cat');
+      const stockAcc = parseInt(getVal('ia-stock'))||0;
+      const costoAcc = getNumero('ia-costo');
+      const precioAcc = getNumero('ia-precio-venta');
+      if(window.ACCESORIOS_EXCEL) {
+        window.ACCESORIOS_EXCEL.push({
+          local: localAcc, categoria: catAcc, producto: productoAcc,
+          stockActual: stockAcc, costoUnit: costoAcc, precioVenta: precioAcc
+        });
+      }
       mostrarExito('inventario');
     } else if(tipo === 'nueva-deuda' || tipo === 'abono-deuda') {
       await cargarDeudas();
@@ -2754,16 +2796,16 @@ async function enviarForm(tipo) {
 
 // CONFIG ADMIN
 const CONFIG_COLUMNAS = {
-  locales: { col: 'A', idx: 0 },
-  ubicaciones: { col: 'C', idx: 2 },
-  tipoGastos: { col: 'E', idx: 4 },
-  responsables: { col: 'G', idx: 6 },
-  categorias: { col: 'I', idx: 8 },
-  categoriasAcc: { col: 'K', idx: 10 },
-  proveedores: { col: 'N', idx: 13 },
-  referencias: { col: 'P', idx: 15 },
-  proveedoresPago: { col: 'R', idx: 17 },
-  referenciasIphone: { col: 'T', idx: 19 }
+  locales:          { col: 'A', idx: 0,  tipo: 'local' },
+  ubicaciones:      { col: 'C', idx: 2,  tipo: 'ubicacion' },
+  tipoGastos:       { col: 'E', idx: 4,  tipo: 'tipo_gasto' },
+  responsables:     { col: 'G', idx: 6,  tipo: 'responsable' },
+  categorias:       { col: 'I', idx: 8,  tipo: 'categoria' },
+  categoriasAcc:    { col: 'K', idx: 10, tipo: 'categoria_acc' },
+  proveedores:      { col: 'N', idx: 13, tipo: 'proveedor' },
+  referencias:      { col: 'P', idx: 15, tipo: 'referencia' },
+  proveedoresPago:  { col: 'R', idx: 17, tipo: 'proveedor_pago' },
+  referenciasIphone:{ col: 'T', idx: 19, tipo: 'referencia_iphone' }
 };
 
 async function cargarConfigAdmin() {
@@ -2809,12 +2851,14 @@ async function agregarConfigItem() {
   const fila = window.CONFIG_DATA[lista].length + 2; // +2 por encabezado y 1-based
 
   try {
-    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/range(address='${col.col}${fila}')`, { values: [[nuevoItem]] });
+    // Agregar en Firebase
+    await fbAdd('config', { tipo: col.tipo, valor: nuevoItem });
     window.CONFIG_DATA[lista].push(nuevoItem);
+    window.CONFIG_DATA[lista].sort();
     document.getElementById('config-nuevo-item').value = '';
     renderConfigLista();
     llenarSelectsDesdeConfig();
-    alert('✅ Agregado correctamente');
+    mostrarToastVerde('✅ Agregado correctamente');
   } catch(e) {
     alert('❌ Error al agregar. Verifica conexión.');
   }
@@ -2822,17 +2866,17 @@ async function agregarConfigItem() {
 
 async function eliminarConfigItem(lista, idx) {
   if(!confirm('¿Eliminar este item?')) return;
-  
   const col = CONFIG_COLUMNAS[lista];
-  const fila = idx + 2; // +2 por encabezado y 1-based
-
+  const valor = window.CONFIG_DATA[lista][idx];
   try {
-    // Borrar la celda en Excel
-    await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONFIG/range(address='${col.col}${fila}')`, { values: [['']] });
+    // Buscar y eliminar en Firebase
+    const docs = await fbQuery('config', 'tipo', '==', col.tipo);
+    const doc = docs.find(d => d.valor === valor);
+    if(doc) await fbDelete('config', doc.id);
     window.CONFIG_DATA[lista].splice(idx, 1);
     renderConfigLista();
     llenarSelectsDesdeConfig();
-    alert('✅ Eliminado correctamente');
+    mostrarToastVerde('✅ Eliminado correctamente');
   } catch(e) {
     alert('❌ Error al eliminar.');
   }
@@ -2949,54 +2993,37 @@ async function ejecutarReponer() {
 
   const btn = document.getElementById('merc-btn-reponer');
   btn.textContent = 'Enviando...'; btn.disabled = true;
-
   const prod = mercProductoSeleccionado;
 
   try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
-    for(let i=1; i<inv.values.length; i++) {
-      const row = inv.values[i];
-      if(row[0]?.toString()===prod.local && row[2]?.toString()===prod.producto) {
-        // Leer stock inicial real de Excel (D = row[3])
-        const stockInicialReal = parseInt(row[3]) || 0;
-        // Calcular ventas reales desde VENTAS_ACCESORIOS
-        const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`);
-        let unidadesVendidas = 0;
-        const prodNorm = prod.producto.toString().trim().toUpperCase();
-        const localNorm = prod.local.toString().trim().toUpperCase();
-        if(ventas?.values?.length > 1) {
-          for(let v=1; v<ventas.values.length; v++) {
-            const rv = ventas.values[v];
-            if(rv[1]?.toString().trim().toUpperCase()===localNorm && rv[3]?.toString().trim().toUpperCase()===prodNorm) {
-              unidadesVendidas += parseInt(rv[4])||0;
-            }
-          }
-        }
-        const stockActualReal = Math.max(0, stockInicialReal - unidadesVendidas);
-        const nuevoStockInicial = stockInicialReal + cantNueva;
-        const costoActual = parseFloat(row[4]) || 0;
-        const promedio = stockActualReal + cantNueva > 0
-          ? Math.round((stockActualReal * costoActual + cantNueva * costoNuevo) / (stockActualReal + cantNueva))
-          : costoNuevo;
+    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', prod.producto);
+    const doc = docs.find(d => d.local === prod.local);
+    if(!doc) { alert('❌ Producto no encontrado'); btn.textContent='🔄 Reponer Stock ✓'; btn.disabled=false; return; }
 
-        console.log(`Reposición: local=${prod.local}, producto=${prod.producto}, stockInicialReal=${stockInicialReal}, vendidas=${unidadesVendidas}, stockActual=${stockActualReal}, cantNueva=${cantNueva}, nuevoStockInicial=${nuevoStockInicial}`);
+    const stockActual = parseFloat(doc.cantidad)||0;
+    const costoActual = parseFloat(doc.costo)||0;
+    const nuevoStock = stockActual + cantNueva;
+    const promedio = nuevoStock > 0
+      ? Math.round((stockActual * costoActual + cantNueva * costoNuevo) / nuevoStock)
+      : costoNuevo;
 
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${i+1}:E${i+1}')`, { values: [[nuevoStockInicial, promedio]] });
-        if(pventaNuevo > 0) await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${i+1}')`, { values: [[pventaNuevo]] });
-        btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
-        mercProductoSeleccionado = null;
-        await new Promise(r => setTimeout(r, 1500));
-        cargarTodo();
-        mostrarExito('inventario');
-        return;
-      }
+    const updates = { cantidad: nuevoStock, costo: promedio };
+    if(pventaNuevo > 0) updates.precio_venta = pventaNuevo;
+    await fbUpdate('inventario_accesorios', doc.id, updates);
+
+    // Actualizar memoria
+    if(window.ACCESORIOS_EXCEL) {
+      const acc = window.ACCESORIOS_EXCEL.find(a => a.producto === prod.producto && a.local === prod.local);
+      if(acc) { acc.stockActual = nuevoStock; acc.costoUnit = promedio; if(pventaNuevo > 0) acc.precioVenta = pventaNuevo; }
     }
-    alert('❌ Producto no encontrado');
-  } catch(e) { 
+    btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
+    mercProductoSeleccionado = null;
+    mostrarExito('inventario');
+  } catch(e) {
     console.error('Error reposición:', e);
-    alert('❌ Error al actualizar'); 
+    alert('❌ Error al actualizar');
+    btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
   }
-  btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
 }
 
 async function ejecutarNuevo() {
@@ -3194,36 +3221,23 @@ async function guardarEdicionAccesorio() {
   const costo = parseInt((document.getElementById('edit-acc-costo').value||'').replace(/[^0-9]/g,'')) || 0;
   const precioVenta = parseInt((document.getElementById('edit-acc-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
   try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
-    for(let i=1; i<inv.values.length; i++) {
-      const row = inv.values[i];
-      if(row[0]?.toString()===editAccLocal && row[2]?.toString()===editAccProducto) {
-        const f = i+1;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='A${f}:F${f}')`, { values: [[nuevoLocal, cat, producto, stock, costo, precioVenta]] });
-        // Restaurar botón ANTES de redirigir
-        if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
-        // Actualizar datos locales inmediatamente sin esperar cargarTodo
-        const acc = window.ACCESORIOS_EXCEL.find(a => a.local === editAccLocal && a.producto === editAccProducto);
-        if(acc) {
-          acc.local = nuevoLocal;
-          acc.cat = cat;
-          acc.producto = producto;
-          acc.stock = stock;
-          acc.costo = costo;
-          acc.precioVenta = precioVenta;
-        }
-        editAccLocal = null;
-        editAccProducto = null;
-        mostrarExito('ver-inventario');
-        cargarTodo(); // Recarga en segundo plano
-        return;
-      }
-    }
-    alert('❌ Producto no encontrado');
+    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', editAccProducto);
+    const doc = docs.find(d => d.local === editAccLocal);
+    if(!doc) { alert('❌ Producto no encontrado'); if(btn){btn.textContent='Guardar Cambios ✓';btn.disabled=false;} return; }
+    await fbUpdate('inventario_accesorios', doc.id, {
+      local: nuevoLocal, categoria: cat, referencia: producto,
+      cantidad: stock, costo, precio_venta: precioVenta
+    });
+    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
+    // Actualizar memoria
+    const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.local === editAccLocal && a.producto === editAccProducto);
+    if(acc) { acc.local=nuevoLocal; acc.categoria=cat; acc.producto=producto; acc.stockActual=stock; acc.costoUnit=costo; acc.precioVenta=precioVenta; }
+    editAccLocal = null; editAccProducto = null;
+    mostrarExito('ver-inventario');
   } catch(e) {
     alert('❌ Error al guardar');
+    if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
   }
-  if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
 }
 
 function verInventario() {
@@ -3495,20 +3509,16 @@ async function actualizarPrecioAccesorio() {
   const btn = document.querySelector('#precio-acc-fields .submit-btn');
   if(btn) { btn.textContent = 'Actualizando...'; btn.disabled = true; }
   try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
-    if(!inv || !inv.values) { alert('❌ Error'); return; }
-    for(let i=1; i<inv.values.length; i++) {
-      const row = inv.values[i];
-      if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === producto) {
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='G${i+1}')`, { values: [[precioNuevo]] });
-        await cargarTodo();
-        mostrarExito('cambiar-precios');
-        return;
-      }
-    }
-    alert('❌ Producto no encontrado');
+    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', producto);
+    const doc = docs.find(d => d.local === local);
+    if(!doc) { alert('❌ Producto no encontrado'); if(btn){btn.textContent='Actualizar Precio ✓';btn.disabled=false;} return; }
+    await fbUpdate('inventario_accesorios', doc.id, { precio_venta: precioNuevo });
+    // Actualizar memoria
+    const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.producto === producto && a.local === local);
+    if(acc) acc.precioVenta = precioNuevo;
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
-  } catch(e) { 
+    mostrarExito('cambiar-precios');
+  } catch(e) {
     alert('❌ Error al actualizar');
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
   }
@@ -3657,60 +3667,49 @@ async function reponerAccesorio() {
   const local = document.getElementById('ia-local').value;
   const idx = document.getElementById('ia-reponer-producto').value;
   const cantNueva = parseInt(document.getElementById('ia-reponer-cant').value) || 0;
-  const precioNuevo = parseInt((document.getElementById('ia-reponer-precio').value||'').replace(/[^0-9]/g,'')) || 0;
-  if(!local || idx === '' || cantNueva <= 0 || precioNuevo <= 0) { alert('⚠️ Completa todos los campos'); return; }
+  const costoNuevo = parseInt((document.getElementById('ia-reponer-precio').value||'').replace(/[^0-9]/g,'')) || 0;
+  const precioVentaNuevo = parseInt((document.getElementById('ia-reponer-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
+  if(!local || idx === '' || cantNueva <= 0) { alert('⚠️ Completa todos los campos'); return; }
   const btn = document.querySelector('#acc-reponer-fields .submit-btn');
   if(btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
-  const productos = window.ACCESORIOS_EXCEL.filter(a => a.local === local);
+  const productos = (window.ACCESORIOS_EXCEL||[]).filter(a => a.local === local);
   const prod = productos[parseInt(idx)];
+  if(!prod) { alert('❌ Producto no encontrado'); if(btn){btn.textContent='Reponer Stock ✓';btn.disabled=false;} return; }
 
   try {
-    const inv = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/usedRange`);
-    if(!inv || !inv.values) { alert('❌ Error al buscar el producto'); return; }
-    for(let i=1; i<inv.values.length; i++) {
-      const row = inv.values[i];
-      if(row[0] && row[0].toString() === local && row[2] && row[2].toString() === prod.producto) {
-        const filaExcel = i+1;
-        const stockInicialOriginal = parseInt(row[3]) || 0;
-        const costoActual = parseFloat(row[4]) || 0;
-        // Calcular ventas del producto leyendo VENTAS_ACCESORIOS
-        const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_ACCESORIOS/usedRange`);
-        let unidadesVendidas = 0;
-        const prodNorm = prod.producto.toString().trim().toUpperCase();
-        const localNorm = local.toString().trim().toUpperCase();
-        if(ventas?.values?.length > 1) {
-          for(let v=1; v<ventas.values.length; v++) {
-            const rv = ventas.values[v];
-            const rvLocal = rv[1]?.toString().trim().toUpperCase()||'';
-            const rvProd = rv[3]?.toString().trim().toUpperCase()||'';
-            if(rvLocal===localNorm && rvProd===prodNorm) {
-              unidadesVendidas += parseInt(rv[4])||0;
-            }
-          }
-        }
-        const stockActualReal = Math.max(0, stockInicialOriginal - unidadesVendidas);
-        console.log(`Reposición: local=${local}, producto=${prod.producto}, stockInicial=${stockInicialOriginal}, vendidas=${unidadesVendidas}, stockActual=${stockActualReal}, cantNueva=${cantNueva}, nuevoStockInicial=${stockInicialOriginal + cantNueva}`);
-        // Nuevo stock inicial = original + cantidad nueva
-        const nuevoStockInicial = stockInicialOriginal + cantNueva;
-        // Precio promedio
-        const promedio = stockActualReal + cantNueva > 0
-          ? Math.round((stockActualReal * costoActual + cantNueva * precioNuevo) / (stockActualReal + cantNueva))
-          : precioNuevo;
+    // Buscar en Firebase
+    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', prod.producto);
+    const doc = docs.find(d => d.local === local);
+    if(!doc) { alert('❌ No se encontró el producto en Firebase'); if(btn){btn.textContent='Reponer Stock ✓';btn.disabled=false;} return; }
 
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='D${filaExcel}:E${filaExcel}')`, { values: [[nuevoStockInicial, promedio]] });
+    const stockActual = parseFloat(doc.cantidad)||0;
+    const costoActual = parseFloat(doc.costo)||0;
+    const nuevoStock = stockActual + cantNueva;
 
-        const precioVentaNuevo = parseInt((document.getElementById('ia-reponer-precio-venta').value||'').replace(/[^0-9]/g,'')) || 0;
-        if(precioVentaNuevo > 0) {
-          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/INVENTARIO_ACCESORIOS/range(address='F${filaExcel}')`, { values: [[precioVentaNuevo]] });
-        }
-        await new Promise(r => setTimeout(r, 2000)); // Esperar 2 segundos antes de recargar
-        await cargarTodo();
-        mostrarExito('inventario');
-        return;
+    // Costo promedio ponderado
+    const promedio = nuevoStock > 0
+      ? Math.round((stockActual * costoActual + cantNueva * costoNuevo) / nuevoStock)
+      : costoNuevo;
+
+    const updates = { cantidad: nuevoStock, costo: promedio };
+    if(precioVentaNuevo > 0) updates.precio_venta = precioVentaNuevo;
+
+    await fbUpdate('inventario_accesorios', doc.id, updates);
+
+    // Actualizar memoria local
+    if(window.ACCESORIOS_EXCEL) {
+      const acc = window.ACCESORIOS_EXCEL.find(a => a.producto === prod.producto && a.local === local);
+      if(acc) {
+        acc.stockActual = nuevoStock;
+        acc.costoUnit = promedio;
+        if(precioVentaNuevo > 0) acc.precioVenta = precioVentaNuevo;
       }
     }
-    alert('❌ No se encontró el producto');
+
+    if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
+    mostrarExito('inventario');
   } catch(e) {
+    console.error('reponerAccesorio error:', e);
     if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
     alert('❌ Error al actualizar. Verifica conexión.');
   }
@@ -3851,18 +3850,12 @@ let deudasActivas = [];
 
 async function actualizarSaldoDeuda(acreedor, nuevoSaldo) {
   try {
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/usedRange`);
-    if(!data || !data.values) return;
-    for(let i=1; i<data.values.length; i++) {
-      if(!data.values[i][1]) continue;
-      if(data.values[i][1].toString().trim() === acreedor.toString().trim()) {
-        const filaExcel = i+1;
-        await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/range(address='F${filaExcel}')`, { values: [[nuevoSaldo]] });
-        if(nuevoSaldo <= 0) {
-          await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/range(address='G${filaExcel}')`, { values: [['PAGADA']] });
-        }
-        break;
-      }
+    const docs = await fbQuery('deudas', 'acreedor', '==', acreedor.toString().trim());
+    const deuda = docs.find(d => d.estado !== 'PAGADA');
+    if(deuda) {
+      const updates = { saldo: nuevoSaldo };
+      if(nuevoSaldo <= 0) updates.estado = 'PAGADA';
+      await fbUpdate('deudas', deuda.id, updates);
     }
   } catch(e) {
     console.error('Error actualizando saldo:', e);
@@ -3904,35 +3897,21 @@ function llenarSelectsDesdeConfig() {
 
 async function cargarDeudas() {
   try {
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/DEUDAS/usedRange`);
+    const docs = await fbGetAll('deudas');
     deudasActivas = [];
-    if(data && data.values && data.values.length > 1) {
-      const hoy = new Date();
-      for(let i=1; i<data.values.length; i++) {
-        const row = data.values[i];
-        if(!row[0]) continue;
-        const acreedor = row[1];
-        const concepto = row[2];
-        const saldo = parseFloat(row[5]) || 0;
-        const estado = row[6];
-        const venceRaw = row[7];
-        let vence = '';
-        if(venceRaw) {
-        if(typeof venceRaw === 'number') {
-            const d = new Date(Math.round((venceRaw - 25569) * 86400 * 1000));
-            d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
-            vence = d.toLocaleDateString('es-CO');
-          } else {
-            vence = venceRaw.toString();
-          }
-        }
-        if(estado === 'PAGADA') continue;
-        const fechaVence = new Date(vence);
-        const diasRestantes = Math.ceil((fechaVence - hoy) / (1000*60*60*24));
-        const alerta = diasRestantes <= 5 ? '🔴' : diasRestantes <= 15 ? '🟡' : '🟢';
-        deudasActivas.push({ acreedor, concepto, saldo, vence, alerta, diasRestantes, local: row[9]||'' });
-      }
-    }
+    const hoy = new Date();
+    docs.forEach(d => {
+      if(d.estado === 'PAGADA') return;
+      const vence = d.vencimiento||'';
+      const fechaVence = new Date(vence);
+      const diasRestantes = Math.ceil((fechaVence - hoy) / (1000*60*60*24));
+      const alerta = diasRestantes <= 5 ? '🔴' : diasRestantes <= 15 ? '🟡' : '🟢';
+      deudasActivas.push({
+        id: d.id, acreedor: d.acreedor||'', concepto: d.concepto||'',
+        saldo: parseFloat(d.saldo||d.valor)||0, vence, alerta, diasRestantes,
+        local: d.local||''
+      });
+    });
     renderDeudas();
     llenarSelectorDeudas();
   } catch(e) {
@@ -4011,71 +3990,40 @@ async function anularCredito() {
   const motivo = document.getElementById('anular-motivo').value.trim();
   const msg = document.getElementById('anular-msg');
 
-  if(!imei) { 
+  if(!imei) {
     msg.style.display='block'; msg.style.background='#fee2e2'; msg.style.color='#dc2626';
-    msg.textContent='⚠️ Ingresa el IMEI del teléfono a anular.'; return; 
+    msg.textContent='⚠️ Ingresa el IMEI del teléfono a anular.'; return;
   }
 
   msg.style.display='block'; msg.style.background='#fef3c7'; msg.style.color='#92400e';
   msg.textContent='⏳ Buscando y anulando...';
 
   try {
-    const ventas = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/usedRange`);
-    let filaAnulada = -1;
-    if(ventas && ventas.values) {
-      console.log('Total filas VENTAS_CREDITOS:', ventas.values.length);
-      for(let i=1; i<ventas.values.length; i++) {
-        const row = ventas.values[i];
-        console.log(`Fila ${i+1}: IMEI=${row[4]}, tipo=${typeof row[4]}, ESTADO=${row[13]}`);
-        if(!row[4]) continue;
-        if(row[4].toString().trim() === imei.trim() && row[13] !== 'ANULADO') {
-          filaAnulada = i+1; // i=1 → fila 2 en Excel (API 1-based)
-          console.log('Encontrado en array i='+i+', filaExcel='+filaAnulada);
-          break;
-        }
-      }
-    }
-    console.log('filaAnulada:', filaAnulada, 'buscando IMEI:', imei);
-
-    if(filaAnulada > 0) {
-      const col = 'N'; // columna ESTADO
-      const addr = `${col}${filaAnulada}`;
-      console.log('Escribiendo ANULADO en:', addr);
-      const r = await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_CREDITOS/range(address='${addr}')`, { values: [['ANULADO']] });
-      console.log('Respuesta patch:', JSON.stringify(r));
+    // 1. Anular en ventas_creditos Firebase
+    const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', imei);
+    const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
+    if(venta) {
+      await fbUpdate('ventas_creditos', venta.id, { estado: 'ANULADO', motivo_anulacion: motivo });
     }
 
-    // 2. Liberar IMEI en inventario Firebase
+    // 2. Liberar IMEI en inventario
     await fbActualizarEstadoTel(imei, 'estado', 'DISPONIBLE');
     await fbActualizarEstadoTel(imei, 'estado_especial', '');
-
-    // Eliminar de LIQUIDACIONES si existe
-    const liq = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/usedRange`);
-    if(liq?.values?.length > 1) {
-      for(let i=1; i<liq.values.length; i++) {
-        const imeiLiq = liq.values[i][0]?.toString().trim()||'';
-        if(imeiLiq === imei.trim()) {
-          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/tables/TBL_LIQUIDACIONES/rows/itemAt(index=${i-1})`);
-          break;
-        }
+    if(window.IMEIS_TODOS_CON_ESTADO?.[imei]) {
+      window.IMEIS_TODOS_CON_ESTADO[imei].estado = 'DISPONIBLE';
+      window.INVENTARIO_REFS = window.INVENTARIO_REFS || [];
+      const dat = window.IMEIS_TODOS_CON_ESTADO[imei];
+      if(!window.INVENTARIO_REFS.find(r => r.startsWith(imei+'|'))) {
+        window.INVENTARIO_REFS.push(`${imei}|${dat.ref}|${dat.costo}|${dat.precio}`);
       }
     }
 
-    // Eliminar de CONTROL si existe
-    const ctrl = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/usedRange`);
-    if(ctrl?.values?.length > 1) {
-      for(let i=1; i<ctrl.values.length; i++) {
-        const imeiCtrl = ctrl.values[i][4]?.toString().trim()||'';
-        if(imeiCtrl === imei.trim()) {
-          await graphDelete(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/rows/$/itemAt(index=${i})`);
-          break;
-        }
-      }
-    }
+    // 3. Eliminar liquidación si existe
+    const liqDocs = await fbQuery('liquidaciones', 'imei', '==', imei);
+    for(const d of liqDocs) await fbDelete('liquidaciones', d.id);
 
-    await cargarTodo();
     msg.style.background='#d1fae5'; msg.style.color='#065f46';
-    msg.textContent = filaAnulada > 0 
+    msg.textContent = venta
       ? `✅ Crédito anulado. IMEI ${imei} disponible nuevamente.`
       : `✅ IMEI ${imei} liberado. (No se encontró venta activa en créditos)`;
     document.getElementById('anular-imei').value = '';
@@ -4084,8 +4032,10 @@ async function anularCredito() {
   } catch(e) {
     msg.style.background='#fee2e2'; msg.style.color='#dc2626';
     msg.textContent='❌ Error al anular. Verifica tu conexión.';
+    console.error(e);
   }
 }
+
 
 // =============================================
 // REGISTROS DE GERENCIA
@@ -5097,18 +5047,26 @@ async function guardarFilaTabla(hoja, rowIdx) {
   const ref = document.getElementById('tbl-edit-ref').value.trim();
   if(!ref) { alert('⚠️ Ingresa la referencia'); return; }
 
-  const valores = [ref, ...headers.map((h, j) => getNumero(`tbl-edit-${j}`))];
-  const excelRow = rowIdx + 1; // +1 por encabezado
-
   try {
-    const rangoLetra = String.fromCharCode(65 + valores.length - 1); // A + n columnas
-    await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}:${rangoLetra}${excelRow}')`,
-      { values: [valores] }
-    );
-    // Actualizar memoria
+    // Actualizar cada precio en Firebase
+    for(let j = 0; j < headers.length; j++) {
+      const porcentaje = headers[j];
+      const valor = getNumero(`tbl-edit-${j}`);
+      // Buscar doc existente
+      const docs = tablaDatos[hoja].docs?.filter(d => d.referencia === ref && d.porcentaje === porcentaje.toString()) || [];
+      if(docs.length > 0) {
+        await fbUpdate('precios', docs[0].id, { valor });
+      } else {
+        await fbAdd('precios', { tabla: hoja, referencia: ref, porcentaje: porcentaje.toString(), valor });
+      }
+      // Actualizar PRECIOS_DINAMICOS
+      if(!window.PRECIOS_DINAMICOS[hoja]) window.PRECIOS_DINAMICOS[hoja] = {};
+      if(!window.PRECIOS_DINAMICOS[hoja][ref]) window.PRECIOS_DINAMICOS[hoja][ref] = {};
+      window.PRECIOS_DINAMICOS[hoja][ref][porcentaje] = valor;
+    }
+    // Actualizar memoria tablaDatos
+    const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values[rowIdx] = valores;
-    // Actualizar PRECIOS_DINAMICOS
     preciosCargados = false;
     document.getElementById('modal-tabla').remove();
     renderTabla(hoja);
@@ -5118,32 +5076,17 @@ async function guardarFilaTabla(hoja, rowIdx) {
   }
 }
 
-function confirmarEliminarFilaTabla(hoja, rowIdx, ref) {
-  const modal = document.createElement('div');
-  modal.id = 'modal-tabla';
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  modal.innerHTML = `
-    <div style="background:white;border-radius:16px;padding:20px;width:100%;max-width:380px;">
-      <div style="font-size:32px;text-align:center;margin-bottom:8px;">🗑️</div>
-      <div style="font-weight:800;font-size:15px;text-align:center;margin-bottom:6px;">¿Eliminar referencia?</div>
-      <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:20px;">${ref}</div>
-      <div style="display:flex;gap:10px;">
-        <button onclick="document.getElementById('modal-tabla').remove()" style="flex:1;padding:12px;background:#f1f5f9;color:#475569;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
-        <button onclick="eliminarFilaTabla('${hoja}',${rowIdx})" style="flex:1;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">🗑️ Eliminar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-}
-
 async function eliminarFilaTabla(hoja, rowIdx) {
-  const excelRow = rowIdx + 1;
+  const data = tablaDatos[hoja];
+  const ref = data.values[rowIdx][0];
   try {
-    // Marcar primera celda como ELIMINADO para que se filtre al cargar
-    await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${excelRow}')`,
-      { values: [['__ELIMINADO__']] }
-    );
+    // Eliminar todos los docs de esta referencia en Firebase
+    const docs = await fbQuery('precios', 'referencia', '==', ref);
+    const docsHoja = docs.filter(d => d.tabla === hoja);
+    for(const d of docsHoja) await fbDelete('precios', d.id);
+    // Actualizar memoria
     tablaDatos[hoja].values.splice(rowIdx, 1);
+    if(window.PRECIOS_DINAMICOS[hoja]) delete window.PRECIOS_DINAMICOS[hoja][ref];
     preciosCargados = false;
     document.getElementById('modal-tabla').remove();
     renderTabla(hoja);
@@ -5159,16 +5102,18 @@ async function agregarFilaTabla(hoja) {
   const ref = document.getElementById('tbl-edit-ref').value.trim();
   if(!ref) { alert('⚠️ Ingresa la referencia'); return; }
 
-  const valores = [ref, ...headers.map((h, j) => getNumero(`tbl-edit-${j}`))];
-  const nuevaFila = data.values.length + 1; // siguiente fila en Excel
-  const rangoLetra = String.fromCharCode(65 + valores.length - 1);
-
   try {
-    await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/range(address='A${nuevaFila}:${rangoLetra}${nuevaFila}')`,
-      { values: [valores] }
-    );
-    // Actualizar memoria
+    // Agregar cada porcentaje en Firebase
+    for(let j = 0; j < headers.length; j++) {
+      const porcentaje = headers[j];
+      const valor = getNumero(`tbl-edit-${j}`);
+      await fbAdd('precios', { tabla: hoja, referencia: ref, porcentaje: porcentaje.toString(), valor });
+      // Actualizar PRECIOS_DINAMICOS
+      if(!window.PRECIOS_DINAMICOS[hoja]) window.PRECIOS_DINAMICOS[hoja] = {};
+      if(!window.PRECIOS_DINAMICOS[hoja][ref]) window.PRECIOS_DINAMICOS[hoja][ref] = {};
+      window.PRECIOS_DINAMICOS[hoja][ref][porcentaje] = valor;
+    }
+    const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values.push(valores);
     preciosCargados = false;
     document.getElementById('modal-tabla').remove();
@@ -5268,28 +5213,25 @@ async function cargarVentasIphone() {
   const lista = document.getElementById('iphone-lista');
   if(lista) lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">Cargando...</div>';
   try {
-    const data = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/usedRange`);
-    if(data?.values?.length > 1) {
-      iphoneVentas = data.values.slice(1).map((r,i) => ({
-        idx: i,
-        fecha: r[0]||'', local: r[1]||'', ref: r[2]||'', financiera: r[3]||'',
-        imei: r[4]||'', cedula: r[5]||'', nombre: r[6]||'',
-        cuotaInicial: parseFloat(r[7])||0, metodoPago: r[8]||'',
-        efectivo: parseFloat(r[9])||0, transfer: parseFloat(r[10])||0,
-        vs: parseFloat(r[11])||0, cuotaSistema: parseFloat(r[12])||0,
-        descuento: parseFloat(r[13])||0, costo: parseFloat(r[14])||0,
-        tipo: r[15]||'', comTrab: parseFloat(r[16])||0,
-        porcEnc: parseFloat(r[17])||0, utilBruta: parseFloat(r[18])||0,
-        comEnc: parseFloat(r[19])||0, utilNeta: parseFloat(r[20])||0,
-        estado: r[21]||'PENDIENTE', liquidado: r[22]||'NO',
-        pagoFinanciera: parseFloat(r[23])||0
-      }));
-    } else {
-      iphoneVentas = [];
-    }
+    const docs = await fbGetAll('ventas_iphone');
+    iphoneVentas = docs.map((d, i) => ({
+      idx: i, id: d.id,
+      fecha: d.fecha||'', local: d.local||'', ref: d.referencia||'', financiera: d.financiera||'',
+      imei: d.imei||'', cedula: d.cedula||'', nombre: d.nombre||'',
+      cuotaInicial: parseFloat(d.cuota_inicial)||0, metodoPago: d.metodo_pago||'',
+      efectivo: parseFloat(d.efectivo)||0, transfer: parseFloat(d.transferencia)||0,
+      vs: parseFloat(d.vs)||0, cuotaSistema: parseFloat(d.cuota_sistema)||0,
+      descuento: parseFloat(d.descuento)||0, costo: parseFloat(d.costo)||0,
+      tipo: d.tipo||'MIO', comTrab: parseFloat(d.comision_trabajadora)||0,
+      porcEnc: parseFloat(d.porc_encargada)||0, utilBruta: parseFloat(d.utilidad_bruta)||0,
+      comEnc: parseFloat(d.comision_encargada)||0, utilNeta: parseFloat(d.utilidad_neta)||0,
+      estado: d.estado||'PENDIENTE', liquidado: d.liquidado||'NO',
+      pagoFinanciera: parseFloat(d.pago_financiera)||0
+    }));
     renderListaIphone();
   } catch(e) {
     if(lista) lista.innerHTML = '<div style="color:#dc2626;padding:16px;">Error cargando ventas iPhone</div>';
+    console.error(e);
   }
 }
 
@@ -5494,35 +5436,27 @@ async function guardarCompletarIphone() {
 
   const getN = id => getNumero(id);
   const c = v._calc;
-  const fila = v.idx + 2;
+  const esContado = v.financiera === 'CONTADO';
 
   try {
-    // Actualizar IMEI, cédula y nombre (columnas E, F, G = 5,6,7)
-    await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='E${fila}:G${fila}')`,
-      { values: [[imei, cedula, nombre]] }
-    );
-
-    // Actualizar columnas L a X
-    const esContado = v.financiera === 'CONTADO';
-    await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='L${fila}:X${fila}')`,
-      { values: [[
-        esContado ? 0 : getN('ci-vs'),
-        esContado ? 0 : getN('ci-cuota-sistema'),
-        esContado ? 0 : getN('ci-descuento'),
-        getN('ci-costo'),
-        esContado ? 'CONTADO' : (document.getElementById('ci-tipo')?.value||'MIO'),
-        getN('ci-comision-trabajadora'),
-        parseFloat(document.getElementById('ci-porc-encargada')?.value)||0,
-        Math.round(c.utilBruta), Math.round(c.comEnc), Math.round(c.utilNeta),
-        'COMPLETA', v.liquidado||'NO', v.pagoFinanciera||0
-      ]] }
-    );
+    await fbUpdate('ventas_iphone', v.id, {
+      imei, cedula, nombre,
+      vs: esContado ? 0 : getN('ci-vs'),
+      cuota_sistema: esContado ? 0 : getN('ci-cuota-sistema'),
+      descuento: esContado ? 0 : getN('ci-descuento'),
+      costo: getN('ci-costo'),
+      tipo: esContado ? 'CONTADO' : (document.getElementById('ci-tipo')?.value||'MIO'),
+      comision_trabajadora: getN('ci-comision-trabajadora'),
+      porc_encargada: parseFloat(document.getElementById('ci-porc-encargada')?.value)||0,
+      utilidad_bruta: Math.round(c.utilBruta),
+      comision_encargada: Math.round(c.comEnc),
+      utilidad_neta: Math.round(c.utilNeta),
+      estado: 'COMPLETA'
+    });
 
     if(btn) { btn.textContent = 'Guardar ✓'; btn.disabled = false; }
     await cargarVentasIphone();
-    irA('gerencia-iphone');
+    setTabIphone('completas');
     mostrarToastVerde('✅ Venta iPhone completada');
   } catch(e) {
     if(btn) { btn.textContent = 'Guardar ✓'; btn.disabled = false; }
@@ -5572,15 +5506,14 @@ async function guardarPagoIphone(idx) {
   const pagoReal = getNumero('input-pago-real');
   if(!pagoReal) { alert('⚠️ Ingresa el monto del pago'); return; }
 
-  const fila = v.idx + 2;
   try {
-    await graphPatch(
-      `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/VENTAS_IPHONE/range(address='W${fila}:X${fila}')`,
-      { values: [['SI', pagoReal]] }
-    );
+    await fbUpdate('ventas_iphone', v.id, {
+      liquidado: 'SI',
+      pago_financiera: pagoReal
+    });
     document.getElementById('modal-pago-iphone')?.remove();
     await cargarVentasIphone();
-    setTabIphone('completas'); // Volver al tab completas para ver el cambio
+    setTabIphone('completas');
     mostrarToastVerde('✅ Pago registrado correctamente');
   } catch(e) {
     alert('❌ Error al guardar: ' + e.message);
@@ -5588,85 +5521,32 @@ async function guardarPagoIphone(idx) {
 }
 
 async function cargarLiquidaciones() {
-  document.getElementById('liq-loading').style.display = 'block';
-  document.getElementById('liq-lista').innerHTML = '';
-
-  const fetchConReintento = async (hoja) => {
-    for(let i=0;i<3;i++) {
-      const d = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/${hoja}/usedRange`);
-      if(d && d.values) return d;
-      await new Promise(r=>setTimeout(r,800));
-    }
-    return null;
-  };
-
+  document.getElementById("liq-loading").style.display = "block";
+  document.getElementById("liq-lista").innerHTML = "";
   try {
-    const tipos = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
-
-    // Cargar ambas hojas en paralelo con reintentos
-    const [ventas, liqSheet] = await Promise.all([
-      fetchConReintento('VENTAS_CREDITOS'),
-      fetchConReintento('LIQUIDACIONES')
-    ]);
-
-    if(!ventas) {
-      document.getElementById('liq-loading').style.display = 'none';
-      document.getElementById('liq-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ No se pudieron cargar las ventas. Toca atrás y vuelve a intentar.</div>';
-      return;
-    }
-
-    // Normalizar IMEI
-    const normImei = v => {
-      let s = v ? v.toString().trim() : '';
-      if(s.includes('E+') || s.includes('e+')) s = Math.round(parseFloat(s)).toString();
-      return s;
-    };
-
-    // IMEIs ya liquidados
+    const tipos = ["ET_CLARO","ET_OFICINA","PAYJOY","ADDI","ALO_CREDIT","OFICINA","RECOMPRA"];
+    const [ventas, liqDocs] = await Promise.all([fbGetAll("ventas_creditos"), fbGetAll("liquidaciones")]);
+    const normImei = v => { let s = v ? v.toString().trim() : ""; if(s.includes("E+")) s = Math.round(parseFloat(s)).toString(); return s; };
     const liquidados = {};
-    if(liqSheet?.values?.length > 1) {
-      for(let i=1; i<liqSheet.values.length; i++) {
-        const r = liqSheet.values[i];
-        if(r[0]) {
-          const key = normImei(r[0]);
-          liquidados[key] = {
-            imei: key, ref: r[1], tipo: r[2], porc: r[3], costo: r[4],
-            fecha: r[5], pagoFinanciera: r[6], obs: r[7], fechaAct: r[8],
-            costoClaro: r[9]||0, valorSistema: r[10]||0, rowIndex: i+1
-          };
-        }
-      }
-    }
+    liqDocs.forEach(d => { if(d.imei) { const key = normImei(d.imei); liquidados[key] = { imei:key, ref:d.referencia, tipo:d.tipo_venta, porc:d.porcentaje, costo:d.costo, fecha:d.fecha, pagoFinanciera:d.pago_financiera, obs:d.observacion, fechaAct:d.fecha_actualizacion, costoClaro:d.costo_claro||0, valorSistema:d.valor_sistema||0, id:d.id }; } });
     liqCompletadas = Object.values(liquidados);
-
     window.LIQ_PENDIENTES = [];
-    if(ventas?.values?.length > 1) {
-      for(let i=1; i<ventas.values.length; i++) {
-        const r = ventas.values[i];
-        const tipo = r[2] ? r[2].toString() : '';
-        const estado = r[13] ? r[13].toString() : '';
-        if(!tipos.includes(tipo)) continue;
-        if(estado === 'ANULADO') continue;
-        const imei = normImei(r[4]);
-        if(!imei) continue;
-        if(liquidados[imei]) continue;
-        const costo = findImei(imei)?.costo || 0;
-        const cuotaFinal = parseFloat(r[8]) || 0;
-        const cuotaSug = parseFloat(r[6]) || 0;
-        window.LIQ_PENDIENTES.push({
-          fecha: r[0], local: r[1], tipo, ref: r[3], imei,
-          porc: parseFloat(r[5]) || 0, cuotaFinal, cuotaSug, costo, rowIndex: i+1
-        });
-      }
-    }
-
-    document.getElementById('liq-loading').style.display = 'none';
+    ventas.forEach(d => {
+      const tipo = d.tipo||""; const estado = d.estado||"";
+      if(!tipos.includes(tipo)) return;
+      if(estado === "ANULADO") return;
+      const imei = normImei(d.imei);
+      if(!imei) return;
+      if(liquidados[imei]) return;
+      const costo = findImei(imei)?.costo || 0;
+      window.LIQ_PENDIENTES.push({ fecha:d.fecha, local:d.local, tipo, ref:d.referencia, imei, porc:parseFloat(d.porcentaje)||0, cuotaFinal:parseFloat(d.cuota_neta)||0, cuotaSug:parseFloat(d.cuota)||0, costo, id:d.id });
+    });
+    document.getElementById("liq-loading").style.display = "none";
     renderLiquidaciones();
-
   } catch(e) {
-    document.getElementById('liq-loading').style.display = 'none';
-    document.getElementById('liq-lista').innerHTML = '<div style="color:#dc2626;padding:16px;font-weight:700;">❌ Error al cargar. Toca atrás y vuelve a intentar.</div>';
-    console.error('Error cargarLiquidaciones:', e);
+    document.getElementById("liq-loading").style.display = "none";
+    document.getElementById("liq-lista").innerHTML = '<div style="color:#dc2626;padding:16px;">❌ Error al cargar.</div>';
+    console.error("Error cargarLiquidaciones:", e);
   }
 }
 
@@ -5886,60 +5766,78 @@ async function guardarLiquidacion() {
   const btn = document.querySelector('#screen-liquidacion-detalle .submit-btn');
   if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
 
-  // Leer COSTO_CLARO y VALOR_SISTEMA de las calculadoras si aplica
   const costoClaro = getNumero('calc-costo-claro');
   const valorSistema = getNumero('calc-vs') || getNumero('calc-eto-vs') || getNumero('calc-pj-vs');
 
   try {
-    if(v.esEdicion && v.rowIndex) {
-      // Editar fila existente en LIQUIDACIONES — columnas F a K
-      await graphPatch(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/LIQUIDACIONES/range(address='F${v.rowIndex}:K${v.rowIndex}')`,
-        { values: [[v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy, costoClaro, valorSistema]] });
+    if(v.esEdicion && v.id) {
+      // Actualizar liquidación existente en Firebase
+      await fbUpdate('liquidaciones', v.id, {
+        pago_financiera: pagoFinanciera, observacion: obs,
+        fecha_actualizacion: fechaHoy, costo_claro: costoClaro, valor_sistema: valorSistema
+      });
     } else {
-      // Nueva fila en LIQUIDACIONES
-      // IMEI como texto con apóstrofe para evitar conversión a número
-      // IMEI, REFERENCIA, TIPO_VENTA, PORCENTAJE, COSTO, FECHA, PAGO_FINANCIERA, OBSERVACION, FECHA_ACTUALIZACION, COSTO_CLARO, VALOR_SISTEMA
-      const fila = [v.imei.toString(), v.ref, v.tipo, v.porc, v.costo, v.fecha||fechaHoy, pagoFinanciera, obs, fechaHoy, costoClaro, valorSistema];
-      await agregarFilaExcel('LIQUIDACIONES', fila);
-    }
+      // Nueva liquidación en Firebase
+      const doc = {
+        imei: v.imei.toString(), referencia: v.ref, tipo_venta: v.tipo,
+        porcentaje: v.porc, costo: v.costo, fecha: v.fecha||fechaHoy,
+        pago_financiera: pagoFinanciera, observacion: obs,
+        fecha_actualizacion: fechaHoy, costo_claro: costoClaro, valor_sistema: valorSistema
+      };
+      const newId = await fbAdd('liquidaciones', doc);
 
-    // Si es ET_OFICINA actualizar utilidad en CONTROL columna T
-    if(v.tipo === 'ET_OFICINA') {
-      try {
-        const ctrl = await graphGet(`/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/usedRange`);
-        if(ctrl?.values?.length > 1) {
-          for(let i=1; i<ctrl.values.length; i++) {
-            const r = ctrl.values[i];
-            const imeiCtrl = r[4]?.toString().trim()||'';
-            if(imeiCtrl === v.imei.toString().trim() && r[13]!=='ANULADO') {
-              const cuotaCliente = parseFloat(r[8])||0; // col I = índice 8
-              const costo = parseFloat(v.costo)||0;
-              const utilidad = cuotaCliente + pagoFinanciera - costo;
-              await graphPatch(
-                `/me/drive/items/${MS_FILE_ID}/workbook/worksheets/CONTROL/range(address='T${i+1}')`,
-                { values: [[Math.round(utilidad)]] }
-              );
-              break;
-            }
+      // Para OFICINA y RECOMPRA calcular utilidad
+      if(v.tipo === 'OFICINA' || v.tipo === 'RECOMPRA') {
+        try {
+          const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', v.imei.toString().trim());
+          const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
+          if(venta) {
+            const cuotaNeta = parseFloat(venta.cuota_neta)||0;
+            const cuotaRealOficina = parseFloat(venta.cuota_real_oficina)||0;
+            const COMISION = 80000;
+            const utilidad = cuotaNeta - cuotaRealOficina + COMISION;
+            await fbUpdate('ventas_creditos', venta.id, {
+              utilidad: Math.round(utilidad),
+              pago_financiera: pagoFinanciera
+            });
           }
-        }
-      } catch(e) { console.error('Error actualizando CONTROL ET_OFICINA:', e); }
-    }
+        } catch(e) { console.error('Error actualizando utilidad OFICINA/RECOMPRA:', e); }
+      }
+        try {
+          const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', v.imei.toString().trim());
+          const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
+          if(venta) {
+            const cuotaCliente = parseFloat(venta.cuota_neta)||0;
+            const utilidad = cuotaCliente + pagoFinanciera - (parseFloat(v.costo)||0);
+            await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(utilidad), pago_financiera: pagoFinanciera });
+          }
+        } catch(e) { console.error('Error actualizando utilidad ET_OFICINA:', e); }
+      }
+
+      // Para ET_CLARO también calcular utilidad
+      if(v.tipo === 'ET_CLARO') {
+        try {
+          const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', v.imei.toString().trim());
+          const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
+          if(venta) {
+            const cuotaCliente = parseFloat(venta.cuota_neta)||0;
+            const utilidad = cuotaCliente + pagoFinanciera - costoClaro - (parseFloat(v.costo)||0);
+            await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(utilidad), pago_financiera: pagoFinanciera });
+          }
+        } catch(e) { console.error('Error actualizando utilidad ET_CLARO:', e); }
+      }
 
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     mostrarToastVerde('✅ Liquidación guardada correctamente');
 
-    // Actualizar memoria local inmediatamente sin recargar de la API
+    // Actualizar memoria local
     if(!v.esEdicion) {
-      // Mover de pendientes a completadas en memoria
       window.LIQ_PENDIENTES = window.LIQ_PENDIENTES.filter(p => p.imei !== v.imei);
       liqCompletadas.push({
         imei: v.imei, ref: v.ref, tipo: v.tipo, porc: v.porc, costo: v.costo,
-        fecha: v.fecha, pagoFinanciera, obs, fechaAct: fechaHoyLocal(),
-        costoClaro, valorSistema
+        fecha: v.fecha, pagoFinanciera, obs, fechaAct: fechaHoy, costoClaro, valorSistema
       });
     } else {
-      // Actualizar en completadas
       const idx = liqCompletadas.findIndex(c => c.imei === v.imei);
       if(idx >= 0) {
         liqCompletadas[idx].pagoFinanciera = pagoFinanciera;
@@ -5954,13 +5852,9 @@ async function guardarLiquidacion() {
   } catch(e) {
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     alert('❌ Error al guardar. Verifica conexión.');
+    console.error(e);
   }
 }
-
-// =============================================
-// REPORTES
-// =============================================
-let repPeriodo = 'hoy';
 let repDesde = null;
 let repHasta = null;
 
@@ -6654,7 +6548,7 @@ async function cargarReportes() {
       const local = d.local||'';
       if(!datos[local]) return;
       const util = parseFloat(d.utilidad)||0;
-      const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
+      const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT','OFICINA','RECOMPRA'];
       if(util !== 0) {
         datos[local].utilCredito += util;
         datos[local].ventasCredito++;
