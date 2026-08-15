@@ -260,6 +260,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="abrirCorregirRegistros()"><div class="btn-icon rojo">✏️</div><div class="btn-info"><div class="btn-titulo">Corregir Registros</div><div class="btn-sub">Editar o eliminar ventas, gastos, accesorios</div></div><span class="btn-arrow">›</span></button>
 
     <div class="divider"></div>
     <p class="sec-titulo">Reportes</p>
@@ -270,6 +271,47 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarTablas();irA('tablas')"><div class="btn-icon morado">📊</div><div class="btn-info"><div class="btn-titulo">Tablas de Cuotas</div><div class="btn-sub">OFICINA · ET OFICINA · ET CLARO · RECOMPRA</div></div><span class="btn-arrow">›</span></button>
 
+  </div>
+</div>
+
+<!-- CORREGIR REGISTROS -->
+<div class="screen" id="screen-corregir-registros">
+  <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">
+    <button class="back-btn" onclick="irA('gerencia')">‹</button>
+    <div><div class="form-header-title">✏️ Corregir Registros</div><div class="form-header-sub">Editar o eliminar registros del negocio</div></div>
+  </div>
+  <div class="form-body">
+    <div class="field">
+      <label>Tipo de registro</label>
+      <div class="select-wrap">
+        <select id="corr-tipo" onchange="corregirCargar()">
+          <option value="">Seleccionar...</option>
+          <option value="ventas_creditos">Ventas Crédito</option>
+          <option value="ventas_contado">Ventas Contado</option>
+          <option value="ventas_accesorios">Ventas Accesorios</option>
+          <option value="gastos_diarios">Gastos Diarios</option>
+          <option value="ingresos_local">Ingresos Local</option>
+          <option value="egresos_gerencia">Egresos Gerencia</option>
+          <option value="ingresos_gerencia">Ingresos Gerencia</option>
+          <option value="ventas_iphone">Ventas iPhone</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="corr-fecha">
+    </div>
+    <div class="field">
+      <label>Local (opcional)</label>
+      <div class="select-wrap">
+        <select id="corr-local">
+          <option value="">Todos los locales</option>
+        </select>
+      </div>
+    </div>
+    <button class="submit-btn" onclick="corregirCargar()" style="margin-bottom:16px;">🔍 Buscar</button>
+    <div id="corr-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>
+    <div id="corr-lista"></div>
   </div>
 </div>
 
@@ -2223,6 +2265,79 @@ function abrirExcelOnline() {
   window.open(url, '_blank');
 }
 
+function abrirCorregirRegistros() {
+  // Llenar selector de locales
+  const sel = document.getElementById('corr-local');
+  if(sel && window.CONFIG_DATA?.locales) {
+    sel.innerHTML = '<option value="">Todos los locales</option>';
+    window.CONFIG_DATA.locales.forEach(l => sel.innerHTML += `<option>${l}</option>`);
+  }
+  // Poner fecha de hoy
+  document.getElementById('corr-fecha').value = fechaHoyLocal();
+  document.getElementById('corr-lista').innerHTML = '';
+  irA('corregir-registros');
+}
+
+async function corregirCargar() {
+  const tipo = document.getElementById('corr-tipo').value;
+  const fecha = document.getElementById('corr-fecha').value;
+  const local = document.getElementById('corr-local').value;
+  if(!tipo) return;
+
+  document.getElementById('corr-loading').style.display = 'block';
+  document.getElementById('corr-lista').innerHTML = '';
+
+  try {
+    let docs = await fbGetAll(tipo);
+    // Filtrar por fecha
+    if(fecha) docs = docs.filter(d => d.fecha?.toString().substring(0,10) === fecha);
+    // Filtrar por local
+    if(local) docs = docs.filter(d => d.local === local);
+
+    document.getElementById('corr-loading').style.display = 'none';
+
+    if(docs.length === 0) {
+      document.getElementById('corr-lista').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay registros para esta fecha</div>';
+      return;
+    }
+
+    const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
+    document.getElementById('corr-lista').innerHTML = docs.map(d => {
+      const titulo = d.referencia||d.producto||d.concepto||d.tipo||d.ref||d.financiera||'Registro';
+      const sub = `${d.local||''} ${d.local&&d.metodo_pago?'·':''} ${d.metodo_pago||''}`.trim();
+      const valor = d.valor||d.total||(d.cuota_neta)||d.precio||0;
+      return `
+        <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="flex:1;">
+              <div style="font-weight:700;font-size:14px;">${titulo}</div>
+              ${sub?`<div style="font-size:12px;color:#64748b;">${sub}</div>`:''}
+              <div style="font-size:12px;color:#64748b;">${d.fecha||''} ${valor?'· '+fmt(valor):''}</div>
+            </div>
+            <button onclick="corregirEliminar('${tipo}','${d.id}')" 
+              style="background:#fee2e2;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:700;color:#dc2626;font-size:13px;">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('corr-loading').style.display = 'none';
+    document.getElementById('corr-lista').innerHTML = '<div style="color:#dc2626;padding:16px;">❌ Error al cargar</div>';
+  }
+}
+
+async function corregirEliminar(col, id) {
+  if(!confirm('⚠️ ¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+  try {
+    await fbDelete(col, id);
+    mostrarToastVerde('✅ Registro eliminado');
+    corregirCargar(); // recargar lista
+  } catch(e) {
+    alert('❌ Error al eliminar');
+  }
+}
+
 function mostrarClave(){
   if(gerenciaAutenticada) {
     irA('gerencia');
@@ -3368,11 +3483,11 @@ function renderInventario() {
     let items = window.ACCESORIOS_EXCEL;
     const catFiltro = document.getElementById('inv-cat-filter')?.value || '';
     if(localFiltro) items = items.filter(a => a.local === localFiltro);
-    if(catFiltro) items = items.filter(a => a.cat === catFiltro);
-    if(busqueda) items = items.filter(a => a.producto.toLowerCase().includes(busqueda) || a.cat.toLowerCase().includes(busqueda));
+    if(catFiltro) items = items.filter(a => (a.categoria||a.cat) === catFiltro);
+    if(busqueda) items = items.filter(a => a.producto.toLowerCase().includes(busqueda) || (a.categoria||a.cat||'').toLowerCase().includes(busqueda));
 
     // Contador accesorios
-    const totalStock = items.reduce((sum, a) => sum + (a.stock || 0), 0);
+    const totalStock = items.reduce((sum, a) => sum + (a.stockActual||a.stock||0), 0);
     const contador = document.getElementById('inv-contador');
     contador.style.display = 'block';
     contador.innerHTML = `🎧 Productos: <b>${items.length}</b> &nbsp;|&nbsp; 📦 Stock total: <b>${totalStock}</b>`;
@@ -3387,14 +3502,14 @@ function renderInventario() {
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="flex:1;">
             <div style="font-weight:700;font-size:14px;">${a.producto}</div>
-            <div style="font-size:12px;color:#64748b;">${a.local} · ${a.cat}</div>
+            <div style="font-size:12px;color:#64748b;">${a.local} · ${a.categoria||a.cat||''}</div>
             <div style="display:flex;gap:12px;margin-top:4px;font-size:13px;flex-wrap:wrap;">
-              <span>💰 Costo: <b>$${(a.costo||0).toLocaleString('es-CO')}</b></span>
-              <span>🏷️ Venta: <b style="color:${a.precioVenta>0?'#16a34a':'#dc2626'};">${a.precioVenta>0?'$'+a.precioVenta.toLocaleString('es-CO'):'Sin precio'}</b></span>
+              <span>💰 Costo: <b>$${(a.costoUnit||a.costo||0).toLocaleString('es-CO')}</b></span>
+              <span>🏷️ Venta: <b style="color:${(a.precioVenta||0)>0?'#16a34a':'#dc2626'};">${(a.precioVenta||0)>0?'$'+(a.precioVenta).toLocaleString('es-CO'):'Sin precio'}</b></span>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-left:8px;">
-            <div style="background:${a.stock>0?'#0369a1':'#dc2626'};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;">${a.stock}</div>
+            <div style="background:${(a.stockActual||a.stock||0)>0?'#0369a1':'#dc2626'};color:white;border-radius:8px;padding:6px 12px;font-weight:700;font-size:14px;">${a.stockActual||a.stock||0}</div>
             <button onclick="editarAccesorio('${a.local}','${a.producto}')" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">✏️</button>
           </div>
         </div>
