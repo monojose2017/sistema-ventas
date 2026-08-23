@@ -278,13 +278,13 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-corregir-registros">
   <div class="form-header" style="background:linear-gradient(135deg,#dc2626,#b91c1c)">
     <button class="back-btn" onclick="irA('gerencia')">‹</button>
-    <div><div class="form-header-title">✏️ Corregir Registros</div><div class="form-header-sub">Editar o eliminar registros del negocio</div></div>
+    <div><div class="form-header-title">✏️ Corregir Registros</div><div class="form-header-sub">Busca y elimina registros incorrectos</div></div>
   </div>
   <div class="form-body">
     <div class="field">
       <label>Tipo de registro</label>
       <div class="select-wrap">
-        <select id="corr-tipo" onchange="corregirCargar()">
+        <select id="corr-tipo">
           <option value="">Seleccionar...</option>
           <option value="ventas_creditos">Ventas Crédito</option>
           <option value="ventas_contado">Ventas Contado</option>
@@ -298,7 +298,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </div>
     </div>
     <div class="field">
-      <label>Fecha</label>
+      <label>Fecha (opcional — dejar vacío para ver todos)</label>
       <input type="date" id="corr-fecha">
     </div>
     <div class="field">
@@ -309,7 +309,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         </select>
       </div>
     </div>
-    <button class="submit-btn" onclick="corregirCargar()" style="margin-bottom:16px;">🔍 Buscar</button>
+    <button class="submit-btn" onclick="corregirCargar()" style="margin-bottom:16px;">🔍 Buscar registros</button>
     <div id="corr-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>
     <div id="corr-lista"></div>
   </div>
@@ -2284,63 +2284,58 @@ async function corregirCargar() {
   const tipo = document.getElementById('corr-tipo').value;
   const fecha = document.getElementById('corr-fecha').value;
   const local = document.getElementById('corr-local').value;
-  if(!tipo) return;
+  if(!tipo) {
+    document.getElementById('corr-lista').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Selecciona un tipo de registro</div>';
+    return;
+  }
 
   document.getElementById('corr-loading').style.display = 'block';
   document.getElementById('corr-lista').innerHTML = '';
 
   try {
     let docs = await fbGetAll(tipo);
-    // Filtrar por fecha solo si se especificó
+
     if(fecha) docs = docs.filter(d => normalizarFecha(d.fecha) === fecha);
-    // Filtrar por local solo si se especificó
     if(local) docs = docs.filter(d => d.local === local);
-    // Ordenar por fecha descendente
     docs.sort((a,b) => (normalizarFecha(b.fecha)||'').localeCompare(normalizarFecha(a.fecha)||''));
 
     document.getElementById('corr-loading').style.display = 'none';
 
     if(docs.length === 0) {
-      document.getElementById('corr-lista').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay registros para esta fecha</div>';
+      document.getElementById('corr-lista').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay registros</div>';
       return;
     }
 
     const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
-    document.getElementById('corr-lista').innerHTML = docs.map(d => {
-      const titulo = d.referencia||d.producto||d.concepto||d.tipo||d.ref||d.financiera||'Registro';
-      const sub = `${d.local||''} ${d.local&&d.metodo_pago?'·':''} ${d.metodo_pago||''}`.trim();
-      const valor = d.valor||d.total||(d.cuota_neta)||d.precio||0;
-      return `
-        <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="flex:1;">
-              <div style="font-weight:700;font-size:14px;">${titulo}</div>
-              ${sub?`<div style="font-size:12px;color:#64748b;">${sub}</div>`:''}
-              <div style="font-size:12px;color:#64748b;">${d.fecha||''} ${valor?'· '+fmt(valor):''}</div>
+    document.getElementById('corr-lista').innerHTML = `
+      <div style="color:#64748b;font-size:12px;margin-bottom:8px;">${docs.length} registro(s) encontrado(s)</div>
+      ${docs.map(d => {
+        const titulo = d.referencia||d.producto||d.concepto||d.tipo||d.ref||d.financiera||d.nombre||'Registro';
+        const sub = [d.local, d.metodo_pago, d.responsable].filter(Boolean).join(' · ');
+        const valor = parseFloat(d.valor||d.total||d.cuota_neta||d.precio||0);
+        const fecha = normalizarFecha(d.fecha)||'';
+        return `
+          <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${titulo}</div>
+                ${sub?`<div style="font-size:12px;color:#64748b;">${sub}</div>`:''}
+                <div style="font-size:12px;color:#94a3b8;">${fecha}${valor?' · '+fmt(valor):''}</div>
+              </div>
+              <button onclick="corregirEliminar('${tipo}','${d.id}')" 
+                style="background:#fee2e2;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;color:#dc2626;font-size:12px;white-space:nowrap;flex-shrink:0;">
+                🗑️ Eliminar
+              </button>
             </div>
-            <button onclick="corregirEliminar('${tipo}','${d.id}')" 
-              style="background:#fee2e2;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:700;color:#dc2626;font-size:13px;">
-              🗑️ Eliminar
-            </button>
-          </div>
-        </div>`;
-    }).join('');
+          </div>`;
+      }).join('')}`;
   } catch(e) {
     document.getElementById('corr-loading').style.display = 'none';
-    document.getElementById('corr-lista').innerHTML = '<div style="color:#dc2626;padding:16px;">❌ Error al cargar</div>';
+    document.getElementById('corr-lista').innerHTML = `<div style="color:#dc2626;padding:16px;background:#fee2e2;border-radius:10px;">❌ Error: ${e.message}</div>`;
+    console.error('corregirCargar error:', e);
   }
 }
 
-async function corregirEliminar(col, id) {
-  if(!confirm('⚠️ ¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
-  try {
-    await fbDelete(col, id);
-    mostrarToastVerde('✅ Registro eliminado');
-    corregirCargar(); // recargar lista
-  } catch(e) {
-    alert('❌ Error al eliminar');
-  }
-}
 
 function mostrarClave(){
   if(gerenciaAutenticada) {
@@ -3657,8 +3652,9 @@ function autoCompletarPrecioAccesorio() {
   const local = document.getElementById('a-local').value;
   if(!producto || !window.ACCESORIOS_EXCEL) return;
   const found = window.ACCESORIOS_EXCEL.find(a => a.producto === producto && a.local === local);
-  if(found && found.precio > 0) {
-    document.getElementById('a-precio').value = '$' + found.precio.toLocaleString('es-CO');
+  const precio = found?.precioVenta || found?.precio || 0;
+  if(precio > 0) {
+    document.getElementById('a-precio').value = '$' + precio.toLocaleString('es-CO');
     manejarPago('a');
   }
 }
@@ -5633,6 +5629,7 @@ async function guardarPagoIphone(idx) {
     document.getElementById('modal-pago-iphone')?.remove();
     await cargarVentasIphone();
     setTabIphone('completas');
+    irA('gerencia-iphone');
     mostrarToastVerde('✅ Pago registrado correctamente');
   } catch(e) {
     alert('❌ Error al guardar: ' + e.message);
@@ -5887,8 +5884,10 @@ function mostrarPreviewUtilidad(pagoFinanciera) {
 
 async function guardarLiquidacion() {
   if(!liqVentaActual) return;
-  const pagoFinanciera = parseInt((document.getElementById('liq-pago-financiera').value||'').replace(/[^0-9]/g,'')) || 0;
-  if(!pagoFinanciera) { alert('⚠️ Ingresa el valor que paga la financiera'); return; }
+  const campoValor = (document.getElementById('liq-pago-financiera').value||'').trim();
+  const esNegativo = campoValor.includes('-');
+  const pagoFinanciera = (parseInt(campoValor.replace(/[^0-9]/g,'')) || 0) * (esNegativo ? -1 : 1);
+  if(pagoFinanciera === 0) { alert('⚠️ Ingresa el valor que paga la financiera'); return; }
   const obs = document.getElementById('liq-observacion').value.trim();
   const v = liqVentaActual;
   const fechaHoy = fechaHoyLocal();
@@ -5977,7 +5976,7 @@ async function guardarLiquidacion() {
     }
 
     irA('liquidaciones');
-    renderLiquidaciones();
+    await cargarLiquidaciones();
   } catch(e) {
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     alert('❌ Error al guardar. Verifica conexión.');
@@ -6677,13 +6676,18 @@ async function cargarReportes() {
       const local = d.local||'';
       if(!datos[local]) return;
       const util = parseFloat(d.utilidad)||0;
-      const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT','OFICINA','RECOMPRA'];
-      if(util !== 0) {
-        datos[local].utilCredito += util;
-        datos[local].ventasCredito++;
-      } else if(tiposLiquidables.includes(d.tipo) && !liqMap[d.imei]) {
-        datos[local].sinLiquidar.push({ ref:d.referencia||'', imei:d.imei||'', tipo:d.tipo||'', fecha:d.fecha||'' });
+      const tiposLiquidables = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI','ALO_CREDIT'];
+      if(tiposLiquidables.includes(d.tipo)) {
+        // Solo contar si ya tiene utilidad calculada (fue liquidada)
+        if(util !== 0) {
+          datos[local].utilCredito += util;
+          datos[local].ventasCredito++;
+        } else {
+          // Pendiente de liquidar
+          datos[local].sinLiquidar.push({ ref:d.referencia||'', imei:d.imei||'', tipo:d.tipo||'', fecha:d.fecha||'' });
+        }
       } else {
+        // OFICINA, RECOMPRA — utilidad calculada al registrar
         datos[local].utilCredito += util;
         datos[local].ventasCredito++;
       }
@@ -6725,11 +6729,17 @@ async function cargarReportes() {
       datos[local].gastosDiarios += parseFloat(d.valor)||0;
     });
 
-    // EGRESOS_GERENCIA
+    // EGRESOS_GERENCIA → si tienen local van a ese local, sino van a General
+    let egresosGeneralTotal = 0;
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
-      const prop = propositoDeuda[d.concepto?.trim()||''] || 'OPERATIVA';
-      LOCALES.forEach(l => { if(datos[l]) datos[l].egresosOperativos += (parseFloat(d.valor)||0) / LOCALES.length; });
+      const valor = parseFloat(d.valor)||0;
+      const local = d.local?.trim()||'';
+      if(local && datos[local]) {
+        datos[local].egresosOperativos += valor;
+      } else {
+        egresosGeneralTotal += valor;
+      }
     });
 
     // INGRESOS_LOCAL
@@ -6914,16 +6924,13 @@ async function cargarReportes() {
     document.getElementById('rep-loading').style.display = 'none';
 
     // Variables de egresos generales
-    let egresosGeneral = 0;
+    let egresosGeneral = egresosGeneralTotal;
     let abonosGeneral = 0;
     let detalleEgresosGeneral = [];
-
-    // Egresos gerencia que no tienen local asignado van a general
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
-      egresosGeneral += parseFloat(d.valor)||0;
       detalleEgresosGeneral.push({
-        fecha: d.fecha, cat: 'EGRESO', desc: d.concepto||'', valor: parseFloat(d.valor)||0
+        fecha: d.fecha, cat: 'EGRESO', desc: d.concepto||'Sin descripción', valor: parseFloat(d.valor)||0
       });
     });
 
