@@ -2282,6 +2282,17 @@ function abrirExcelOnline() {
   window.open(url, '_blank');
 }
 
+async function corregirEliminar(col, id) {
+  if(!confirm('⚠️ ¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
+  try {
+    await fbDelete(col, id);
+    mostrarToastVerde('✅ Registro eliminado');
+    corregirCargar();
+  } catch(e) {
+    alert('❌ Error al eliminar: ' + e.message);
+  }
+}
+
 function abrirCorregirRegistros() {
   // Llenar selector de locales
   const sel = document.getElementById('corr-local');
