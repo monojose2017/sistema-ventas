@@ -2282,6 +2282,67 @@ function abrirExcelOnline() {
   window.open(url, '_blank');
 }
 
+function corregirEditar(idx) {
+  const d = window._corrDocs[idx];
+  const tipo = window._corrTipo;
+  if(!d) return;
+
+  // Campos editables según tipo
+  const campos = [];
+  if(d.fecha !== undefined) campos.push({key:'fecha', label:'Fecha', val:d.fecha||'', type:'date'});
+  if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'text'});
+  if(d.concepto !== undefined) campos.push({key:'concepto', label:'Concepto', val:d.concepto||'', type:'text'});
+  if(d.descripcion !== undefined) campos.push({key:'descripcion', label:'Descripción', val:d.descripcion||'', type:'text'});
+  if(d.valor !== undefined) campos.push({key:'valor', label:'Valor', val:d.valor||0, type:'number'});
+  if(d.cuota !== undefined) campos.push({key:'cuota', label:'Cuota', val:d.cuota||0, type:'number'});
+  if(d.cuota_neta !== undefined) campos.push({key:'cuota_neta', label:'Cuota neta', val:d.cuota_neta||0, type:'number'});
+  if(d.descuento !== undefined) campos.push({key:'descuento', label:'Descuento', val:d.descuento||0, type:'number'});
+  if(d.metodo_pago !== undefined) campos.push({key:'metodo_pago', label:'Método pago', val:d.metodo_pago||'', type:'text'});
+  if(d.responsable !== undefined) campos.push({key:'responsable', label:'Responsable', val:d.responsable||'', type:'text'});
+  if(d.precio !== undefined) campos.push({key:'precio', label:'Precio', val:d.precio||0, type:'number'});
+  if(d.total !== undefined) campos.push({key:'total', label:'Total', val:d.total||0, type:'number'});
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-corregir-editar';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;">
+      <div style="font-weight:800;font-size:16px;margin-bottom:16px;">✏️ Editar registro</div>
+      ${campos.map(c => `
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">${c.label}</label>
+          <input id="corr-edit-${c.key}" type="${c.type}" value="${c.val}" 
+            style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:14px;">
+        </div>
+      `).join('')}
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="document.getElementById('modal-corregir-editar').remove()" 
+          style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
+        <button onclick="corregirGuardar('${tipo}','${d.id}',${idx})" 
+          style="flex:1;padding:12px;background:#1d4ed8;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">💾 Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function corregirGuardar(tipo, id, idx) {
+  const d = window._corrDocs[idx];
+  const updates = {};
+  // Leer todos los campos del modal
+  document.querySelectorAll('[id^="corr-edit-"]').forEach(el => {
+    const key = el.id.replace('corr-edit-','');
+    updates[key] = el.type === 'number' ? parseFloat(el.value)||0 : el.value;
+  });
+  try {
+    await fbUpdate(tipo, id, updates);
+    document.getElementById('modal-corregir-editar')?.remove();
+    mostrarToastVerde('✅ Registro actualizado');
+    corregirCargar();
+  } catch(e) {
+    alert('❌ Error al guardar: ' + e.message);
+  }
+}
+
 async function corregirEliminar(col, id) {
   if(!confirm('⚠️ ¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
   try {
@@ -2346,25 +2407,34 @@ async function corregirCargar() {
     }
 
     const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
+    // Guardar docs en window para edición
+    window._corrDocs = docs;
+    window._corrTipo = tipo;
     document.getElementById('corr-lista').innerHTML = `
       <div style="color:#64748b;font-size:12px;margin-bottom:8px;">${docs.length} registro(s) encontrado(s)</div>
-      ${docs.map(d => {
+      ${docs.map((d, i) => {
         const titulo = d.referencia||d.producto||d.concepto||d.tipo||d.ref||d.financiera||d.nombre||'Registro';
         const sub = [d.local, d.metodo_pago, d.responsable].filter(Boolean).join(' · ');
         const valor = parseFloat(d.valor||d.total||d.cuota_neta||d.precio||0);
-        const fecha = nf(d.fecha)||'';
+        const fechaStr = nf(d.fecha)||'';
         return `
           <div style="background:white;border-radius:12px;padding:14px;margin-bottom:8px;box-shadow:0 2px 6px rgba(0,0,0,.08);">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
               <div style="flex:1;min-width:0;">
                 <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${titulo}</div>
                 ${sub?`<div style="font-size:12px;color:#64748b;">${sub}</div>`:''}
-                <div style="font-size:12px;color:#94a3b8;">${fecha}${valor?' · '+fmt(valor):''}</div>
+                <div style="font-size:12px;color:#94a3b8;">${fechaStr}${valor?' · '+fmt(valor):''}</div>
               </div>
-              <button onclick="corregirEliminar('${tipo}','${d.id}')" 
-                style="background:#fee2e2;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;color:#dc2626;font-size:12px;white-space:nowrap;flex-shrink:0;">
-                🗑️ Eliminar
-              </button>
+              <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                <button onclick="corregirEditar(${i})" 
+                  style="background:#dbeafe;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;color:#1d4ed8;font-size:12px;white-space:nowrap;">
+                  ✏️ Editar
+                </button>
+                <button onclick="corregirEliminar('${tipo}','${d.id}')" 
+                  style="background:#fee2e2;border:none;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700;color:#dc2626;font-size:12px;white-space:nowrap;">
+                  🗑️ Eliminar
+                </button>
+              </div>
             </div>
           </div>`;
       }).join('')}`;
@@ -6842,11 +6912,10 @@ async function cargarReportes() {
           <div style="font-size:11px;font-weight:800;color:#64748b;">CONTADO</div>
           <div style="font-size:24px;font-weight:900;color:#16a34a;">${totalContGeneral}</div>
         </div>
-        ${totalIphoneGeneral > 0 ? `
         <div style="flex:1;min-width:70px;background:#e0e7ff;border-radius:12px;padding:12px;text-align:center;">
           <div style="font-size:11px;font-weight:800;color:#64748b;">🍎 iPHONE</div>
           <div style="font-size:24px;font-weight:900;color:#4338ca;">${totalIphoneGeneral}</div>
-        </div>` : ''}
+        </div>
         <div style="flex:1;min-width:70px;background:#f1f5f9;border-radius:12px;padding:12px;text-align:center;">
           <div style="font-size:11px;font-weight:800;color:#64748b;">TOTAL</div>
           <div style="font-size:24px;font-weight:900;color:#1e293b;">${totalCredGeneral+totalContGeneral+totalIphoneGeneral}</div>
@@ -6873,8 +6942,9 @@ async function cargarReportes() {
     // Render por local
     const htmlVentas = LOCALES.map(local => {
       const d = ventasLocales[local];
+      const iphone = datos[local]?.ventasIphone || 0;
       const totalCred = Object.values(d.credito).reduce((s,v)=>s+v,0);
-      const totalVentas = totalCred + d.contado;
+      const totalVentas = totalCred + d.contado + iphone;
       if(totalVentas === 0) return '';
       return `
         <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
@@ -6895,6 +6965,11 @@ async function cargarReportes() {
               <div style="display:flex;justify-content:space-between;padding:4px 8px;background:#f0fdf4;border-radius:8px;margin-top:6px;">
                 <span style="font-weight:700;color:#15803d;">💵 Contado</span>
                 <span style="font-weight:800;color:#15803d;">${d.contado}</span>
+              </div>` : ''}
+            ${iphone > 0 ? `
+              <div style="display:flex;justify-content:space-between;padding:4px 8px;background:#e0e7ff;border-radius:8px;margin-top:6px;">
+                <span style="font-weight:700;color:#4338ca;">🍎 iPhone</span>
+                <span style="font-weight:800;color:#4338ca;">${iphone}</span>
               </div>` : ''}
           </div>
         </div>`;
