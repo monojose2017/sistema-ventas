@@ -3128,8 +3128,8 @@ function calcularPromedio() {
   const cantNueva = parseInt(document.getElementById('merc-cant').value) || 0;
   const costoNuevo = parseInt((document.getElementById('merc-costo-nuevo').value||'').replace(/[^0-9]/g,'')) || 0;
   if(cantNueva > 0 && costoNuevo > 0) {
-    const s = mercProductoSeleccionado.stock;
-    const c = mercProductoSeleccionado.costo;
+    const s = parseFloat(mercProductoSeleccionado.stockActual||mercProductoSeleccionado.stock||0);
+    const c = parseFloat(mercProductoSeleccionado.costoUnit||mercProductoSeleccionado.costo||0);
     const promedio = Math.round((s * c + cantNueva * costoNuevo) / (s + cantNueva));
     document.getElementById('merc-promedio').textContent = '$' + promedio.toLocaleString('es-CO');
     document.getElementById('merc-stock-nuevo').textContent = s + cantNueva;
