@@ -3277,8 +3277,9 @@ async function ejecutarReponer() {
     }
     btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
     mercProductoSeleccionado = null;
+    invTab = 'acc';
     irA('ver-inventario');
-    verInventario();
+    verInventario(true);
   } catch(e) {
     console.error('Error reposición:', e);
     alert('❌ Error al actualizar');
@@ -3493,16 +3494,17 @@ async function guardarEdicionAccesorio() {
     const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.local === editAccLocal && a.producto === editAccProducto);
     if(acc) { acc.local=nuevoLocal; acc.categoria=cat; acc.producto=producto; acc.stockActual=stock; acc.costoUnit=costo; acc.precioVenta=precioVenta; }
     editAccLocal = null; editAccProducto = null;
+    invTab = 'acc';
     irA('ver-inventario');
-    verInventario();
+    verInventario(true);
   } catch(e) {
     alert('❌ Error al guardar');
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
   }
 }
 
-function verInventario() {
-  invTab = 'tel';
+function verInventario(mantenerFiltros) {
+  if(!mantenerFiltros) invTab = 'tel';
   const sel = document.getElementById('inv-local-filter');
   if(sel) {
     sel.innerHTML = '<option value="">Todas las ubicaciones</option>';
@@ -3778,8 +3780,9 @@ async function actualizarPrecioAccesorio() {
     const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.producto === producto && a.local === local);
     if(acc) acc.precioVenta = precioNuevo;
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
+    invTab = 'acc';
     irA('ver-inventario');
-    verInventario();
+    verInventario(true);
   } catch(e) {
     alert('❌ Error al actualizar');
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
@@ -3970,8 +3973,9 @@ async function reponerAccesorio() {
     }
 
     if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
+    invTab = 'acc';
     irA('ver-inventario');
-    verInventario();
+    verInventario(true);
   } catch(e) {
     console.error('reponerAccesorio error:', e);
     if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
