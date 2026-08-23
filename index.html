@@ -294,6 +294,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
           <option value="egresos_gerencia">Egresos Gerencia</option>
           <option value="ingresos_gerencia">Ingresos Gerencia</option>
           <option value="ventas_iphone">Ventas iPhone</option>
+          <option value="liquidaciones">Liquidaciones</option>
         </select>
       </div>
     </div>
@@ -3610,7 +3611,7 @@ function renderInventario() {
             </div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center;margin-left:8px;">
-            <div style="background:${i.estado==='VENDIDO'?'#dc2626':'#16a34a'};color:white;border-radius:8px;padding:4px 8px;font-weight:700;font-size:11px;text-align:center;">${i.estado==='VENDIDO'?'VENDIDO':'DISPONIBLE'}</div>
+            <div style="background:${i.estado==='VENDIDO'?'#dc2626':i.estado==='EN GARANTIA'?'#d97706':i.estado==='PRESTADO'?'#7c3aed':'#16a34a'};color:white;border-radius:8px;padding:4px 8px;font-weight:700;font-size:11px;text-align:center;">${i.estado||'DISPONIBLE'}</div>
             ${i.estado!=='VENDIDO'?`<button onclick="editarTelefono('${i.imei}')" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">✏️</button>`:''}
             <button onclick="confirmarEliminarTelefono('${i.imei}','${i.ref}')" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;">🗑️</button>
           </div>
