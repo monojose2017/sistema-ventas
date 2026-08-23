@@ -3277,7 +3277,8 @@ async function ejecutarReponer() {
     }
     btn.textContent = '🔄 Reponer Stock ✓'; btn.disabled = false;
     mercProductoSeleccionado = null;
-    mostrarExito('inventario');
+    irA('ver-inventario');
+    verInventario();
   } catch(e) {
     console.error('Error reposición:', e);
     alert('❌ Error al actualizar');
@@ -3430,11 +3431,11 @@ function editarAccesorio(local, producto) {
   
   const catSel = document.getElementById('edit-acc-cat');
   catSel.innerHTML = '<option value="">Seleccionar...</option>';
-  if(window.CONFIG_DATA) window.CONFIG_DATA.categoriasAcc.forEach(c => catSel.innerHTML += `<option${c===acc.cat?' selected':''}>${c}</option>`);
-  document.getElementById('edit-acc-producto').value = acc.producto;
-  document.getElementById('edit-acc-stock').value = acc.stock;
-  document.getElementById('edit-acc-costo').value = acc.costo > 0 ? '$' + acc.costo.toLocaleString('es-CO') : '';
-  document.getElementById('edit-acc-precio-venta').value = acc.precioVenta > 0 ? '$' + acc.precioVenta.toLocaleString('es-CO') : '';
+  if(window.CONFIG_DATA) window.CONFIG_DATA.categoriasAcc.forEach(c => catSel.innerHTML += `<option${c===(acc.categoria||acc.cat)?' selected':''}>${c}</option>`);
+  document.getElementById('edit-acc-producto').value = acc.producto||'';
+  document.getElementById('edit-acc-stock').value = acc.stockActual||acc.stock||0;
+  document.getElementById('edit-acc-costo').value = (acc.costoUnit||acc.costo||0) > 0 ? '$' + (acc.costoUnit||acc.costo).toLocaleString('es-CO') : '';
+  document.getElementById('edit-acc-precio-venta').value = (acc.precioVenta||0) > 0 ? '$' + acc.precioVenta.toLocaleString('es-CO') : '';
   irA('editar-accesorio');
 }
 
@@ -3492,7 +3493,8 @@ async function guardarEdicionAccesorio() {
     const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.local === editAccLocal && a.producto === editAccProducto);
     if(acc) { acc.local=nuevoLocal; acc.categoria=cat; acc.producto=producto; acc.stockActual=stock; acc.costoUnit=costo; acc.precioVenta=precioVenta; }
     editAccLocal = null; editAccProducto = null;
-    mostrarExito('ver-inventario');
+    irA('ver-inventario');
+    verInventario();
   } catch(e) {
     alert('❌ Error al guardar');
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
@@ -3776,7 +3778,8 @@ async function actualizarPrecioAccesorio() {
     const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.producto === producto && a.local === local);
     if(acc) acc.precioVenta = precioNuevo;
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
-    mostrarExito('cambiar-precios');
+    irA('ver-inventario');
+    verInventario();
   } catch(e) {
     alert('❌ Error al actualizar');
     if(btn) { btn.textContent = 'Actualizar Precio ✓'; btn.disabled = false; }
@@ -3967,7 +3970,8 @@ async function reponerAccesorio() {
     }
 
     if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
-    mostrarExito('inventario');
+    irA('ver-inventario');
+    verInventario();
   } catch(e) {
     console.error('reponerAccesorio error:', e);
     if(btn) { btn.textContent = 'Reponer Stock ✓'; btn.disabled = false; }
