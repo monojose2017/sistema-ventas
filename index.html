@@ -807,7 +807,17 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     </div>
     <div id="iphone-lista"></div>
 
-    <!-- Botones reporte -->
+    <!-- Resumen de utilidades -->
+    <div id="iphone-resumen-util" style="display:none;background:#f0fdf4;border-radius:12px;padding:14px;margin-top:12px;">
+      <div style="font-size:12px;font-weight:800;color:#15803d;margin-bottom:10px;">💰 RESUMEN UTILIDADES (Ventas Completas)</div>
+      <div id="iphone-resumen-contenido"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="generarReporteUtilIphone('excel')" style="flex:1;padding:10px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;">📊 Excel</button>
+        <button onclick="generarReporteUtilIphone('pdf')" style="flex:1;padding:10px;background:#1a1a2e;color:white;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;">📄 PDF</button>
+      </div>
+    </div>
+
+    <!-- Botones reporte pendientes -->
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0;">
       <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:8px;">📄 Reporte Pendientes de Pago</div>
       <div style="display:flex;gap:8px;">
@@ -1966,6 +1976,9 @@ function irA(s){
       });
     }
   }
+  if(s === 'gerencia-iphone') {
+    cargarVentasIphone();
+  }
   if(s === 'ingresos-gerencia') {
     const sel = document.getElementById('ig-proveedor');
     if(sel) {
@@ -2346,6 +2359,28 @@ async function corregirGuardar(tipo, id, idx) {
 async function corregirEliminar(col, id) {
   if(!confirm('⚠️ ¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
   try {
+    // Si es venta de crédito o contado, liberar el IMEI
+    if(col === 'ventas_creditos' || col === 'ventas_contado') {
+      const doc = window._corrDocs?.find(d => d.id === id);
+      if(doc?.imei) {
+        await fbActualizarEstadoTel(doc.imei, 'estado', 'DISPONIBLE');
+        await fbActualizarEstadoTel(doc.imei, 'estado_especial', '');
+        // Actualizar memoria local
+        if(window.IMEIS_TODOS_CON_ESTADO?.[doc.imei]) {
+          window.IMEIS_TODOS_CON_ESTADO[doc.imei].estado = 'DISPONIBLE';
+          if(!window.INVENTARIO_REFS?.find(r => r.startsWith(doc.imei+'|'))) {
+            const dat = window.IMEIS_TODOS_CON_ESTADO[doc.imei];
+            window.INVENTARIO_REFS = window.INVENTARIO_REFS || [];
+            window.INVENTARIO_REFS.push(`${doc.imei}|${dat.ref}|${dat.costo}|${dat.precio}`);
+          }
+        }
+        // Eliminar liquidación asociada si existe
+        if(col === 'ventas_creditos') {
+          const liqDocs = await fbQuery('liquidaciones', 'imei', '==', doc.imei.toString().trim());
+          for(const l of liqDocs) await fbDelete('liquidaciones', l.id);
+        }
+      }
+    }
     await fbDelete(col, id);
     mostrarToastVerde('✅ Registro eliminado');
     corregirCargar();
@@ -5419,6 +5454,104 @@ async function enviarVentaIphone() {
 let iphoneVentas = [];
 let iphoneVentaSeleccionada = null;
 
+function mostrarResumenUtilIphone() {
+  const completas = iphoneVentas.filter(v => v.estado === 'COMPLETA');
+  if(completas.length === 0) {
+    document.getElementById('iphone-resumen-util').style.display = 'none';
+    return;
+  }
+
+  let utilBrutaTotal = 0, comTrabTotal = 0, comEncTotal = 0, utilNetaTotal = 0;
+  completas.forEach(v => {
+    utilBrutaTotal += parseFloat(v.utilBruta)||0;
+    comTrabTotal   += parseFloat(v.comTrab)||0;
+    comEncTotal    += parseFloat(v.comEnc)||0;
+    utilNetaTotal  += parseFloat(v.utilNeta)||0;
+  });
+
+  const fmt = n => '$' + Math.round(n).toLocaleString('es-CO');
+  const color = n => n >= 0 ? '#15803d' : '#dc2626';
+
+  document.getElementById('iphone-resumen-contenido').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div style="background:white;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">Utilidad bruta</div>
+        <div style="font-size:16px;font-weight:900;color:${color(utilBrutaTotal)};">${fmt(utilBrutaTotal)}</div>
+      </div>
+      <div style="background:white;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">Comisión trabajadora</div>
+        <div style="font-size:16px;font-weight:900;color:#dc2626;">-${fmt(comTrabTotal)}</div>
+      </div>
+      <div style="background:white;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:#64748b;font-weight:700;">Comisión encargada</div>
+        <div style="font-size:16px;font-weight:900;color:#dc2626;">-${fmt(comEncTotal)}</div>
+      </div>
+      <div style="background:#dbeafe;border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:11px;color:#1d4ed8;font-weight:700;">Utilidad neta</div>
+        <div style="font-size:18px;font-weight:900;color:${color(utilNetaTotal)};">${fmt(utilNetaTotal)}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#64748b;text-align:center;">${completas.length} ventas completas</div>`;
+
+  document.getElementById('iphone-resumen-util').style.display = 'block';
+}
+
+async function generarReporteUtilIphone(formato) {
+  const completas = iphoneVentas.filter(v => v.estado === 'COMPLETA');
+  if(completas.length === 0) { alert('No hay ventas completas'); return; }
+
+  const filas = completas.map(v => [
+    v.fecha, v.local, v.ref, v.financiera, v.imei, v.nombre,
+    parseFloat(v.utilBruta)||0, parseFloat(v.comTrab)||0,
+    parseFloat(v.comEnc)||0, parseFloat(v.utilNeta)||0,
+    v.liquidado==='SI'?'LIQUIDADO':'PENDIENTE'
+  ]);
+
+  let utilBrutaTotal=0, comTrabTotal=0, comEncTotal=0, utilNetaTotal=0;
+  completas.forEach(v => {
+    utilBrutaTotal += parseFloat(v.utilBruta)||0;
+    comTrabTotal   += parseFloat(v.comTrab)||0;
+    comEncTotal    += parseFloat(v.comEnc)||0;
+    utilNetaTotal  += parseFloat(v.utilNeta)||0;
+  });
+
+  if(formato === 'excel') {
+    const wb = XLSX.utils.book_new();
+    const headers = ['Fecha','Local','Referencia','Financiera','IMEI','Cliente','Util. Bruta','Com. Trabajadora','Com. Encargada','Util. Neta','Estado'];
+    const data = [headers, ...filas, ['','','','','','TOTAL', utilBrutaTotal, comTrabTotal, comEncTotal, utilNetaTotal, '']];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Utilidades iPhone');
+    XLSX.writeFile(wb, 'Utilidades_iPhone.xlsx');
+  } else {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Reporte Utilidades iPhone', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Total ventas completas: ${completas.length}`, 14, 22);
+    doc.autoTable({
+      startY: 28,
+      head: [['Fecha','Local','Ref','Financiera','Util. Bruta','Com. Trab.','Com. Enc.','Util. Neta']],
+      body: filas.map(f => [f[0],f[1],f[2],f[3],
+        '$'+Math.round(f[6]).toLocaleString('es-CO'),
+        '$'+Math.round(f[7]).toLocaleString('es-CO'),
+        '$'+Math.round(f[8]).toLocaleString('es-CO'),
+        '$'+Math.round(f[9]).toLocaleString('es-CO')
+      ]),
+      foot: [['','','','TOTAL',
+        '$'+Math.round(utilBrutaTotal).toLocaleString('es-CO'),
+        '$'+Math.round(comTrabTotal).toLocaleString('es-CO'),
+        '$'+Math.round(comEncTotal).toLocaleString('es-CO'),
+        '$'+Math.round(utilNetaTotal).toLocaleString('es-CO')
+      ]],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [26,26,46] },
+      footStyles: { fillColor: [220,252,231], textColor: [21,128,61], fontStyle: 'bold' }
+    });
+    doc.save('Utilidades_iPhone.pdf');
+  }
+}
+
 function setTabIphone(tab) {
   iphoneTabActual = tab;
   ['pendientes','completas','contado'].forEach(t => {
@@ -5453,6 +5586,7 @@ async function cargarVentasIphone() {
       pagoFinanciera: parseFloat(d.pago_financiera)||0
     }));
     renderListaIphone();
+    mostrarResumenUtilIphone();
   } catch(e) {
     if(lista) lista.innerHTML = '<div style="color:#dc2626;padding:16px;">Error cargando ventas iPhone</div>';
     console.error(e);
