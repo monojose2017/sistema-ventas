@@ -1640,12 +1640,15 @@ const db = firebase.firestore();
 const CLAVE = "0707";
 let msAccount = true; // Siempre conectado con Firebase
 let preciosCargados = false;
+let _cacheReportes = null;
+let _cacheReportesPeriodo = '';
 let gerenciaAutenticada = false;
 
 // =============================================
 // FIREBASE CRUD
 // =============================================
 async function fbAdd(col, data) {
+  _cacheReportes = null;
   const ref = await db.collection(col).add({...data, _ts: firebase.firestore.FieldValue.serverTimestamp()});
   return ref.id;
 }
@@ -1654,9 +1657,11 @@ async function fbGetAll(col) {
   return snap.docs.map(d => ({id: d.id, ...d.data()}));
 }
 async function fbUpdate(col, id, data) {
+  _cacheReportes = null;
   await db.collection(col).doc(id).update(data);
 }
 async function fbDelete(col, id) {
+  _cacheReportes = null;
   await db.collection(col).doc(id).delete();
 }
 async function fbQuery(col, field, op, val) {
@@ -6877,9 +6882,6 @@ function enPeriodo(fechaStr, desde, hasta) {
   }
   return f >= desde && f <= hasta;
 }
-
-let _cacheReportes = null;
-let _cacheReportesPeriodo = '';
 
 async function cargarReportes(forzar) {
   const { desde, hasta } = getFechasPeriodo();
