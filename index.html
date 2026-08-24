@@ -3279,13 +3279,54 @@ async function enviarForm(tipo) {
     ok = await agregarFilaExcel(hoja, fila);
 
     if(ok && imei && (tipo === 'credito' || tipo === 'contado')) {
-      const marcado = await marcarVendidoExcel(imei, tipo === 'contado' ? 'CONTADO' : getVal('c-tipo') || window._tipoVentaGuardado || '');
+      const tipoVenta = tipo === 'contado' ? 'CONTADO' : getVal('c-tipo') || window._tipoVentaGuardado || '';
+      const marcado = await marcarVendidoExcel(imei, tipoVenta);
       if(!marcado) {
         if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
         alert('❌ No se pudo actualizar el inventario. La venta NO fue registrada. Verifica tu conexión e intenta de nuevo.');
         await eliminarUltimaFilaVenta(hoja);
         return;
       }
+
+      // Detectar anomalía de financiera
+      if(tipo === 'credito') {
+        const telData = window.IMEIS_TODOS_CON_ESTADO?.[imei.toString().trim()];
+        const proveedor = (telData?.proveedor||'').toUpperCase();
+        const FINANCIERAS_OFICINA = ['OFICINA','RECOMPRA','ALO_CREDIT'];
+        const FINANCIERAS_OTRAS = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI'];
+        const esProveedorOficina = proveedor === 'OFICINA';
+        const esProveedorMio = !esProveedorOficina && proveedor !== '';
+        let tipoAnomalia = null;
+
+        if(esProveedorOficina && FINANCIERAS_OTRAS.includes(tipoVenta)) {
+          tipoAnomalia = 'oficina_en_otro';
+        } else if(esProveedorMio && FINANCIERAS_OFICINA.includes(tipoVenta)) {
+          tipoAnomalia = 'mio_en_oficina';
+        }
+
+        if(tipoAnomalia) {
+          const ref = getVal('c-ref') || telData?.ref || '';
+          // Registrar automáticamente en reposiciones
+          await fbAdd('reposiciones', {
+            fecha: fechaHoyLocal(),
+            tipo: tipoAnomalia,
+            referencia: ref,
+            imei_vendido_mal: imei.toString(),
+            imei_reposicion: '',
+            observacion: `Auto-detectado: vendido por ${tipoVenta} (proveedor: ${proveedor})`,
+            estado: 'PENDIENTE'
+          });
+          // Mostrar aviso naranja
+          setTimeout(() => {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#d97706;color:white;padding:12px 20px;border-radius:12px;font-weight:700;font-size:13px;z-index:9999;max-width:320px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+            toast.textContent = '⚠️ Anomalía detectada — ver Control de Reposición en Inventario';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+          }, 800);
+        }
+      }
+
       await cargarTodo();
     }
     if(ok && tipo === 'accesorios') {
