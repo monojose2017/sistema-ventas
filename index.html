@@ -108,6 +108,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button class="btn-menu" onclick="irA('venta-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">Venta iPhone</div><div class="btn-sub">E-Credit · OME-Credit</div></div><span class="btn-arrow">›</span></button>
       <button class="btn-menu" onclick="irA('contado')"><div class="btn-icon azul">💵</div><div class="btn-info"><div class="btn-titulo">Venta de Contado</div><div class="btn-sub">Pago inmediato</div></div><span class="btn-arrow">›</span></button>
       <button class="btn-menu" onclick="irA('accesorios')"><div class="btn-icon naranja">🎧</div><div class="btn-info"><div class="btn-titulo">Venta de Accesorios</div><div class="btn-sub">Vidrios · Forros · Cargadores · más</div></div><span class="btn-arrow">›</span></button>
+      <button class="btn-menu" onclick="abrirTablasConsulta()"><div class="btn-icon" style="background:linear-gradient(135deg,#0369a1,#0284c7);color:white;font-size:20px;">📊</div><div class="btn-info"><div class="btn-titulo">Tablas de Cuotas</div><div class="btn-sub">Consulta cuotas y valores sistema</div></div><span class="btn-arrow">›</span></button>
       <div class="divider"></div>
       <p class="sec-titulo">Gastos</p>
       <button class="btn-menu" onclick="irA('gastos')"><div class="btn-icon rojo">🧾</div><div class="btn-info"><div class="btn-titulo">Gasto Diario</div><div class="btn-sub">Aseo · Papelería · Domicilio · más</div></div><span class="btn-arrow">›</span></button>
@@ -119,6 +120,27 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <p class="sec-titulo">Acceso restringido</p>
       <button class="btn-menu btn-gerencia" onclick="mostrarClave()"><div class="btn-icon morado">🔐</div><div class="btn-info"><div class="btn-titulo">Gerencia</div><div class="btn-sub">Requiere clave de acceso</div></div><span class="btn-arrow">›</span></button>
     </div>
+  </div>
+</div>
+
+<!-- TABLAS CONSULTA -->
+<div class="screen" id="screen-tablas-consulta">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)">
+    <button class="back-btn" onclick="irA('inicio')">‹</button>
+    <div><div class="form-header-title">📊 Tablas de Cuotas</div><div class="form-header-sub">Consulta cuotas y valores sistema</div></div>
+  </div>
+  <div class="form-body">
+    <!-- Selector financiera -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <button onclick="setTablaConsulta('OFICINA')" id="tc-btn-OFICINA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:#1a3c6e;color:white;font-weight:700;cursor:pointer;font-size:12px;">OFICINA</button>
+      <button onclick="setTablaConsulta('RECOMPRA')" id="tc-btn-RECOMPRA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA</button>
+      <button onclick="setTablaConsulta('ET_OFICINA')" id="tc-btn-ET_OFICINA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">ET OFICINA</button>
+      <button onclick="setTablaConsulta('ET_CLARO')" id="tc-btn-ET_CLARO" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">ET CLARO</button>
+      <button onclick="setTablaConsulta('PAYJOY')" id="tc-btn-PAYJOY" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">PAYJOY</button>
+      <button onclick="setTablaConsulta('ALO_CREDIT')" id="tc-btn-ALO_CREDIT" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">ALO CREDIT</button>
+    </div>
+    <div id="tc-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>
+    <div id="tc-contenido"></div>
   </div>
 </div>
 
@@ -2443,6 +2465,57 @@ async function corregirEliminar(col, id) {
     corregirCargar();
   } catch(e) {
     alert('❌ Error al eliminar: ' + e.message);
+  }
+}
+
+let tablaConsultaActual = 'OFICINA';
+
+function abrirTablasConsulta() {
+  irA('tablas-consulta');
+  setTablaConsulta('OFICINA');
+}
+
+async function setTablaConsulta(tabla) {
+  tablaConsultaActual = tabla;
+  ['OFICINA','RECOMPRA','ET_OFICINA','ET_CLARO','PAYJOY','ALO_CREDIT'].forEach(t => {
+    const btn = document.getElementById('tc-btn-'+t);
+    if(!btn) return;
+    btn.style.background = t === tabla ? '#1a3c6e' : 'white';
+    btn.style.color = t === tabla ? 'white' : '#1a3c6e';
+  });
+  document.getElementById('tc-loading').style.display = 'block';
+  document.getElementById('tc-contenido').innerHTML = '';
+  try {
+    const docs = await fbQuery('precios', 'tabla', '==', tabla);
+    document.getElementById('tc-loading').style.display = 'none';
+    if(!docs.length) {
+      document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay datos</div>';
+      return;
+    }
+    const refs = {};
+    docs.forEach(d => {
+      if(!refs[d.referencia]) refs[d.referencia] = { porcentajes:{}, vs: d.valor_sistema||0 };
+      refs[d.referencia].porcentajes[d.porcentaje] = d.valor;
+      if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
+    });
+    const porcs = [...new Set(docs.map(d => d.porcentaje))].sort((a,b) => parseFloat(a)-parseFloat(b));
+    const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
+    const fmtP = p => (parseFloat(p)*100)+'%';
+    document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => `
+      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
+        <div style="font-weight:800;font-size:14px;color:#1a3c6e;margin-bottom:8px;">${ref}</div>
+        ${data.vs ? `<div style="background:#dbeafe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px;font-weight:700;color:#1d4ed8;">📊 Valor Sistema: ${fmt(data.vs)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${porcs.map(p => `
+            <div style="flex:1;min-width:60px;background:#f8fafc;border-radius:8px;padding:8px;text-align:center;">
+              <div style="font-size:11px;color:#64748b;font-weight:700;">${fmtP(p)}</div>
+              <div style="font-size:14px;font-weight:800;color:#1e293b;">${fmt(data.porcentajes[p])}</div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('tc-loading').style.display = 'none';
+    document.getElementById('tc-contenido').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
 }
 
@@ -5452,6 +5525,7 @@ function abrirEditarFila(hoja, rowIdx, ref) {
   const row = data.values[rowIdx];
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '';
 
+  const vsActual = tablaDatos[hoja]?.docs?.find(d => d.referencia === ref)?.valor_sistema || 0;
   const modal = document.createElement('div');
   modal.id = 'modal-tabla';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto;';
@@ -5460,6 +5534,7 @@ function abrirEditarFila(hoja, rowIdx, ref) {
       <div style="font-weight:800;font-size:15px;margin-bottom:4px;">✏️ Editar cuotas</div>
       <div style="font-size:12px;color:#64748b;margin-bottom:16px;">${ref} — ${hoja}</div>
       <div class="field"><label>Referencia</label><input type="text" id="tbl-edit-ref" value="${ref}" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;"></div>
+      <div class="field"><label>📊 Valor Sistema</label><input type="text" id="tbl-edit-vs" value="${vsActual ? '$'+Math.round(vsActual).toLocaleString('es-CO') : ''}" oninput="formatMoney(this)" placeholder="$0" style="width:100%;padding:10px;border:2px solid #dbeafe;border-radius:10px;box-sizing:border-box;background:#f0f9ff;"></div>
       ${headers.map((h, j) => `
         <div class="field">
           <label>${fmtPorc(h)}</label>
@@ -5493,6 +5568,7 @@ function abrirAgregarFila(hoja) {
           </select>
         </div>
       </div>
+      <div class="field"><label>📊 Valor Sistema</label><input type="text" id="tbl-edit-vs" placeholder="$0" oninput="formatMoney(this)" style="width:100%;padding:10px;border:2px solid #dbeafe;border-radius:10px;box-sizing:border-box;background:#f0f9ff;"></div>
       ${headers.map((h, j) => `
         <div class="field">
           <label>${fmtPorc(h)}</label>
@@ -5511,25 +5587,24 @@ async function guardarFilaTabla(hoja, rowIdx) {
   const headers = data.values[0].slice(1);
   const ref = document.getElementById('tbl-edit-ref').value.trim();
   if(!ref) { alert('⚠️ Ingresa la referencia'); return; }
+  const vs = getNumero('tbl-edit-vs');
 
   try {
-    // Actualizar cada precio en Firebase
     for(let j = 0; j < headers.length; j++) {
       const porcentaje = headers[j];
       const valor = getNumero(`tbl-edit-${j}`);
-      // Buscar doc existente
       const docs = tablaDatos[hoja].docs?.filter(d => d.referencia === ref && d.porcentaje === porcentaje.toString()) || [];
+      const updates = { valor };
+      if(vs > 0) updates.valor_sistema = vs;
       if(docs.length > 0) {
-        await fbUpdate('precios', docs[0].id, { valor });
+        await fbUpdate('precios', docs[0].id, updates);
       } else {
-        await fbAdd('precios', { tabla: hoja, referencia: ref, porcentaje: porcentaje.toString(), valor });
+        await fbAdd('precios', { tabla: hoja, referencia: ref, porcentaje: porcentaje.toString(), ...updates });
       }
-      // Actualizar PRECIOS_DINAMICOS
       if(!window.PRECIOS_DINAMICOS[hoja]) window.PRECIOS_DINAMICOS[hoja] = {};
       if(!window.PRECIOS_DINAMICOS[hoja][ref]) window.PRECIOS_DINAMICOS[hoja][ref] = {};
       window.PRECIOS_DINAMICOS[hoja][ref][porcentaje] = valor;
     }
-    // Actualizar memoria tablaDatos
     const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values[rowIdx] = valores;
     preciosCargados = false;
@@ -5566,14 +5641,15 @@ async function agregarFilaTabla(hoja) {
   const headers = data.values[0].slice(1);
   const ref = document.getElementById('tbl-edit-ref').value.trim();
   if(!ref) { alert('⚠️ Ingresa la referencia'); return; }
+  const vs = getNumero('tbl-edit-vs');
 
   try {
-    // Agregar cada porcentaje en Firebase
     for(let j = 0; j < headers.length; j++) {
       const porcentaje = headers[j];
       const valor = getNumero(`tbl-edit-${j}`);
-      await fbAdd('precios', { tabla: hoja, referencia: ref, porcentaje: porcentaje.toString(), valor });
-      // Actualizar PRECIOS_DINAMICOS
+      const doc = { tabla: hoja, referencia: ref, porcentaje: porcentaje.toString(), valor };
+      if(vs > 0) doc.valor_sistema = vs;
+      await fbAdd('precios', doc);
       if(!window.PRECIOS_DINAMICOS[hoja]) window.PRECIOS_DINAMICOS[hoja] = {};
       if(!window.PRECIOS_DINAMICOS[hoja][ref]) window.PRECIOS_DINAMICOS[hoja][ref] = {};
       window.PRECIOS_DINAMICOS[hoja][ref][porcentaje] = valor;
@@ -6551,15 +6627,24 @@ async function cargarFlujoCaja() {
     });
 
     // Entradas liquidaciones (pagos de financieras) — asociadas al local por la venta
+    // Mapa de IMEI → local desde ventas_creditos
+    const imeiLocalMap = {};
+    creditos.forEach(v => {
+      if(v.imei) imeiLocalMap[v.imei.toString().trim()] = v.local||'';
+    });
+
     liqDocs.forEach(d => {
       if(!enRango(d.fecha_actualizacion||d.fecha)) return;
       const pago = parseFloat(d.pago_financiera)||0;
       if(pago <= 0) return;
-      // Buscar local de la venta
-      const venta = creditos.find(v => v.imei === d.imei);
-      const local = venta?.local || '';
-      if(!flujoLocal[local]) return;
-      flujoLocal[local].entradasLiq += pago;
+      const imei = d.imei?.toString().trim()||'';
+      const local = imeiLocalMap[imei] || '';
+      if(local && flujoLocal[local]) {
+        flujoLocal[local].entradasLiq += pago;
+      } else {
+        // Si no encuentra el local va al general
+        liqSinLocal += pago;
+      }
     });
 
     // Entradas ingresos local
@@ -6590,6 +6675,7 @@ async function cargarFlujoCaja() {
     // Flujo general
     let totalEntradasGeneral = 0, totalSalidasGeneral = 0;
     let egresosGeneralSinLocal = 0;
+    let liqSinLocal = 0;
 
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
@@ -6602,6 +6688,7 @@ async function cargarFlujoCaja() {
       totalSalidasGeneral += f.salidasGastos + f.salidasEgresos;
     });
     totalSalidasGeneral += egresosGeneralSinLocal;
+    totalEntradasGeneral += liqSinLocal;
 
     // Render
     if(loading) loading.style.display = 'none';
@@ -6637,15 +6724,32 @@ async function cargarFlujoCaja() {
     }).join('');
 
     const netoGeneral = totalEntradasGeneral - totalSalidasGeneral;
+
+    // Desglose general por categoría
+    let totalCuotas=0, totalContado=0, totalAcc=0, totalIphone=0, totalLiq=0, totalOtras=0;
+    let totalGastos=0, totalEgresosLocal=0;
+    LOCALES.forEach(l => {
+      const f = flujoLocal[l];
+      totalCuotas += f.entradasCuotas;
+      totalContado += f.entradasContado;
+      totalAcc += f.entradasAcc;
+      totalIphone += f.entradasIphone;
+      totalLiq += f.entradasLiq;
+      totalOtras += f.entradasOtras;
+      totalGastos += f.salidasGastos;
+      totalEgresosLocal += f.salidasEgresos;
+    });
+    totalLiq += liqSinLocal;
+
     contenido.innerHTML = `
       <!-- GENERAL -->
       <div style="background:linear-gradient(135deg,#0f766e,#0d9488);color:white;border-radius:14px;padding:16px;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:700;opacity:.8;margin-bottom:4px;">💵 FLUJO GENERAL DEL NEGOCIO</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <div style="font-size:12px;opacity:.8;">${desde} al ${hasta}</div>
-          <div style="font-size:22px;font-weight:900;">${netoGeneral>=0?'+':'-'}${fmt(netoGeneral)}</div>
+          <div style="font-size:22px;font-weight:900;color:${netoGeneral>=0?'#a7f3d0':'#fca5a5'}">${netoGeneral>=0?'+':'-'}${fmt(netoGeneral)}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
           <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
             <div style="font-size:11px;opacity:.8;">Total Entradas</div>
             <div style="font-size:16px;font-weight:900;">+${fmt(totalEntradasGeneral)}</div>
@@ -6655,7 +6759,23 @@ async function cargarFlujoCaja() {
             <div style="font-size:16px;font-weight:900;">-${fmt(totalSalidasGeneral)}</div>
           </div>
         </div>
-        ${egresosGeneralSinLocal>0?`<div style="margin-top:8px;font-size:12px;opacity:.8;">Incluye egresos generales: -${fmt(egresosGeneralSinLocal)}</div>`:''}
+        <!-- Desglose entradas -->
+        <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px;margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:800;opacity:.9;margin-bottom:8px;">📥 DESGLOSE ENTRADAS</div>
+          ${totalCuotas>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Cuotas iniciales crédito</span><span style="font-weight:700;">+${fmt(totalCuotas)}</span></div>`:''}
+          ${totalContado>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Ventas contado</span><span style="font-weight:700;">+${fmt(totalContado)}</span></div>`:''}
+          ${totalAcc>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Ventas accesorios</span><span style="font-weight:700;">+${fmt(totalAcc)}</span></div>`:''}
+          ${totalIphone>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">iPhone (cuota inicial)</span><span style="font-weight:700;">+${fmt(totalIphone)}</span></div>`:''}
+          ${totalLiq>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Pagos financieras</span><span style="font-weight:700;">+${fmt(totalLiq)}</span></div>`:''}
+          ${totalOtras>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Otros ingresos</span><span style="font-weight:700;">+${fmt(totalOtras)}</span></div>`:''}
+        </div>
+        <!-- Desglose salidas -->
+        <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px;">
+          <div style="font-size:11px;font-weight:800;opacity:.9;margin-bottom:8px;">📤 DESGLOSE SALIDAS</div>
+          ${totalGastos>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Gastos diarios locales</span><span style="font-weight:700;">-${fmt(totalGastos)}</span></div>`:''}
+          ${totalEgresosLocal>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Egresos gerencia (locales)</span><span style="font-weight:700;">-${fmt(totalEgresosLocal)}</span></div>`:''}
+          ${egresosGeneralSinLocal>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Egresos generales (compras, etc.)</span><span style="font-weight:700;">-${fmt(egresosGeneralSinLocal)}</span></div>`:''}
+        </div>
       </div>
 
       <!-- POR LOCAL -->
