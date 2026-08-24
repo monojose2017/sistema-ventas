@@ -412,6 +412,13 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <button onclick="agregarConfigItem()" style="padding:12px 16px;background:#5b21b6;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">➕</button>
       </div>
     </div>
+
+    <!-- REFERENCIAS ACTIVAS -->
+    <div style="margin-top:20px;padding-top:16px;border-top:2px solid #e2e8f0;">
+      <div style="font-weight:800;font-size:15px;color:#1a3c6e;margin-bottom:4px;">🚦 Referencias Activas</div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:12px;">Marca las referencias que manejas actualmente. Estas aparecen en el semáforo de stock.</div>
+      <div id="refs-activas-lista" style="max-height:400px;overflow-y:auto;"></div>
+    </div>
   </div>
 </div>
 
@@ -1023,6 +1030,13 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="mostrarSeccionReporte('inventario')" id="rep-btn-inv" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #d97706;background:white;color:#d97706;font-weight:800;font-size:13px;cursor:pointer;">📦 Inventario</button>
       <button onclick="mostrarSeccionReporte('proveedores')" id="rep-btn-prov" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:800;font-size:13px;cursor:pointer;">🏦 Proveedores</button>
       <button onclick="mostrarSeccionReporte('proyeccion')" id="rep-btn-proy" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #0891b2;background:white;color:#0891b2;font-weight:800;font-size:13px;cursor:pointer;">📈 Proyección</button>
+      <button onclick="mostrarSeccionReporte('flujo')" id="rep-btn-flujo" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #0f766e;background:white;color:#0f766e;font-weight:800;font-size:13px;cursor:pointer;">💵 Flujo de Caja</button>
+    </div>
+
+    <!-- FLUJO DE CAJA -->
+    <div id="rep-bloque-flujo" style="display:none;">
+      <div id="rep-flujo-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando...</div>
+      <div id="rep-flujo-contenido"></div>
     </div>
 
     <!-- PROYECCION -->
@@ -3109,9 +3123,57 @@ const CONFIG_COLUMNAS = {
   referenciasIphone:{ col: 'T', idx: 19, tipo: 'referencia_iphone' }
 };
 
+// Referencias activas para semáforo de stock
+window.REFS_ACTIVAS = new Set();
+
+async function cargarRefsActivas() {
+  try {
+    const docs = await fbQuery('config', 'tipo', '==', 'ref_activa');
+    window.REFS_ACTIVAS = new Set(docs.map(d => d.valor));
+  } catch(e) { console.error('Error cargando refs activas:', e); }
+}
+
+async function renderRefsActivas() {
+  await cargarRefsActivas();
+  const el = document.getElementById('refs-activas-lista');
+  if(!el) return;
+  const refs = (window.CONFIG_DATA?.referencias || []).sort();
+  if(!refs.length) { el.innerHTML = '<div style="color:#64748b;padding:12px;">No hay referencias en la lista</div>'; return; }
+  el.innerHTML = refs.map(ref => {
+    const activa = window.REFS_ACTIVAS.has(ref);
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:${activa?'#f0fdf4':'#f8fafc'};border-radius:10px;margin-bottom:6px;border:2px solid ${activa?'#16a34a':'#e2e8f0'};">
+        <input type="checkbox" id="ref-check-${ref.replace(/\s/g,'_')}" ${activa?'checked':''}
+          onchange="toggleRefActiva('${ref}', this.checked)"
+          style="width:20px;height:20px;cursor:pointer;accent-color:#16a34a;">
+        <label for="ref-check-${ref.replace(/\s/g,'_')}" style="font-size:13px;font-weight:${activa?'700':'500'};color:${activa?'#15803d':'#475569'};cursor:pointer;flex:1;">${ref}</label>
+      </div>`;
+  }).join('');
+}
+
+async function toggleRefActiva(ref, activa) {
+  try {
+    if(activa) {
+      await fbAdd('config', { tipo: 'ref_activa', valor: ref });
+      window.REFS_ACTIVAS.add(ref);
+    } else {
+      const docs = await fbQuery('config', 'tipo', '==', 'ref_activa');
+      const doc = docs.find(d => d.valor === ref);
+      if(doc) await fbDelete('config', doc.id);
+      window.REFS_ACTIVAS.delete(ref);
+    }
+    const item = document.getElementById('ref-check-'+ref.replace(/\s/g,'_'))?.parentElement;
+    if(item) {
+      item.style.background = activa ? '#f0fdf4' : '#f8fafc';
+      item.style.border = `2px solid ${activa?'#16a34a':'#e2e8f0'}`;
+    }
+    mostrarToastVerde(activa ? '✅ Referencia activada' : '✅ Referencia desactivada');
+  } catch(e) { alert('❌ Error al guardar'); }
+}
+
 async function cargarConfigAdmin() {
-  // Ya está cargado en CONFIG_DATA, solo renderizar
   renderConfigLista();
+  renderRefsActivas();
 }
 
 function renderConfigLista() {
@@ -3579,8 +3641,14 @@ function renderKpiStock() {
     Object.keys(tabla).forEach(ref => refsEnTablas.add(ref));
   });
 
-  if(refsEnTablas.size === 0) {
-    el.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Cargando tablas...</div>';
+  // Usar solo referencias activas
+  const refs = [...window.REFS_ACTIVAS].sort();
+  if(refs.length === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:20px;color:#64748b;">
+      <div style="font-size:32px;margin-bottom:8px;">🚦</div>
+      <div style="font-weight:700;">No hay referencias activas</div>
+      <div style="font-size:12px;margin-top:6px;">Ve a Gerencia → Config Admin → Referencias Activas y marca las que manejas.</div>
+    </div>`;
     return;
   }
 
@@ -3593,14 +3661,12 @@ function renderKpiStock() {
     const estadoEsp = (t.estado_especial||'').toUpperCase();
     const estadoG = (t.estado||'').toUpperCase();
     const estadoFinal = estadoEsp || estadoG;
-    if(estadoFinal !== 'DISPONIBLE') return; // excluye garantía, prestado, vendido
+    if(estadoFinal !== 'DISPONIBLE') return;
     const local = t.ubicacion || t.local || '';
     const ref = t.ref || '';
     if(!stockPorLocalRef[local]) stockPorLocalRef[local] = {};
     stockPorLocalRef[local][ref] = (stockPorLocalRef[local][ref]||0) + 1;
   });
-
-  const refs = [...refsEnTablas].sort();
 
   el.innerHTML = LOCALES.map(local => {
     const stockLocal = stockPorLocalRef[local] || {};
@@ -6375,7 +6441,8 @@ function mostrarSeccionReporte(seccion) {
     rentabilidad:{ id:'rep-btn-rent',   color:'#15803d' },
     inventario:  { id:'rep-btn-inv',    color:'#d97706' },
     proveedores: { id:'rep-btn-prov',   color:'#7c3aed' },
-    proyeccion:  { id:'rep-btn-proy',   color:'#0891b2' }
+    proyeccion:  { id:'rep-btn-proy',   color:'#0891b2' },
+    flujo:       { id:'rep-btn-flujo',  color:'#0f766e' }
   };
   Object.entries(btns).forEach(([s,b]) => {
     const btn = document.getElementById(b.id);
@@ -6384,7 +6451,7 @@ function mostrarSeccionReporte(seccion) {
     btn.style.color      = s===seccion ? 'white' : b.color;
     btn.style.borderColor = b.color;
   });
-  ['ventas','rentabilidad','inventario','proveedores','proyeccion'].forEach(s => {
+  ['ventas','rentabilidad','inventario','proveedores','proyeccion','flujo'].forEach(s => {
     const el = document.getElementById('rep-bloque-'+s);
     if(el) el.style.display = s===seccion ? 'block' : 'none';
   });
@@ -6402,9 +6469,203 @@ function mostrarSeccionReporte(seccion) {
     if(filtroPeriodo) filtroPeriodo.style.display = 'none';
     if(filtroSemana)  filtroSemana.style.display  = 'none';
     cargarReporteProyeccion();
+  } else if(seccion === 'flujo') {
+    if(filtroPeriodo) filtroPeriodo.style.display = 'block';
+    if(filtroSemana)  filtroSemana.style.display  = 'none';
+    cargarFlujoCaja();
   } else {
     if(filtroPeriodo) filtroPeriodo.style.display = 'block';
     if(filtroSemana)  filtroSemana.style.display  = 'none';
+  }
+}
+
+// =============================================
+// FLUJO DE CAJA
+// =============================================
+async function cargarFlujoCaja() {
+  const loading = document.getElementById('rep-flujo-loading');
+  const contenido = document.getElementById('rep-flujo-contenido');
+  if(loading) loading.style.display = 'block';
+  if(contenido) contenido.innerHTML = '';
+
+  const { desde, hasta } = getFechasPeriodo();
+  if(!desde || !hasta) { if(loading) loading.style.display='none'; return; }
+
+  const fmt = n => '$'+Math.round(Math.abs(n)).toLocaleString('es-CO');
+  const fmtColor = (n, inv) => {
+    const pos = inv ? n < 0 : n >= 0;
+    return `<span style="font-weight:800;color:${pos?'#16a34a':'#dc2626'};">${n>=0?'+':'-'}${fmt(n)}</span>`;
+  };
+  const enRango = f => { if(!f) return false; const s = f.toString().substring(0,10); return s >= desde && s <= hasta; };
+
+  try {
+    const [creditos, contado, accesorios, gastos, egresos, ingresos, retiros, liqDocs, iphoneVentas] = await Promise.all([
+      fbGetAll('ventas_creditos'), fbGetAll('ventas_contado'),
+      fbGetAll('ventas_accesorios'), fbGetAll('gastos_diarios'),
+      fbGetAll('egresos_gerencia'), fbGetAll('ingresos_local'),
+      fbGetAll('retiros_caja'), fbGetAll('liquidaciones'),
+      fbGetAll('ventas_iphone')
+    ]);
+
+    const LOCALES = window.CONFIG_LISTAS?.locales || [];
+
+    // Flujo por local
+    const flujoLocal = {};
+    LOCALES.forEach(l => flujoLocal[l] = {
+      entradasCuotas: 0, entradasContado: 0, entradasAcc: 0,
+      entradasIphone: 0, entradasLiq: 0, entradasOtras: 0,
+      salidasGastos: 0, salidasEgresos: 0
+    });
+
+    // Entradas crédito (cuota inicial en efectivo)
+    creditos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      if(d.estado === 'ANULADO') return;
+      const local = d.local||'';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].entradasCuotas += parseFloat(d.efectivo)||0;
+    });
+
+    // Entradas contado
+    contado.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].entradasContado += parseFloat(d.efectivo)||parseFloat(d.precio)||0;
+    });
+
+    // Entradas accesorios
+    accesorios.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].entradasAcc += parseFloat(d.efectivo)||parseFloat(d.total)||0;
+    });
+
+    // Entradas iPhone
+    iphoneVentas.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].entradasIphone += parseFloat(d.efectivo)||0;
+    });
+
+    // Entradas liquidaciones (pagos de financieras) — asociadas al local por la venta
+    liqDocs.forEach(d => {
+      if(!enRango(d.fecha_actualizacion||d.fecha)) return;
+      const pago = parseFloat(d.pago_financiera)||0;
+      if(pago <= 0) return;
+      // Buscar local de la venta
+      const venta = creditos.find(v => v.imei === d.imei);
+      const local = venta?.local || '';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].entradasLiq += pago;
+    });
+
+    // Entradas ingresos local
+    ingresos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].entradasOtras += parseFloat(d.valor)||0;
+    });
+
+    // Salidas gastos diarios
+    gastos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local||'';
+      if(!flujoLocal[local]) return;
+      flujoLocal[local].salidasGastos += parseFloat(d.valor)||0;
+    });
+
+    // Salidas egresos gerencia con local
+    egresos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const local = d.local?.trim()||'';
+      if(local && flujoLocal[local]) {
+        flujoLocal[local].salidasEgresos += parseFloat(d.valor)||0;
+      }
+    });
+
+    // Flujo general
+    let totalEntradasGeneral = 0, totalSalidasGeneral = 0;
+    let egresosGeneralSinLocal = 0;
+
+    egresos.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      if(!d.local?.trim()) egresosGeneralSinLocal += parseFloat(d.valor)||0;
+    });
+
+    LOCALES.forEach(l => {
+      const f = flujoLocal[l];
+      totalEntradasGeneral += f.entradasCuotas + f.entradasContado + f.entradasAcc + f.entradasIphone + f.entradasLiq + f.entradasOtras;
+      totalSalidasGeneral += f.salidasGastos + f.salidasEgresos;
+    });
+    totalSalidasGeneral += egresosGeneralSinLocal;
+
+    // Render
+    if(loading) loading.style.display = 'none';
+
+    const htmlLocales = LOCALES.map(local => {
+      const f = flujoLocal[local];
+      const totalEntradas = f.entradasCuotas + f.entradasContado + f.entradasAcc + f.entradasIphone + f.entradasLiq + f.entradasOtras;
+      const totalSalidas = f.salidasGastos + f.salidasEgresos;
+      const neto = totalEntradas - totalSalidas;
+      if(totalEntradas + totalSalidas === 0) return '';
+
+      return `
+        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.07);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:800;font-size:15px;">🏪 ${local}</div>
+            <div style="background:${neto>=0?'#f0fdf4':'#fee2e2'};color:${neto>=0?'#16a34a':'#dc2626'};font-weight:900;font-size:15px;padding:4px 12px;border-radius:10px;">${neto>=0?'+':'-'}${fmt(neto)}</div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:10px;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:800;color:#15803d;margin-bottom:6px;">📥 ENTRADAS: ${fmt(totalEntradas)}</div>
+            ${f.entradasCuotas>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Cuotas iniciales</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasCuotas)}</span></div>`:''}
+            ${f.entradasContado>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Ventas contado</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasContado)}</span></div>`:''}
+            ${f.entradasAcc>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Accesorios</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasAcc)}</span></div>`:''}
+            ${f.entradasIphone>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">iPhone</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasIphone)}</span></div>`:''}
+            ${f.entradasLiq>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Pago financieras</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasLiq)}</span></div>`:''}
+            ${f.entradasOtras>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Otros ingresos</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasOtras)}</span></div>`:''}
+          </div>
+          <div style="background:#fff1f2;border-radius:10px;padding:10px;">
+            <div style="font-size:11px;font-weight:800;color:#dc2626;margin-bottom:6px;">📤 SALIDAS: ${fmt(totalSalidas)}</div>
+            ${f.salidasGastos>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Gastos diarios</span><span style="font-weight:700;color:#dc2626;">-${fmt(f.salidasGastos)}</span></div>`:''}
+            ${f.salidasEgresos>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Egresos gerencia</span><span style="font-weight:700;color:#dc2626;">-${fmt(f.salidasEgresos)}</span></div>`:''}
+          </div>
+        </div>`;
+    }).join('');
+
+    const netoGeneral = totalEntradasGeneral - totalSalidasGeneral;
+    contenido.innerHTML = `
+      <!-- GENERAL -->
+      <div style="background:linear-gradient(135deg,#0f766e,#0d9488);color:white;border-radius:14px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;opacity:.8;margin-bottom:4px;">💵 FLUJO GENERAL DEL NEGOCIO</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:12px;opacity:.8;">${desde} al ${hasta}</div>
+          <div style="font-size:22px;font-weight:900;">${netoGeneral>=0?'+':'-'}${fmt(netoGeneral)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:11px;opacity:.8;">Total Entradas</div>
+            <div style="font-size:16px;font-weight:900;">+${fmt(totalEntradasGeneral)}</div>
+          </div>
+          <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:11px;opacity:.8;">Total Salidas</div>
+            <div style="font-size:16px;font-weight:900;">-${fmt(totalSalidasGeneral)}</div>
+          </div>
+        </div>
+        ${egresosGeneralSinLocal>0?`<div style="margin-top:8px;font-size:12px;opacity:.8;">Incluye egresos generales: -${fmt(egresosGeneralSinLocal)}</div>`:''}
+      </div>
+
+      <!-- POR LOCAL -->
+      <div style="font-size:13px;font-weight:800;color:#475569;margin-bottom:10px;">🏪 FLUJO POR LOCAL</div>
+      ${htmlLocales || '<div style="text-align:center;color:#94a3b8;padding:20px;">Sin movimientos en este período</div>'}`;
+
+  } catch(e) {
+    if(loading) loading.style.display = 'none';
+    if(contenido) contenido.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
+    console.error(e);
   }
 }
 
