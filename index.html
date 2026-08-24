@@ -1058,6 +1058,17 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div class="rep-titulo">🏪 Por Local</div>
         <div id="rep-ventas-contenido"></div>
       </div>
+      <!-- DETALLE POR LOCAL -->
+      <div class="rep-seccion">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="rep-titulo" style="margin-bottom:0;">🔍 Detalle por Local</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="exportarDetalleVentas('excel')" style="padding:8px 12px;background:#15803d;color:white;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">📊 Excel</button>
+            <button onclick="exportarDetalleVentas('pdf')" style="padding:8px 12px;background:#1a1a2e;color:white;border:none;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">📄 PDF</button>
+          </div>
+        </div>
+        <div id="rep-detalle-local"></div>
+      </div>
     </div>
 
     <!-- RENTABILIDAD -->
@@ -2366,13 +2377,13 @@ async function corregirGuardar(tipo, id, idx) {
 async function corregirEliminar(col, id) {
   if(!confirm('⚠️ ¿Eliminar este registro? Esta acción no se puede deshacer.')) return;
   try {
+    const doc = window._corrDocs?.find(d => d.id === id);
+
     // Si es venta de crédito o contado, liberar el IMEI
     if(col === 'ventas_creditos' || col === 'ventas_contado') {
-      const doc = window._corrDocs?.find(d => d.id === id);
       if(doc?.imei) {
         await fbActualizarEstadoTel(doc.imei, 'estado', 'DISPONIBLE');
         await fbActualizarEstadoTel(doc.imei, 'estado_especial', '');
-        // Actualizar memoria local
         if(window.IMEIS_TODOS_CON_ESTADO?.[doc.imei]) {
           window.IMEIS_TODOS_CON_ESTADO[doc.imei].estado = 'DISPONIBLE';
           if(!window.INVENTARIO_REFS?.find(r => r.startsWith(doc.imei+'|'))) {
@@ -2381,13 +2392,31 @@ async function corregirEliminar(col, id) {
             window.INVENTARIO_REFS.push(`${doc.imei}|${dat.ref}|${dat.costo}|${dat.precio}`);
           }
         }
-        // Eliminar liquidación asociada si existe
         if(col === 'ventas_creditos') {
           const liqDocs = await fbQuery('liquidaciones', 'imei', '==', doc.imei.toString().trim());
           for(const l of liqDocs) await fbDelete('liquidaciones', l.id);
         }
       }
     }
+
+    // Si es venta de accesorios, devolver el stock
+    if(col === 'ventas_accesorios' && doc) {
+      const producto = doc.producto||'';
+      const local = doc.local||'';
+      const cantidad = parseInt(doc.cantidad)||1;
+      if(producto && local) {
+        const docs = await fbQuery('inventario_accesorios', 'referencia', '==', producto);
+        const invDoc = docs.find(d => d.local === local);
+        if(invDoc) {
+          const nuevoStock = (parseFloat(invDoc.cantidad)||0) + cantidad;
+          await fbUpdate('inventario_accesorios', invDoc.id, { cantidad: nuevoStock });
+          // Actualizar memoria
+          const acc = (window.ACCESORIOS_EXCEL||[]).find(a => a.producto === producto && a.local === local);
+          if(acc) acc.stockActual = nuevoStock;
+        }
+      }
+    }
+
     await fbDelete(col, id);
     mostrarToastVerde('✅ Registro eliminado');
     corregirCargar();
@@ -5984,7 +6013,7 @@ function renderLiquidaciones() {
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-weight:800;font-size:14px;">${v.ref||'Sin referencia'}</div>
-            <div style="font-size:12px;color:#64748b;">${v.imei} · ${(v.tipo||'').replace('_',' ')}</div>
+            <div style="font-size:12px;color:#64748b;">${v.imei} · ${(v.tipo||'').replace('_',' ')} ${v.local?'· 📍'+v.local:''}</div>
             <div style="font-size:12px;color:#64748b;">📅 ${fechaStr}</div>
             <div style="font-size:13px;color:#16a34a;font-weight:700;margin-top:4px;">✅ Pago financiera: $${(parseFloat(v.pagoFinanciera)||0).toLocaleString('es-CO')}</div>
             ${parseFloat(v.costoClaro) > 0 ? `<div style="font-size:12px;color:#64748b;">💰 Costo Claro: $${parseFloat(v.costoClaro).toLocaleString('es-CO')}</div>` : ''}
@@ -6929,6 +6958,192 @@ async function cargarReportes(forzar) {
   }
 }
 
+let _detalleVentasData = null;
+
+function renderDetalleVentas(creditos, contado, accesorios, iphoneVentas, desde, hasta, LOCALES) {
+  const enRango = f => { if(!f) return false; const s = f.toString().substring(0,10); return s >= desde && s <= hasta; };
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+
+  // Agrupar por local
+  const porLocal = {};
+  LOCALES.forEach(l => porLocal[l] = { telefonos:[], accesorios:[], iphone:[] });
+
+  // Teléfonos crédito
+  creditos.forEach(d => {
+    if(!enRango(d.fecha)) return;
+    if(d.estado === 'ANULADO') return;
+    const local = d.local||'';
+    if(!porLocal[local]) return;
+    porLocal[local].telefonos.push({
+      fecha: d.fecha, ref: d.referencia||'', tipo: d.tipo||'', imei: d.imei||'',
+      precio: parseFloat(d.cuota_neta)||0, utilidad: parseFloat(d.utilidad)||0, modo: 'CRÉDITO'
+    });
+  });
+
+  // Teléfonos contado
+  contado.forEach(d => {
+    if(!enRango(d.fecha)) return;
+    const local = d.local||'';
+    if(!porLocal[local]) return;
+    porLocal[local].telefonos.push({
+      fecha: d.fecha, ref: d.referencia||'', tipo: 'CONTADO', imei: d.imei||'',
+      precio: parseFloat(d.precio)||0, utilidad: parseFloat(d.utilidad)||0, modo: 'CONTADO'
+    });
+  });
+
+  // Accesorios
+  accesorios.forEach(d => {
+    if(!enRango(d.fecha)) return;
+    const local = d.local||'';
+    if(!porLocal[local]) return;
+    porLocal[local].accesorios.push({
+      fecha: d.fecha, producto: d.producto||'', categoria: d.categoria||'',
+      cantidad: parseInt(d.cantidad)||1, precioUnit: parseFloat(d.precio_unit)||0,
+      total: parseFloat(d.total)||0, utilidad: parseFloat(d.utilidad)||0
+    });
+  });
+
+  // iPhone
+  iphoneVentas.forEach(d => {
+    if(!enRango(d.fecha)) return;
+    if(d.estado === 'PENDIENTE') return;
+    const local = d.local||'';
+    if(!porLocal[local]) return;
+    porLocal[local].iphone.push({
+      fecha: d.fecha, ref: d.referencia||'', financiera: d.financiera||'',
+      precio: parseFloat(d.cuota_inicial)||0, utilidad: parseFloat(d.utilidad_neta)||0
+    });
+  });
+
+  // Guardar para exportar
+  _detalleVentasData = { porLocal, desde, hasta };
+
+  // Render HTML
+  const el = document.getElementById('rep-detalle-local');
+  if(!el) return;
+
+  el.innerHTML = LOCALES.map(local => {
+    const d = porLocal[local];
+    const totalTels = d.telefonos.length;
+    const totalAcc = d.accesorios.reduce((s,a)=>s+a.cantidad,0);
+    const totalIph = d.iphone.length;
+    if(totalTels + totalAcc + totalIph === 0) return '';
+
+    const utilTels = d.telefonos.reduce((s,t)=>s+t.utilidad,0);
+    const utilAcc = d.accesorios.reduce((s,a)=>s+a.utilidad,0);
+    const utilIph = d.iphone.reduce((s,i)=>s+i.utilidad,0);
+    const utilTotal = utilTels + utilAcc + utilIph;
+
+    return `
+      <div style="background:white;border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <div style="background:#1a3c6e;color:white;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:800;font-size:15px;">🏪 ${local}</div>
+          <div style="font-size:13px;font-weight:700;">Utilidad: <span style="color:${utilTotal>=0?'#86efac':'#fca5a5'}">${fmt(utilTotal)}</span></div>
+        </div>
+
+        ${totalTels > 0 ? `
+        <div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+          <div style="font-size:12px;font-weight:800;color:#1d4ed8;margin-bottom:8px;">📱 TELÉFONOS (${totalTels})</div>
+          ${d.telefonos.map(t=>`
+            <div style="display:flex;justify-content:space-between;padding:6px 8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:12px;">
+              <div>
+                <div style="font-weight:700;">${t.ref}</div>
+                <div style="color:#64748b;">${t.fecha} · ${t.tipo} · ${t.imei}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800;">${fmt(t.precio)}</div>
+                <div style="color:${t.utilidad>=0?'#16a34a':'#dc2626'};font-weight:700;font-size:11px;">Util: ${fmt(t.utilidad)}</div>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
+
+        ${totalAcc > 0 ? `
+        <div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+          <div style="font-size:12px;font-weight:800;color:#d97706;margin-bottom:8px;">🎧 ACCESORIOS (${totalAcc} uds)</div>
+          ${d.accesorios.map(a=>`
+            <div style="display:flex;justify-content:space-between;padding:6px 8px;background:#fffbeb;border-radius:8px;margin-bottom:4px;font-size:12px;">
+              <div>
+                <div style="font-weight:700;">${a.producto}</div>
+                <div style="color:#64748b;">${a.fecha} · ${a.categoria} · x${a.cantidad}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800;">${fmt(a.total)}</div>
+                <div style="color:#16a34a;font-weight:700;font-size:11px;">Util: ${fmt(a.utilidad)}</div>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
+
+        ${totalIph > 0 ? `
+        <div style="padding:10px 14px;">
+          <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:8px;">🍎 iPHONE (${totalIph})</div>
+          ${d.iphone.map(i=>`
+            <div style="display:flex;justify-content:space-between;padding:6px 8px;background:#e0e7ff;border-radius:8px;margin-bottom:4px;font-size:12px;">
+              <div>
+                <div style="font-weight:700;">${i.ref}</div>
+                <div style="color:#4338ca;">${i.fecha} · ${i.financiera}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800;">${fmt(i.precio)}</div>
+                <div style="color:#4338ca;font-weight:700;font-size:11px;">Util: ${fmt(i.utilidad)}</div>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+async function exportarDetalleVentas(formato) {
+  if(!_detalleVentasData) { alert('Primero abre el reporte de Ventas'); return; }
+  const { porLocal, desde, hasta } = _detalleVentasData;
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+
+  if(formato === 'excel') {
+    const XLSX = window.XLSX;
+    if(!XLSX) { alert('Excel no disponible'); return; }
+    const wb = XLSX.utils.book_new();
+    Object.entries(porLocal).forEach(([local, d]) => {
+      const rows = [['Tipo','Fecha','Referencia/Producto','IMEI/Categoría','Cantidad','Precio','Utilidad']];
+      d.telefonos.forEach(t => rows.push(['Teléfono', t.fecha, t.ref, t.imei||'', 1, t.precio, t.utilidad]));
+      d.accesorios.forEach(a => rows.push(['Accesorio', a.fecha, a.producto, a.categoria||'', a.cantidad, a.total, a.utilidad]));
+      d.iphone.forEach(i => rows.push(['iPhone', i.fecha, i.ref, i.financiera||'', 1, i.precio, i.utilidad]));
+      if(rows.length > 1) {
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, local.substring(0,31));
+      }
+    });
+    XLSX.writeFile(wb, `Ventas_Detalle_${desde}_${hasta}.xlsx`);
+  } else {
+    const { jsPDF } = window.jspdf;
+    if(!jsPDF) { alert('PDF no disponible'); return; }
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Reporte Detallado de Ventas', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Período: ${desde} al ${hasta}`, 14, 22);
+    let y = 28;
+    Object.entries(porLocal).forEach(([local, d]) => {
+      const rows = [];
+      d.telefonos.forEach(t => rows.push([t.fecha, 'Tel', t.ref, t.imei||'', '1', fmt(t.precio), fmt(t.utilidad)]));
+      d.accesorios.forEach(a => rows.push([a.fecha, 'Acc', a.producto, a.categoria||'', String(a.cantidad), fmt(a.total), fmt(a.utilidad)]));
+      d.iphone.forEach(i => rows.push([i.fecha, 'iPhone', i.ref, i.financiera||'', '1', fmt(i.precio), fmt(i.utilidad)]));
+      if(rows.length === 0) return;
+      doc.setFontSize(11);
+      doc.setFont(undefined,'bold');
+      doc.text(local, 14, y); y += 6;
+      doc.autoTable({
+        startY: y,
+        head:[['Fecha','Tipo','Referencia','IMEI/Cat','Cant','Precio','Utilidad']],
+        body: rows,
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [26,60,110] },
+        margin: { left: 14 }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    });
+    doc.save(`Ventas_Detalle_${desde}_${hasta}.pdf`);
+  }
+}
+
 async function renderReportes({ creditos, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqDocs, deudas, iphoneVentas }, desde, hasta) {
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
   const fmtColor = n => `<span style="font-weight:800;color:${n>=0?'#16a34a':'#dc2626'}">${n>=0?'+':''}${fmt(n)}</span>`;
@@ -7211,7 +7426,8 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
     // ---- RENDER ----
     document.getElementById('rep-loading').style.display = 'none';
 
-    // Variables de egresos generales
+    // Detalle por local
+    renderDetalleVentas(creditos, contado, accesorios, iphoneVentas, desde, hasta, LOCALES);
     let egresosGeneral = egresosGeneralTotal;
     let abonosGeneral = 0;
     let detalleEgresosGeneral = [];
