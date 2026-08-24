@@ -2589,7 +2589,7 @@ async function setTablaConsulta(tabla) {
         if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
       });
       const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
-      const porcs = [0.15, 0.20, 0.25];
+      const porcs = [0.15, 0.20, 0.25, 0.30, 0.35, 0.40];
       document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => {
         const refOficina = tablaOficina[ref] || {};
         return `
@@ -6067,6 +6067,8 @@ async function guardarFilaTabla(hoja, rowIdx) {
     const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values[rowIdx] = valores;
     preciosCargados = false;
+    // Limpiar caché para que las niñas vean cambios inmediatamente
+    if(window.PRECIOS_DINAMICOS?.[hoja]) delete window.PRECIOS_DINAMICOS[hoja];
     document.getElementById('modal-tabla').remove();
     renderTabla(hoja);
     mostrarToastVerde('✅ Cuotas actualizadas');
@@ -6116,6 +6118,7 @@ async function agregarFilaTabla(hoja) {
     const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values.push(valores);
     preciosCargados = false;
+    if(window.PRECIOS_DINAMICOS?.[hoja]) delete window.PRECIOS_DINAMICOS[hoja];
     document.getElementById('modal-tabla').remove();
     renderTabla(hoja);
     mostrarToastVerde('✅ Referencia agregada');
