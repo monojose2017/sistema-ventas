@@ -5583,13 +5583,7 @@ function setTabIphone(tab) {
 
 async function cargarVentasIphone() {
   const lista = document.getElementById('iphone-lista');
-  // Si ya están en memoria, usar los cacheados
-  if(iphoneVentas.length > 0) {
-    renderListaIphone();
-    mostrarResumenUtilIphone();
-    return;
-  }
-  if(lista) lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">Cargando...</div>';
+  if(lista) lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>';
   try {
     const docs = await fbGetAll('ventas_iphone');
     iphoneVentas = docs.map((d, i) => ({
@@ -5609,7 +5603,7 @@ async function cargarVentasIphone() {
     renderListaIphone();
     mostrarResumenUtilIphone();
   } catch(e) {
-    if(lista) lista.innerHTML = '<div style="color:#dc2626;padding:16px;">Error cargando ventas iPhone</div>';
+    if(lista) lista.innerHTML = '<div style="color:#dc2626;padding:16px;">❌ Error cargando ventas iPhone: ' + e.message + '</div>';
     console.error(e);
   }
 }
