@@ -5752,11 +5752,14 @@ async function setTablaActual(hoja) {
       return row;
     });
 
-    // Mostrar botón inicializar si es PAYJOY o ALO_CREDIT y está vacío
+    tablaDatos[hoja] = { values: [headers, ...rows], docs };
+
+    // Ocultar botón inicializar si ya tiene datos
     const btnInit = document.getElementById('btn-inicializar-wrap');
-    if(btnInit) {
-      btnInit.style.display = (hoja === 'PAYJOY' || hoja === 'ALO_CREDIT') && docs.length === 0 ? 'block' : 'none';
-    }
+    if(btnInit) btnInit.style.display = 'none';
+
+    document.getElementById('tablas-loading').style.display = 'none';
+    renderTabla(hoja);
   } catch(e) {
     console.error('Error cargando tabla', hoja, e);
     document.getElementById('tablas-loading').style.display = 'none';
