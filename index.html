@@ -354,6 +354,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     </div>
     <div id="tablas-loading" style="text-align:center;padding:20px;color:#64748b;display:none;">Cargando...</div>
     <div id="tablas-contenido"></div>
+    <div id="btn-inicializar-wrap" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0;">
+      <button onclick="inicializarTabla()" style="width:100%;padding:12px;background:#d97706;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">⚡ Inicializar referencias en esta tabla</button>
+      <div style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">Crea todas las referencias de OFICINA como punto de partida</div>
+    </div>
   </div>
 </div>
 
@@ -5625,6 +5629,49 @@ async function cargarTablas() {
   await setTablaActual('OFICINA');
 }
 
+async function inicializarTabla() {
+  const hoja = tablaActual;
+  if(hoja !== 'PAYJOY' && hoja !== 'ALO_CREDIT') return;
+
+  const btn = document.querySelector('#btn-inicializar-wrap button');
+  if(btn) { btn.textContent = '⏳ Creando...'; btn.disabled = true; }
+
+  try {
+    // Obtener referencias de OFICINA
+    const docs = await fbQuery('precios', 'tabla', '==', 'OFICINA');
+    const refs = [...new Set(docs.map(d => d.referencia))].sort();
+
+    if(!refs.length) { alert('⚠️ Primero debe haber datos en la tabla OFICINA'); return; }
+
+    const LOTE = 400;
+    for(let i = 0; i < refs.length; i += LOTE) {
+      const batch = db.batch();
+      refs.slice(i, i+LOTE).forEach(ref => {
+        if(hoja === 'PAYJOY') {
+          batch.set(db.collection('precios').doc(), {
+            tabla: 'PAYJOY', referencia: ref,
+            porcentaje: 'descuento', valor: 0,
+            valor_sistema: 0, descuento: 0
+          });
+        } else {
+          batch.set(db.collection('precios').doc(), {
+            tabla: 'ALO_CREDIT', referencia: ref,
+            porcentaje: 'vs', valor: 0, valor_sistema: 0
+          });
+        }
+      });
+      await batch.commit();
+    }
+
+    document.getElementById('btn-inicializar-wrap').style.display = 'none';
+    mostrarToastVerde(`✅ ${refs.length} referencias creadas en ${hoja}`);
+    await setTablaActual(hoja);
+  } catch(e) {
+    alert('❌ Error: ' + e.message);
+    if(btn) { btn.textContent = '⚡ Inicializar referencias en esta tabla'; btn.disabled = false; }
+  }
+}
+
 async function setTablaActual(hoja) {
   tablaActual = hoja;
   ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','RECOMPRA_REAL','PAYJOY','ALO_CREDIT'].forEach(t => {
@@ -5642,8 +5689,10 @@ async function setTablaActual(hoja) {
     const docs = await fbQuery('precios', 'tabla', '==', hoja);
     
     if(docs.length === 0) {
-      tablaDatos[hoja] = null;
+      tablaDatos[hoja] = { values: [['REFERENCIA']], docs: [] };
       document.getElementById('tablas-loading').style.display = 'none';
+      const btnInit = document.getElementById('btn-inicializar-wrap');
+      if(btnInit) btnInit.style.display = (hoja === 'PAYJOY' || hoja === 'ALO_CREDIT') ? 'block' : 'none';
       renderTabla(hoja);
       return;
     }
@@ -5662,9 +5711,11 @@ async function setTablaActual(hoja) {
       return row;
     });
 
-    tablaDatos[hoja] = { values: [headers, ...rows], docs };
-    document.getElementById('tablas-loading').style.display = 'none';
-    renderTabla(hoja);
+    // Mostrar botón inicializar si es PAYJOY o ALO_CREDIT y está vacío
+    const btnInit = document.getElementById('btn-inicializar-wrap');
+    if(btnInit) {
+      btnInit.style.display = (hoja === 'PAYJOY' || hoja === 'ALO_CREDIT') && docs.length === 0 ? 'block' : 'none';
+    }
   } catch(e) {
     console.error('Error cargando tabla', hoja, e);
     document.getElementById('tablas-loading').style.display = 'none';
