@@ -6575,12 +6575,11 @@ async function cargarFlujoCaja() {
   const enRango = f => { if(!f) return false; const s = f.toString().substring(0,10); return s >= desde && s <= hasta; };
 
   try {
-    const [creditos, contado, accesorios, gastos, egresos, ingresos, retiros, liqDocs, iphoneVentas] = await Promise.all([
+    const [creditos, contado, accesorios, gastos, egresos, ingresos, ingresosGerencia, iphoneVentas] = await Promise.all([
       fbGetAll('ventas_creditos'), fbGetAll('ventas_contado'),
       fbGetAll('ventas_accesorios'), fbGetAll('gastos_diarios'),
       fbGetAll('egresos_gerencia'), fbGetAll('ingresos_local'),
-      fbGetAll('retiros_caja'), fbGetAll('liquidaciones'),
-      fbGetAll('ventas_iphone')
+      fbGetAll('ingresos_gerencia'), fbGetAll('ventas_iphone')
     ]);
 
     const LOCALES = window.CONFIG_LISTAS?.locales || [];
@@ -6589,7 +6588,7 @@ async function cargarFlujoCaja() {
     const flujoLocal = {};
     LOCALES.forEach(l => flujoLocal[l] = {
       entradasCuotas: 0, entradasContado: 0, entradasAcc: 0,
-      entradasIphone: 0, entradasLiq: 0, entradasOtras: 0,
+      entradasIphone: 0, entradasIngGerencia: 0, entradasOtras: 0,
       salidasGastos: 0, salidasEgresos: 0
     });
 
@@ -6627,32 +6626,25 @@ async function cargarFlujoCaja() {
     });
 
     // Entradas liquidaciones (pagos de financieras) — asociadas al local por la venta
-    // Mapa de IMEI → local desde ventas_creditos
-    const imeiLocalMap = {};
-    creditos.forEach(v => {
-      if(v.imei) imeiLocalMap[v.imei.toString().trim()] = v.local||'';
-    });
-
-    liqDocs.forEach(d => {
-      if(!enRango(d.fecha_actualizacion||d.fecha)) return;
-      const pago = parseFloat(d.pago_financiera)||0;
-      if(pago <= 0) return;
-      const imei = d.imei?.toString().trim()||'';
-      const local = imeiLocalMap[imei] || '';
-      if(local && flujoLocal[local]) {
-        flujoLocal[local].entradasLiq += pago;
-      } else {
-        // Si no encuentra el local va al general
-        liqSinLocal += pago;
-      }
-    });
-
     // Entradas ingresos local
     ingresos.forEach(d => {
       if(!enRango(d.fecha)) return;
       const local = d.local||'';
       if(!flujoLocal[local]) return;
       flujoLocal[local].entradasOtras += parseFloat(d.valor)||0;
+    });
+
+    // Entradas ingresos gerencia (pagos financieras, etc.) — van al local si tienen local, sino a general
+    let ingGerenciaGeneral = 0;
+    ingresosGerencia.forEach(d => {
+      if(!enRango(d.fecha)) return;
+      const valor = parseFloat(d.valor)||0;
+      const local = d.local?.trim()||'';
+      if(local && flujoLocal[local]) {
+        flujoLocal[local].entradasIngGerencia += valor;
+      } else {
+        ingGerenciaGeneral += valor;
+      }
     });
 
     // Salidas gastos diarios
@@ -6672,10 +6664,8 @@ async function cargarFlujoCaja() {
       }
     });
 
-    // Flujo general
     let totalEntradasGeneral = 0, totalSalidasGeneral = 0;
     let egresosGeneralSinLocal = 0;
-    let liqSinLocal = 0;
 
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
@@ -6684,18 +6674,18 @@ async function cargarFlujoCaja() {
 
     LOCALES.forEach(l => {
       const f = flujoLocal[l];
-      totalEntradasGeneral += f.entradasCuotas + f.entradasContado + f.entradasAcc + f.entradasIphone + f.entradasLiq + f.entradasOtras;
+      totalEntradasGeneral += f.entradasCuotas + f.entradasContado + f.entradasAcc + f.entradasIphone + f.entradasIngGerencia + f.entradasOtras;
       totalSalidasGeneral += f.salidasGastos + f.salidasEgresos;
     });
     totalSalidasGeneral += egresosGeneralSinLocal;
-    totalEntradasGeneral += liqSinLocal;
+    totalEntradasGeneral += ingGerenciaGeneral;
 
     // Render
     if(loading) loading.style.display = 'none';
 
     const htmlLocales = LOCALES.map(local => {
       const f = flujoLocal[local];
-      const totalEntradas = f.entradasCuotas + f.entradasContado + f.entradasAcc + f.entradasIphone + f.entradasLiq + f.entradasOtras;
+      const totalEntradas = f.entradasCuotas + f.entradasContado + f.entradasAcc + f.entradasIphone + f.entradasIngGerencia + f.entradasOtras;
       const totalSalidas = f.salidasGastos + f.salidasEgresos;
       const neto = totalEntradas - totalSalidas;
       if(totalEntradas + totalSalidas === 0) return '';
@@ -6712,7 +6702,7 @@ async function cargarFlujoCaja() {
             ${f.entradasContado>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Ventas contado</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasContado)}</span></div>`:''}
             ${f.entradasAcc>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Accesorios</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasAcc)}</span></div>`:''}
             ${f.entradasIphone>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">iPhone</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasIphone)}</span></div>`:''}
-            ${f.entradasLiq>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Pago financieras</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasLiq)}</span></div>`:''}
+            ${f.entradasIngGerencia>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Ingresos gerencia</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasIngGerencia)}</span></div>`:''}
             ${f.entradasOtras>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="color:#475569;">Otros ingresos</span><span style="font-weight:700;color:#16a34a;">+${fmt(f.entradasOtras)}</span></div>`:''}
           </div>
           <div style="background:#fff1f2;border-radius:10px;padding:10px;">
@@ -6726,7 +6716,7 @@ async function cargarFlujoCaja() {
     const netoGeneral = totalEntradasGeneral - totalSalidasGeneral;
 
     // Desglose general por categoría
-    let totalCuotas=0, totalContado=0, totalAcc=0, totalIphone=0, totalLiq=0, totalOtras=0;
+    let totalCuotas=0, totalContado=0, totalAcc=0, totalIphone=0, totalIngGer=0, totalOtras=0;
     let totalGastos=0, totalEgresosLocal=0;
     LOCALES.forEach(l => {
       const f = flujoLocal[l];
@@ -6734,12 +6724,12 @@ async function cargarFlujoCaja() {
       totalContado += f.entradasContado;
       totalAcc += f.entradasAcc;
       totalIphone += f.entradasIphone;
-      totalLiq += f.entradasLiq;
+      totalIngGer += f.entradasIngGerencia;
       totalOtras += f.entradasOtras;
       totalGastos += f.salidasGastos;
       totalEgresosLocal += f.salidasEgresos;
     });
-    totalLiq += liqSinLocal;
+    totalIngGer += ingGerenciaGeneral;
 
     contenido.innerHTML = `
       <!-- GENERAL -->
@@ -6766,8 +6756,8 @@ async function cargarFlujoCaja() {
           ${totalContado>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Ventas contado</span><span style="font-weight:700;">+${fmt(totalContado)}</span></div>`:''}
           ${totalAcc>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Ventas accesorios</span><span style="font-weight:700;">+${fmt(totalAcc)}</span></div>`:''}
           ${totalIphone>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">iPhone (cuota inicial)</span><span style="font-weight:700;">+${fmt(totalIphone)}</span></div>`:''}
-          ${totalLiq>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Pagos financieras</span><span style="font-weight:700;">+${fmt(totalLiq)}</span></div>`:''}
-          ${totalOtras>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Otros ingresos</span><span style="font-weight:700;">+${fmt(totalOtras)}</span></div>`:''}
+          ${totalIngGer>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Ingresos gerencia (financieras, etc.)</span><span style="font-weight:700;">+${fmt(totalIngGer)}</span></div>`:''}
+          ${totalOtras>0?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;"><span style="opacity:.8;">Otros ingresos locales</span><span style="font-weight:700;">+${fmt(totalOtras)}</span></div>`:''}
         </div>
         <!-- Desglose salidas -->
         <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px;">
