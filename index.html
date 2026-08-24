@@ -2553,7 +2553,70 @@ async function setTablaConsulta(tabla) {
     const docs = await fbQuery('precios', 'tabla', '==', tabla);
     document.getElementById('tc-loading').style.display = 'none';
     if(!docs.length) {
-      document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay datos</div>';
+      document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay datos aún. Ingresa los valores desde Gerencia → Tablas</div>';
+      return;
+    }
+
+    // PAYJOY — formato especial
+    if(tabla === 'PAYJOY') {
+      const refs = {};
+      docs.forEach(d => {
+        if(!refs[d.referencia]) refs[d.referencia] = { vs: d.valor_sistema||0, descuento: d.descuento||d.valor||0 };
+        if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
+        if(d.descuento) refs[d.referencia].descuento = d.descuento;
+        if(d.porcentaje === 'descuento') refs[d.referencia].descuento = d.valor||0;
+      });
+      const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
+      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => `
+        <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
+          <div style="font-weight:800;font-size:14px;color:#5b21b6;margin-bottom:8px;">${ref}</div>
+          <div style="display:flex;gap:8px;">
+            ${data.vs ? `<div style="flex:1;background:#ede9fe;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#5b21b6;font-weight:700;">Valor Sistema</div><div style="font-size:15px;font-weight:900;color:#5b21b6;">${fmt(data.vs)}</div></div>` : ''}
+            ${data.descuento ? `<div style="flex:1;background:#fee2e2;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#dc2626;font-weight:700;">Descuento</div><div style="font-size:15px;font-weight:900;color:#dc2626;">-${fmt(data.descuento)}</div></div>` : ''}
+          </div>
+          ${data.vs && data.descuento ? `<div style="margin-top:8px;background:#f0fdf4;border-radius:8px;padding:8px;text-align:center;font-size:13px;color:#15803d;font-weight:700;">Al valor que diga el sistema, réstale ${fmt(data.descuento)}</div>` : ''}
+        </div>`).join('');
+      return;
+    }
+
+    // ALO_CREDIT — formato especial
+    if(tabla === 'ALO_CREDIT') {
+      const PD = window.PRECIOS_DINAMICOS || {};
+      const tablaOficina = PD['OFICINA'] || {};
+      const refs = {};
+      docs.forEach(d => {
+        if(!refs[d.referencia]) refs[d.referencia] = { vs: 0 };
+        if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
+      });
+      const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
+      const porcs = [0.15, 0.20, 0.25];
+      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => {
+        const refOficina = tablaOficina[ref] || {};
+        return `
+          <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
+            <div style="font-weight:800;font-size:14px;color:#b45309;margin-bottom:8px;">${ref}</div>
+            ${data.vs ? `<div style="background:#fef3c7;border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:13px;font-weight:700;color:#b45309;">📊 Valor Sistema: ${fmt(data.vs)}</div>` : '<div style="color:#94a3b8;font-size:12px;margin-bottom:8px;">Sin valor sistema aún</div>'}
+            ${porcs.map(p => {
+              const cuotaAlo = data.vs ? Math.round(data.vs * p) : 0;
+              const pKey = p.toFixed(2);
+              const pKey2 = String(p);
+              const cuotaCobrar = refOficina[pKey] || refOficina[pKey2] || 0;
+              return `
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px;background:#f8fafc;border-radius:8px;">
+                  <div style="font-size:12px;font-weight:800;color:#64748b;min-width:30px;">${Math.round(p*100)}%</div>
+                  <div style="flex:1;background:#fef3c7;border-radius:6px;padding:6px;text-align:center;">
+                    <div style="font-size:10px;color:#b45309;">ALO muestra</div>
+                    <div style="font-weight:800;color:#b45309;">${cuotaAlo ? fmt(cuotaAlo) : '-'}</div>
+                  </div>
+                  <div style="font-size:16px;">→</div>
+                  <div style="flex:1;background:#f0fdf4;border-radius:6px;padding:6px;text-align:center;">
+                    <div style="font-size:10px;color:#15803d;">Cobrar</div>
+                    <div style="font-weight:800;color:#15803d;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>`;
+      }).join('');
       return;
     }
     const refs = {};
@@ -5761,7 +5824,7 @@ async function setTablaActual(hoja) {
     document.getElementById('tablas-loading').style.display = 'none';
     renderTabla(hoja);
   } catch(e) {
-    console.error('Error cargando tabla', hoja, e);
+    console.error('Error cargando tabla', hoja, e.message, e);
     document.getElementById('tablas-loading').style.display = 'none';
     document.getElementById('tablas-contenido').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
