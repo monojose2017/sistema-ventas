@@ -437,9 +437,17 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <!-- REFERENCIAS ACTIVAS -->
     <div style="margin-top:20px;padding-top:16px;border-top:2px solid #e2e8f0;">
-      <div style="font-weight:800;font-size:15px;color:#1a3c6e;margin-bottom:4px;">🚦 Referencias Activas</div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:12px;">Marca las referencias que manejas actualmente. Estas aparecen en el semáforo de stock.</div>
-      <div id="refs-activas-lista" style="max-height:400px;overflow-y:auto;"></div>
+      <div onclick="toggleRefsActivas()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:4px 0;">
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#1a3c6e;">🚦 Referencias Activas</div>
+          <div style="font-size:12px;color:#64748b;">Toca para expandir</div>
+        </div>
+        <span id="refs-activas-arrow" style="font-size:20px;color:#1a3c6e;transition:transform .3s;">›</span>
+      </div>
+      <div id="refs-activas-wrap" style="display:none;margin-top:12px;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:12px;">Marca las referencias que manejas actualmente. Aparecen en el semáforo de stock.</div>
+        <div id="refs-activas-lista" style="max-height:400px;overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -460,6 +468,56 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <p class="sec-titulo">Movimientos especiales</p>
     <button class="btn-menu" onclick="irA('prestamos')"><div class="btn-icon naranja">🤝</div><div class="btn-info"><div class="btn-titulo">Préstamos</div><div class="btn-sub">Prestar · Recibir prestado</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('garantia')"><div class="btn-icon rojo">🔧</div><div class="btn-info"><div class="btn-titulo">Garantía / Cambio de IMEI</div><div class="btn-sub">Enviar garantía · Recuperar · Cambio</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="abrirControlReposicion()"><div class="btn-icon" style="background:linear-gradient(135deg,#b45309,#d97706);color:white;font-size:20px;">🔁</div><div class="btn-info"><div class="btn-titulo">Control de Reposición</div><div class="btn-sub">Teléfonos vendidos por financiera incorrecta</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- CONTROL DE REPOSICIÓN -->
+<div class="screen" id="screen-control-reposicion">
+  <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)">
+    <button class="back-btn" onclick="irA('inventario')">‹</button>
+    <div><div class="form-header-title">🔁 Control de Reposición</div><div class="form-header-sub">Teléfonos vendidos por financiera incorrecta</div></div>
+  </div>
+  <div class="form-body">
+
+    <!-- Registrar nueva reposición -->
+    <div style="background:#fffbeb;border-radius:12px;padding:14px;margin-bottom:16px;border:2px solid #d97706;">
+      <div style="font-weight:800;font-size:14px;color:#b45309;margin-bottom:12px;">➕ Registrar Reposición</div>
+
+      <div class="field">
+        <label>Tipo de anomalía</label>
+        <div class="select-wrap">
+          <select id="rep-tipo-anomalia" onchange="cambiarTipoAnomalia()">
+            <option value="">Seleccionar...</option>
+            <option value="mio_en_oficina">📤 Teléfono MÍO vendido por OFICINA/RECOMPRA/ALO</option>
+            <option value="oficina_en_otro">📥 Teléfono OFICINA vendido por otra financiera</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field"><label>Referencia</label>
+        <div class="select-wrap"><select id="rep-referencia"><option value="">Seleccionar...</option></select></div>
+      </div>
+
+      <div class="field"><label id="rep-imei1-label">IMEI del teléfono vendido mal</label>
+        <input type="text" id="rep-imei1" placeholder="IMEI" maxlength="20" style="font-size:15px;">
+      </div>
+
+      <div class="field"><label id="rep-imei2-label">IMEI del teléfono de reposición</label>
+        <input type="text" id="rep-imei2" placeholder="IMEI (opcional hasta tenerlo)" style="font-size:15px;">
+      </div>
+
+      <div class="field"><label>Observación (opcional)</label>
+        <input type="text" id="rep-obs" placeholder="Ej: Hablar con María en oficina" style="font-size:15px;">
+      </div>
+
+      <button onclick="guardarReposicion()" class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706);">🔁 Registrar Reposición</button>
+    </div>
+
+    <!-- Lista de reposiciones -->
+    <div style="font-weight:800;font-size:14px;color:#475569;margin-bottom:10px;">📋 Pendientes de Reposición</div>
+    <div id="rep-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>
+    <div id="rep-lista"></div>
   </div>
 </div>
 
@@ -2519,6 +2577,141 @@ async function setTablaConsulta(tabla) {
   }
 }
 
+async function abrirControlReposicion() {
+  irA('control-reposicion');
+  // Llenar referencias
+  const sel = document.getElementById('rep-referencia');
+  sel.innerHTML = '<option value="">Seleccionar...</option>';
+  (window.CONFIG_DATA?.referencias||[]).forEach(r => sel.innerHTML += `<option>${r}</option>`);
+  cargarReposiciones();
+}
+
+function cambiarTipoAnomalia() {
+  const tipo = document.getElementById('rep-tipo-anomalia').value;
+  const lbl1 = document.getElementById('rep-imei1-label');
+  const lbl2 = document.getElementById('rep-imei2-label');
+  if(tipo === 'mio_en_oficina') {
+    lbl1.textContent = 'IMEI del teléfono MÍO (vendido por oficina)';
+    lbl2.textContent = 'IMEI del teléfono OFICINA que recibes a cambio';
+  } else if(tipo === 'oficina_en_otro') {
+    lbl1.textContent = 'IMEI del teléfono OFICINA (vendido por otra financiera)';
+    lbl2.textContent = 'IMEI del teléfono que compras para reponer a oficina';
+  } else {
+    lbl1.textContent = 'IMEI del teléfono vendido mal';
+    lbl2.textContent = 'IMEI del teléfono de reposición';
+  }
+}
+
+async function guardarReposicion() {
+  const tipo = document.getElementById('rep-tipo-anomalia').value;
+  const ref = document.getElementById('rep-referencia').value;
+  const imei1 = document.getElementById('rep-imei1').value.trim();
+  const imei2 = document.getElementById('rep-imei2').value.trim();
+  const obs = document.getElementById('rep-obs').value.trim();
+
+  if(!tipo || !ref || !imei1) {
+    alert('⚠️ Completa tipo, referencia e IMEI del teléfono vendido mal');
+    return;
+  }
+
+  const btn = document.querySelector('#screen-control-reposicion .submit-btn');
+  if(btn) { btn.textContent = 'Guardando...'; btn.disabled = true; }
+
+  try {
+    await fbAdd('reposiciones', {
+      fecha: fechaHoyLocal(),
+      tipo, referencia: ref,
+      imei_vendido_mal: imei1,
+      imei_reposicion: imei2,
+      observacion: obs,
+      estado: 'PENDIENTE'
+    });
+
+    // Limpiar formulario
+    document.getElementById('rep-tipo-anomalia').value = '';
+    document.getElementById('rep-referencia').value = '';
+    document.getElementById('rep-imei1').value = '';
+    document.getElementById('rep-imei2').value = '';
+    document.getElementById('rep-obs').value = '';
+    if(btn) { btn.textContent = '🔁 Registrar Reposición'; btn.disabled = false; }
+    mostrarToastVerde('✅ Reposición registrada');
+    cargarReposiciones();
+  } catch(e) {
+    alert('❌ Error al guardar: ' + e.message);
+    if(btn) { btn.textContent = '🔁 Registrar Reposición'; btn.disabled = false; }
+  }
+}
+
+async function cargarReposiciones() {
+  const lista = document.getElementById('rep-lista');
+  document.getElementById('rep-loading').style.display = 'block';
+  lista.innerHTML = '';
+  try {
+    const docs = await fbGetAll('reposiciones');
+    document.getElementById('rep-loading').style.display = 'none';
+
+    const pendientes = docs.filter(d => d.estado === 'PENDIENTE');
+    const completadas = docs.filter(d => d.estado === 'COMPLETADA');
+
+    if(!pendientes.length && !completadas.length) {
+      lista.innerHTML = '<div style="text-align:center;color:#16a34a;padding:20px;font-weight:700;">✅ No hay reposiciones pendientes</div>';
+      return;
+    }
+
+    const renderItem = (d, i) => {
+      const esMio = d.tipo === 'mio_en_oficina';
+      const color = esMio ? '#b45309' : '#0369a1';
+      const bg = esMio ? '#fffbeb' : '#eff6ff';
+      const label = esMio ? '📤 Mío en Oficina' : '📥 Oficina en Otro';
+      return `
+        <div style="background:${bg};border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid ${color};">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="flex:1;">
+              <div style="font-weight:800;font-size:14px;">${d.referencia}</div>
+              <div style="font-size:12px;color:${color};font-weight:700;margin-top:2px;">${label}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:4px;">📅 ${d.fecha}</div>
+              <div style="font-size:12px;margin-top:4px;">
+                <span style="background:white;border-radius:6px;padding:2px 6px;font-weight:700;">IMEI vendido: ${d.imei_vendido_mal}</span>
+              </div>
+              ${d.imei_reposicion ? `<div style="font-size:12px;margin-top:4px;"><span style="background:white;border-radius:6px;padding:2px 6px;font-weight:700;">IMEI reposición: ${d.imei_reposicion}</span></div>` : '<div style="font-size:11px;color:#dc2626;margin-top:4px;font-weight:700;">⚠️ Sin IMEI de reposición aún</div>'}
+              ${d.observacion ? `<div style="font-size:12px;color:#64748b;font-style:italic;margin-top:4px;">${d.observacion}</div>` : ''}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${!d.imei_reposicion ? `<button onclick="agregarImeiReposicion('${d.id}')" style="background:#1d4ed8;color:white;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:11px;font-weight:700;">➕ IMEI</button>` : ''}
+              ${d.estado === 'PENDIENTE' ? `<button onclick="completarReposicion('${d.id}')" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:11px;font-weight:700;">✅ Completar</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+    };
+
+    lista.innerHTML = `
+      ${pendientes.length ? `<div style="font-weight:800;font-size:13px;color:#b45309;margin-bottom:8px;">⏳ Pendientes (${pendientes.length})</div>${pendientes.map(renderItem).join('')}` : ''}
+      ${completadas.length ? `<div style="font-weight:800;font-size:13px;color:#16a34a;margin:12px 0 8px;">✅ Completadas (${completadas.length})</div>${completadas.map(renderItem).join('')}` : ''}`;
+  } catch(e) {
+    document.getElementById('rep-loading').style.display = 'none';
+    lista.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
+  }
+}
+
+async function agregarImeiReposicion(id) {
+  const imei = prompt('Ingresa el IMEI del teléfono de reposición:');
+  if(!imei) return;
+  try {
+    await fbUpdate('reposiciones', id, { imei_reposicion: imei.trim() });
+    mostrarToastVerde('✅ IMEI agregado');
+    cargarReposiciones();
+  } catch(e) { alert('❌ Error: ' + e.message); }
+}
+
+async function completarReposicion(id) {
+  if(!confirm('¿Marcar esta reposición como completada?')) return;
+  try {
+    await fbUpdate('reposiciones', id, { estado: 'COMPLETADA', fecha_completada: fechaHoyLocal() });
+    mostrarToastVerde('✅ Reposición completada');
+    cargarReposiciones();
+  } catch(e) { alert('❌ Error: ' + e.message); }
+}
+
 function abrirCorregirRegistros() {
   // Llenar selector de locales
   const sel = document.getElementById('corr-local');
@@ -3244,9 +3437,17 @@ async function toggleRefActiva(ref, activa) {
   } catch(e) { alert('❌ Error al guardar'); }
 }
 
+function toggleRefsActivas() {
+  const wrap = document.getElementById('refs-activas-wrap');
+  const arrow = document.getElementById('refs-activas-arrow');
+  const abierto = wrap.style.display !== 'none';
+  wrap.style.display = abierto ? 'none' : 'block';
+  arrow.style.transform = abierto ? '' : 'rotate(90deg)';
+  if(!abierto) renderRefsActivas();
+}
+
 async function cargarConfigAdmin() {
   renderConfigLista();
-  renderRefsActivas();
 }
 
 function renderConfigLista() {
