@@ -349,6 +349,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="setTablaActual('ET_CLARO')" id="tbl-btn-ET_CLARO" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ET CLARO</button>
       <button onclick="setTablaActual('RECOMPRA')" id="tbl-btn-RECOMPRA" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA</button>
       <button onclick="setTablaActual('RECOMPRA_REAL')" id="tbl-btn-RECOMPRA_REAL" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA REAL</button>
+      <button onclick="setTablaActual('PAYJOY')" id="tbl-btn-PAYJOY" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">PAYJOY</button>
+      <button onclick="setTablaActual('ALO_CREDIT')" id="tbl-btn-ALO_CREDIT" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ALO CREDIT</button>
     </div>
     <div id="tablas-loading" style="text-align:center;padding:20px;color:#64748b;display:none;">Cargando...</div>
     <div id="tablas-contenido"></div>
@@ -5625,7 +5627,7 @@ async function cargarTablas() {
 
 async function setTablaActual(hoja) {
   tablaActual = hoja;
-  ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','RECOMPRA_REAL'].forEach(t => {
+  ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','RECOMPRA_REAL','PAYJOY','ALO_CREDIT'].forEach(t => {
     const btn = document.getElementById('tbl-btn-'+t);
     if(!btn) return;
     btn.style.background = t === hoja ? '#7c3aed' : 'white';
@@ -5680,9 +5682,12 @@ function fmtPorc(h) {
 function renderTabla(hoja) {
   const data = tablaDatos[hoja];
   if(!data?.values?.length) {
-    document.getElementById('tablas-contenido').innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Sin datos</div>';
+    document.getElementById('tablas-contenido').innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Sin datos. Agrega una referencia para empezar.</div>';
     return;
   }
+
+  if(hoja === 'PAYJOY') { renderTablaPayjoy(data); return; }
+  if(hoja === 'ALO_CREDIT') { renderTablaAloCredit(data); return; }
 
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
   const headers = data.values[0].slice(1);
@@ -5701,8 +5706,10 @@ function renderTabla(hoja) {
 
   rows.forEach((row, i) => {
     const ref = row[0]?.toString()||'';
+    const vsDocs = data.docs?.filter(d => d.referencia === ref);
+    const vs = vsDocs?.find(d => d.valor_sistema)?.valor_sistema || 0;
     html += `<tr style="background:${i%2===0?'white':'#f8fafc'};border-bottom:1px solid #e2e8f0;">
-      <td style="padding:8px;font-weight:700;font-size:11px;">${ref}</td>
+      <td style="padding:8px;font-weight:700;font-size:11px;">${ref}${vs?`<div style="font-size:10px;color:#0369a1;font-weight:700;">VS: $${Math.round(vs).toLocaleString('es-CO')}</div>`:''}</td>
       ${headers.map((h, j) => `<td style="padding:8px;text-align:center;color:#0891b2;">${fmt(row[j+1])}</td>`).join('')}
       <td style="padding:8px;text-align:center;">
         <button onclick="abrirEditarFila('${hoja}',${i+1},'${ref.replace(/'/g,"\\'")}')" 
@@ -5716,6 +5723,99 @@ function renderTabla(hoja) {
   html += `</tbody></table></div>
     <button onclick="abrirAgregarFila('${hoja}')" style="width:100%;margin-top:14px;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">+ Agregar referencia</button>`;
 
+  document.getElementById('tablas-contenido').innerHTML = html;
+}
+
+function renderTablaPayjoy(data) {
+  const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
+  const rows = data.values.slice(1).filter(r => r[0] && r[0].toString() !== '__ELIMINADO__');
+
+  let html = `<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#5b21b6;color:white;">
+          <th style="padding:8px;text-align:left;min-width:140px;">Referencia</th>
+          <th style="padding:8px;text-align:center;min-width:100px;">Valor Sistema</th>
+          <th style="padding:8px;text-align:center;min-width:90px;">Descuento</th>
+          <th style="padding:8px;text-align:center;min-width:60px;">✏️</th>
+        </tr>
+      </thead><tbody>`;
+
+  rows.forEach((row, i) => {
+    const ref = row[0]?.toString()||'';
+    const vsDocs = data.docs?.filter(d => d.referencia === ref);
+    const vs = vsDocs?.find(d => d.valor_sistema)?.valor_sistema || 0;
+    const desc = vsDocs?.find(d => d.descuento)?.descuento || row[1] || 0;
+    html += `<tr style="background:${i%2===0?'white':'#f8fafc'};border-bottom:1px solid #e2e8f0;">
+      <td style="padding:8px;font-weight:700;font-size:11px;">${ref}</td>
+      <td style="padding:8px;text-align:center;color:#0369a1;font-weight:700;">${fmt(vs)}</td>
+      <td style="padding:8px;text-align:center;color:#dc2626;font-weight:700;">${fmt(desc)}</td>
+      <td style="padding:8px;text-align:center;">
+        <button onclick="abrirEditarFila('PAYJOY',${i+1},'${ref.replace(/'/g,"\\'")}')" 
+          style="padding:4px 8px;background:#5b21b6;color:white;border:none;border-radius:6px;cursor:pointer;font-size:11px;">✏️</button>
+        <button onclick="confirmarEliminarFilaTabla('PAYJOY',${i+1},'${ref.replace(/'/g,"\\'")}')"
+          style="padding:4px 8px;background:#dc2626;color:white;border:none;border-radius:6px;cursor:pointer;font-size:11px;margin-left:4px;">🗑️</button>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>
+    <button onclick="abrirAgregarFila('PAYJOY')" style="width:100%;margin-top:14px;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">+ Agregar referencia</button>`;
+  document.getElementById('tablas-contenido').innerHTML = html;
+}
+
+function renderTablaAloCredit(data) {
+  const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
+  // Obtener porcentajes de OFICINA
+  const PD = window.PRECIOS_DINAMICOS || {};
+  const tablaOficina = PD['OFICINA'] || {};
+  const rows = data.values.slice(1).filter(r => r[0] && r[0].toString() !== '__ELIMINADO__');
+  const porcs = ['0.15','0.2','0.25'];
+
+  let html = `<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <thead>
+        <tr style="background:#d97706;color:white;">
+          <th style="padding:6px;text-align:left;min-width:130px;">Referencia</th>
+          <th style="padding:6px;text-align:center;min-width:80px;">VS</th>
+          <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO 15%</th>
+          <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>
+          <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO 20%</th>
+          <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>
+          <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO 25%</th>
+          <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>
+          <th style="padding:6px;text-align:center;">✏️</th>
+        </tr>
+      </thead><tbody>`;
+
+  rows.forEach((row, i) => {
+    const ref = row[0]?.toString()||'';
+    const vsDocs = data.docs?.filter(d => d.referencia === ref);
+    const vs = vsDocs?.find(d => d.valor_sistema)?.valor_sistema || 0;
+    const refOficina = tablaOficina[ref] || {};
+
+    html += `<tr style="background:${i%2===0?'white':'#fffbeb'};border-bottom:1px solid #e2e8f0;">
+      <td style="padding:6px;font-weight:700;font-size:10px;">${ref}</td>
+      <td style="padding:6px;text-align:center;color:#0369a1;font-weight:700;font-size:11px;">${fmt(vs)}</td>
+      ${porcs.map(p => {
+        const cuotaAlo = vs ? Math.round(vs * parseFloat(p)) : 0;
+        const cuotaCobrar = refOficina[p] || refOficina[parseFloat(p).toFixed(2)] || 0;
+        return `
+          <td style="padding:6px;text-align:center;background:#fef3c7;color:#b45309;font-weight:700;">${cuotaAlo ? fmt(cuotaAlo) : '-'}</td>
+          <td style="padding:6px;text-align:center;color:#16a34a;font-weight:800;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</td>`;
+      }).join('')}
+      <td style="padding:6px;text-align:center;">
+        <button onclick="abrirEditarFila('ALO_CREDIT',${i+1},'${ref.replace(/'/g,"\\'")}')" 
+          style="padding:4px 6px;background:#d97706;color:white;border:none;border-radius:6px;cursor:pointer;font-size:10px;">✏️</button>
+        <button onclick="confirmarEliminarFilaTabla('ALO_CREDIT',${i+1},'${ref.replace(/'/g,"\\'")}')"
+          style="padding:4px 6px;background:#dc2626;color:white;border:none;border-radius:6px;cursor:pointer;font-size:10px;margin-left:2px;">🗑️</button>
+      </td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>
+    <div style="font-size:11px;color:#64748b;margin-top:8px;">🟡 ALO = % del Valor Sistema · 🟢 Cobrar = cuota de tabla OFICINA</div>
+    <button onclick="abrirAgregarFila('ALO_CREDIT')" style="width:100%;margin-top:10px;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">+ Agregar referencia</button>`;
   document.getElementById('tablas-contenido').innerHTML = html;
 }
 
