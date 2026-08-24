@@ -542,9 +542,15 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)"><button class="back-btn" onclick="irA('inventario')">‹</button><div><div class="form-header-title">🔍 Ver Inventario</div><div class="form-header-sub">Consulta stock y precios</div></div></div>
   <div class="form-body">
     <!-- Tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button id="tab-tel-btn" onclick="tabInventario('tel')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #0369a1;background:#0369a1;color:white;font-weight:700;cursor:pointer;">📱 Teléfonos</button>
-      <button id="tab-acc-btn" onclick="tabInventario('acc')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #0369a1;background:white;color:#0369a1;font-weight:700;cursor:pointer;">🎧 Accesorios</button>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button id="tab-tel-btn" onclick="tabInventario('tel')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #0369a1;background:#0369a1;color:white;font-weight:700;cursor:pointer;min-width:80px;">📱 Teléfonos</button>
+      <button id="tab-acc-btn" onclick="tabInventario('acc')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #0369a1;background:white;color:#0369a1;font-weight:700;cursor:pointer;min-width:80px;">🎧 Accesorios</button>
+      <button id="tab-kpi-btn" onclick="tabInventario('kpi')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;min-width:80px;">🚦 Stock</button>
+    </div>
+
+    <!-- Panel KPI Stock -->
+    <div id="inv-kpi-wrap" style="display:none;">
+      <div id="inv-kpi-contenido"></div>
     </div>
 
     <!-- Buscador -->
@@ -1653,6 +1659,7 @@ let msAccount = true; // Siempre conectado con Firebase
 let preciosCargados = false;
 let _cacheReportes = null;
 let _cacheReportesPeriodo = '';
+let iphoneTabActual = 'pendientes';
 let gerenciaAutenticada = false;
 
 // =============================================
@@ -3561,19 +3568,110 @@ function verInventario(mantenerFiltros) {
   tabInventario(invTab);
 }
 
+function renderKpiStock() {
+  const el = document.getElementById('inv-kpi-contenido');
+  if(!el) return;
+
+  // Referencias de las tablas de cuotas
+  const PD = window.PRECIOS_DINAMICOS || {};
+  const refsEnTablas = new Set();
+  Object.values(PD).forEach(tabla => {
+    Object.keys(tabla).forEach(ref => refsEnTablas.add(ref));
+  });
+
+  if(refsEnTablas.size === 0) {
+    el.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Cargando tablas...</div>';
+    return;
+  }
+
+  const LOCALES = window.CONFIG_LISTAS?.locales || [];
+  const imeis = window.IMEIS_TODOS_CON_ESTADO || {};
+
+  // Contar disponibles por local y referencia
+  const stockPorLocalRef = {};
+  Object.values(imeis).forEach(t => {
+    const estadoEsp = (t.estado_especial||'').toUpperCase();
+    const estadoG = (t.estado||'').toUpperCase();
+    const estadoFinal = estadoEsp || estadoG;
+    if(estadoFinal !== 'DISPONIBLE') return; // excluye garantía, prestado, vendido
+    const local = t.ubicacion || t.local || '';
+    const ref = t.ref || '';
+    if(!stockPorLocalRef[local]) stockPorLocalRef[local] = {};
+    stockPorLocalRef[local][ref] = (stockPorLocalRef[local][ref]||0) + 1;
+  });
+
+  const refs = [...refsEnTablas].sort();
+
+  el.innerHTML = LOCALES.map(local => {
+    const stockLocal = stockPorLocalRef[local] || {};
+    const sinStock = refs.filter(r => !stockLocal[r]);
+    const stockBajo = refs.filter(r => stockLocal[r] === 1);
+    const enStock = refs.filter(r => (stockLocal[r]||0) >= 2);
+
+    return `
+      <div style="background:white;border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <div style="background:#1a3c6e;color:white;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:800;font-size:15px;">🏪 ${local}</div>
+          <div style="display:flex;gap:8px;font-size:12px;font-weight:700;">
+            <span style="background:#16a34a;padding:3px 8px;border-radius:6px;">🟢 ${enStock.length}</span>
+            <span style="background:#d97706;padding:3px 8px;border-radius:6px;">🟡 ${stockBajo.length}</span>
+            <span style="background:#dc2626;padding:3px 8px;border-radius:6px;">🔴 ${sinStock.length}</span>
+          </div>
+        </div>
+        <div style="padding:10px 14px;">
+          ${refs.map(ref => {
+            const cant = stockLocal[ref]||0;
+            const emoji = cant >= 2 ? '🟢' : cant === 1 ? '🟡' : '🔴';
+            const color = cant >= 2 ? '#16a34a' : cant === 1 ? '#d97706' : '#dc2626';
+            const bg = cant >= 2 ? '#f0fdf4' : cant === 1 ? '#fffbeb' : '#fff1f2';
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:${bg};border-radius:8px;margin-bottom:4px;">
+                <span style="font-size:13px;font-weight:600;color:#1e293b;">${emoji} ${ref}</span>
+                <span style="font-weight:800;font-size:14px;color:${color};">${cant === 0 ? 'Sin stock' : cant === 1 ? '1 unidad' : cant+' uds'}</span>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function tabInventario(tab) {
   invTab = tab;
   const btnTel = document.getElementById('tab-tel-btn');
   const btnAcc = document.getElementById('tab-acc-btn');
+  const btnKpi = document.getElementById('tab-kpi-btn');
   const catWrap = document.getElementById('inv-cat-wrap');
-  btnTel.style.background = tab === 'tel' ? '#0369a1' : 'white';
-  btnTel.style.color = tab === 'tel' ? 'white' : '#0369a1';
-  btnAcc.style.background = tab === 'acc' ? '#0369a1' : 'white';
-  btnAcc.style.color = tab === 'acc' ? 'white' : '#0369a1';
-  
+  const kpiWrap = document.getElementById('inv-kpi-wrap');
+  const listaWrap = document.getElementById('inv-lista');
+  const searchWrap = document.getElementById('inv-search');
+  const contador = document.getElementById('inv-contador');
+
+  btnTel.style.background = tab==='tel'?'#0369a1':'white';
+  btnTel.style.color = tab==='tel'?'white':'#0369a1';
+  btnAcc.style.background = tab==='acc'?'#0369a1':'white';
+  btnAcc.style.color = tab==='acc'?'white':'#0369a1';
+  if(btnKpi) { btnKpi.style.background = tab==='kpi'?'#7c3aed':'white'; btnKpi.style.color = tab==='kpi'?'white':'#7c3aed'; }
+
   const provWrap = document.getElementById('inv-prov-wrap');
   const estadoWrap = document.getElementById('inv-estado-wrap');
   const refWrap = document.getElementById('inv-ref-wrap');
+
+  if(tab === 'kpi') {
+    catWrap.style.display = 'none';
+    estadoWrap.style.display = 'none';
+    provWrap.style.display = 'none';
+    refWrap.style.display = 'none';
+    if(searchWrap) searchWrap.style.display = 'none';
+    if(contador) contador.style.display = 'none';
+    if(listaWrap) listaWrap.innerHTML = '';
+    if(kpiWrap) kpiWrap.style.display = 'block';
+    renderKpiStock();
+    return;
+  }
+
+  if(kpiWrap) kpiWrap.style.display = 'none';
+  if(searchWrap) searchWrap.style.display = 'block';
+
   if(tab === 'acc') {
     catWrap.style.display = 'block';
     estadoWrap.style.display = 'none';
@@ -3589,13 +3687,11 @@ function tabInventario(tab) {
     estadoWrap.style.display = 'block';
     provWrap.style.display = 'block';
     refWrap.style.display = 'block';
-    // Llenar proveedores
     const provSel = document.getElementById('inv-prov-filter');
     provSel.innerHTML = '<option value="">Todos los proveedores</option>';
     if(window.CONFIG_DATA) {
       window.CONFIG_DATA.proveedores.forEach(p => provSel.innerHTML += `<option>${p}</option>`);
     }
-    // Llenar referencias
     const refSel = document.getElementById('inv-ref-filter');
     refSel.innerHTML = '<option value="">Todas las referencias</option>';
     if(window.CONFIG_DATA) {
