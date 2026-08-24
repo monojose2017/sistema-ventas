@@ -525,7 +525,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
 <!-- EDITAR ACCESORIO -->
 <div class="screen" id="screen-editar-accesorio">
-  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="irA('ver-inventario')">‹</button><div><div class="form-header-title">✏️ Editar Accesorio</div><div class="form-header-sub">Modifica los datos</div></div></div>
+  <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="invTab='acc';irA('ver-inventario');verInventario(true)">‹</button><div><div class="form-header-title">✏️ Editar Accesorio</div><div class="form-header-sub">Modifica los datos</div></div></div>
   <div class="form-body">
     <div class="field"><label>Local</label><div class="select-wrap"><select id="edit-acc-local"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Categoría</label><div class="select-wrap"><select id="edit-acc-cat"><option value="">Seleccionar...</option></select></div></div>
@@ -1008,6 +1008,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     </div>
 
     <div id="rep-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando...</div>
+    <button onclick="_cacheReportes=null;cargarReportes(true)" style="width:100%;padding:10px;background:#f1f5f9;border:none;border-radius:10px;font-weight:700;color:#475569;font-size:13px;cursor:pointer;margin-bottom:8px;">🔄 Actualizar datos</button>
 
     <!-- BOTONES DE SELECCIÓN -->
     <div id="rep-botones" style="display:none;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
@@ -3512,18 +3513,18 @@ function verInventario(mantenerFiltros) {
       window.CONFIG_DATA.ubicaciones.forEach(l => sel.innerHTML += `<option>${l}</option>`);
     }
   }
-  const searchEl = document.getElementById('inv-search');
-  if(searchEl) searchEl.value = '';
-  const estadoSel = document.getElementById('inv-estado-filter');
-  if(estadoSel) estadoSel.value = '';
-  const provSel = document.getElementById('inv-prov-filter');
-  if(provSel) provSel.value = '';
-  
-  // Abrir pantalla sin loop
+  if(!mantenerFiltros) {
+    const searchEl = document.getElementById('inv-search');
+    if(searchEl) searchEl.value = '';
+    const estadoSel = document.getElementById('inv-estado-filter');
+    if(estadoSel) estadoSel.value = '';
+    const provSel = document.getElementById('inv-prov-filter');
+    if(provSel) provSel.value = '';
+  }
   document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
   document.getElementById('screen-ver-inventario').classList.add('active');
   window.scrollTo(0,0);
-  tabInventario('tel');
+  tabInventario(invTab);
 }
 
 function tabInventario(tab) {
@@ -5577,6 +5578,12 @@ function setTabIphone(tab) {
 
 async function cargarVentasIphone() {
   const lista = document.getElementById('iphone-lista');
+  // Si ya están en memoria, usar los cacheados
+  if(iphoneVentas.length > 0) {
+    renderListaIphone();
+    mostrarResumenUtilIphone();
+    return;
+  }
   if(lista) lista.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">Cargando...</div>';
   try {
     const docs = await fbGetAll('ventas_iphone');
@@ -6839,7 +6846,7 @@ function setPeriodo(p) {
   });
   const customFields = document.getElementById('per-custom-fields');
   customFields.style.display = p==='custom' ? 'block' : 'none';
-  if(p !== 'custom') cargarReportes();
+  if(p !== 'custom') { _cacheReportes = null; cargarReportes(); }
 }
 
 function getFechasPeriodo() {
@@ -6871,15 +6878,26 @@ function enPeriodo(fechaStr, desde, hasta) {
   return f >= desde && f <= hasta;
 }
 
-async function cargarReportes() {
+let _cacheReportes = null;
+let _cacheReportesPeriodo = '';
+
+async function cargarReportes(forzar) {
+  const { desde, hasta } = getFechasPeriodo();
+  if(!desde || !hasta) return;
+
+  const periodoKey = desde + hasta;
+
+  // Usar caché si el período no cambió y no se fuerza
+  if(_cacheReportes && _cacheReportesPeriodo === periodoKey && !forzar) {
+    renderReportes(_cacheReportes, desde, hasta);
+    return;
+  }
+
   document.getElementById('rep-loading').style.display = 'block';
   ['rep-sec-total','rep-sec-locales','rep-sec-generales','rep-sec-liq'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
-
-  const { desde, hasta } = getFechasPeriodo();
-  if(!desde || !hasta) { document.getElementById('rep-loading').style.display='none'; return; }
 
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
   const fmtColor = n => `<span style="font-weight:800;color:${n>=0?'#16a34a':'#dc2626'}">${n>=0?'+':''}${fmt(n)}</span>`;
@@ -6902,6 +6920,23 @@ async function cargarReportes() {
       fetchConReintento('deudas'),
       fetchConReintento('ventas_iphone')
     ]);
+
+    // Guardar en caché
+    _cacheReportes = { creditos, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqDocs, deudas, iphoneVentas };
+    _cacheReportesPeriodo = periodoKey;
+
+    renderReportes(_cacheReportes, desde, hasta);
+  } catch(e) {
+    document.getElementById('rep-loading').style.display = 'none';
+    alert('❌ Error al cargar reportes: ' + e.message);
+    console.error(e);
+  }
+}
+
+async function renderReportes({ creditos, contado, accesorios, gastos, egresos, ingresosLoc, abonosDeudas, liqDocs, deudas, iphoneVentas }, desde, hasta) {
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  const fmtColor = n => `<span style="font-weight:800;color:${n>=0?'#16a34a':'#dc2626'}">${n>=0?'+':''}${fmt(n)}</span>`;
+  try {
 
     const enRango = f => { if(!f) return false; const s = f.toString().substring(0,10); return s >= desde && s <= hasta; };
 
