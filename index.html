@@ -1518,9 +1518,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Local</label>
       <div class="select-wrap"><select id="ac-local">
         <option value="">Seleccionar...</option>
-        <option>PALMAR DE VARELA</option>
-        <option>SABANALARGA</option>
-        <option>PUERTO COLOMBIA</option>
       </select></div>
     </div>
     <div class="field"><label>Saldo en caja al abrir</label><input type="text" id="ac-saldo" placeholder="$0" oninput="formatMoney(this)"></div>
@@ -2082,12 +2079,15 @@ function irA(s){
   if(s === 'apertura-caja') {
     const hoy = fechaHoyLocal();
     document.getElementById('ac-fecha').value = hoy;
+    const selLocal = document.getElementById('ac-local');
+    if(selLocal) {
+      selLocal.innerHTML = '<option value="">Seleccionar...</option>';
+      (window.CONFIG_LISTAS?.locales||[]).forEach(l => selLocal.innerHTML += `<option>${l}</option>`);
+    }
     const sel = document.getElementById('ac-responsable');
     if(sel) {
       sel.innerHTML = '<option value="">Seleccionar...</option>';
-      (window.CONFIG_LISTAS?.responsables||['CARO','ADISSON','JOHANETH','DIANA']).forEach(r => {
-        sel.innerHTML += `<option value="${r}">${r}</option>`;
-      });
+      (window.CONFIG_LISTAS?.responsables||[]).forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
     }
   }
   if(s === 'retiro-caja') {
