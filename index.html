@@ -6942,9 +6942,6 @@ async function guardarLiquidacion() {
         } catch(e) { console.error('Error actualizando utilidad ET_CLARO:', e); }
       }
 
-    if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
-    mostrarToastVerde('✅ Liquidación guardada correctamente');
-
     // Actualizar memoria local
     if(!v.esEdicion) {
       window.LIQ_PENDIENTES = window.LIQ_PENDIENTES.filter(p => p.imei !== v.imei);
@@ -6962,6 +6959,8 @@ async function guardarLiquidacion() {
       }
     }
 
+    if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
+    mostrarToastVerde('✅ Liquidación guardada correctamente');
     irA('liquidaciones');
     await cargarLiquidaciones();
   } catch(e) {
