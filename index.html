@@ -2244,9 +2244,12 @@ async function startScanner(campoDestino, callback) {
     overlay.id = 'global-scanner-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
     overlay.innerHTML = `
-      <div style="color:white;font-size:16px;font-weight:800;margin-bottom:16px;">📷 Escanea el IMEI</div>
-      <div id="global-qr-reader" style="width:300px;max-width:100%;border-radius:12px;overflow:hidden;"></div>
-      <button onclick="stopScanner()" style="margin-top:20px;padding:12px 30px;background:#dc2626;color:white;border:none;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;">✕ Cancelar</button>
+      <div style="background:white;border-radius:16px;padding:16px;width:320px;max-width:92vw;">
+        <div style="color:#1a3c6e;font-size:15px;font-weight:800;margin-bottom:12px;text-align:center;">📷 Escanea el IMEI</div>
+        <div style="font-size:11px;color:#64748b;text-align:center;margin-bottom:10px;">Apunta al código de barras del IMEI (15 dígitos)</div>
+        <div id="global-qr-reader" style="width:100%;border-radius:10px;overflow:hidden;"></div>
+        <button onclick="stopScanner()" style="width:100%;margin-top:12px;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:800;font-size:14px;cursor:pointer;">✕ Cancelar</button>
+      </div>
     `;
     document.body.appendChild(overlay);
   }
@@ -3456,11 +3459,13 @@ async function enviarForm(tipo) {
         id, local: localAcc, categoria: catAcc, producto: productoAcc,
         stockActual: stockAcc, costoUnit: costoAcc, precioVenta: pventaAcc
       });
-      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
       mostrarToastVerde('✅ Accesorio ingresado correctamente');
-      invTab = 'acc';
-      irA('ver-inventario');
-      verInventario(true);
+      // Limpiar formulario para seguir ingresando
+      document.getElementById('ia-producto').value = '';
+      document.getElementById('ia-stock').value = '';
+      document.getElementById('ia-costo').value = '';
+      document.getElementById('ia-precio-venta').value = '';
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
     } catch(e) {
       alert('❌ Error: ' + e.message);
       if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
@@ -3992,9 +3997,11 @@ async function ejecutarNuevo() {
     });
     btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false;
     mostrarToastVerde('✅ Accesorio ingresado correctamente');
-    invTab = 'acc';
-    irA('ver-inventario');
-    verInventario(true);
+    // Limpiar para seguir ingresando
+    document.getElementById('merc-nuevo-nombre-input').value = '';
+    document.getElementById('merc-nuevo-cant').value = '';
+    document.getElementById('merc-nuevo-costo').value = '';
+    document.getElementById('merc-nuevo-pventa').value = '';
   } catch(e) {
     alert('❌ Error al ingresar: ' + e.message);
     btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false;
