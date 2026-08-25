@@ -6086,6 +6086,12 @@ async function guardarFilaTabla(hoja, rowIdx) {
     }
     const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values[rowIdx] = valores;
+    // Actualizar VS en docs en memoria
+    if(vs > 0 && tablaDatos[hoja].docs) {
+      const docVS = tablaDatos[hoja].docs.find(d => d.referencia === ref && d.valor_sistema);
+      if(docVS) docVS.valor_sistema = vs;
+      else tablaDatos[hoja].docs.push({ referencia: ref, porcentaje: 'vs', valor: 0, valor_sistema: vs, tabla: hoja });
+    }
     preciosCargados = false;
     // Limpiar caché para que las niñas vean cambios inmediatamente
     if(window.PRECIOS_DINAMICOS?.[hoja]) delete window.PRECIOS_DINAMICOS[hoja];
@@ -6097,19 +6103,28 @@ async function guardarFilaTabla(hoja, rowIdx) {
   }
 }
 
-async function eliminarFilaTabla(hoja, rowIdx) {
-  const data = tablaDatos[hoja];
-  const ref = data.values[rowIdx][0];
+function confirmarEliminarFilaTabla(hoja, rowIdx, ref) {
+  if(!confirm(`¿Eliminar "${ref}" de la tabla ${hoja}?`)) return;
+  eliminarFilaTabla(hoja, rowIdx, ref);
+}
+
+async function eliminarFilaTabla(hoja, rowIdx, ref) {
+  if(!ref) {
+    const data = tablaDatos[hoja];
+    ref = data?.values?.[rowIdx]?.[0];
+  }
+  if(!ref) return;
   try {
-    // Eliminar todos los docs de esta referencia en Firebase
     const docs = await fbQuery('precios', 'referencia', '==', ref);
     const docsHoja = docs.filter(d => d.tabla === hoja);
     for(const d of docsHoja) await fbDelete('precios', d.id);
     // Actualizar memoria
-    tablaDatos[hoja].values.splice(rowIdx, 1);
-    if(window.PRECIOS_DINAMICOS[hoja]) delete window.PRECIOS_DINAMICOS[hoja][ref];
+    if(tablaDatos[hoja]?.values) {
+      const idx = tablaDatos[hoja].values.findIndex((r,i) => i > 0 && r[0] === ref);
+      if(idx > 0) tablaDatos[hoja].values.splice(idx, 1);
+    }
+    if(window.PRECIOS_DINAMICOS?.[hoja]) delete window.PRECIOS_DINAMICOS[hoja][ref];
     preciosCargados = false;
-    document.getElementById('modal-tabla').remove();
     renderTabla(hoja);
     mostrarToastVerde('✅ Referencia eliminada');
   } catch(e) {
@@ -6137,6 +6152,10 @@ async function agregarFilaTabla(hoja) {
     }
     const valores = [ref, ...headers.map((h,j) => getNumero(`tbl-edit-${j}`))];
     tablaDatos[hoja].values.push(valores);
+    // Agregar doc en memoria para que VS aparezca inmediatamente
+    if(vs > 0 && tablaDatos[hoja].docs) {
+      tablaDatos[hoja].docs.push({ referencia: ref, porcentaje: 'vs', valor: 0, valor_sistema: vs, tabla: hoja });
+    }
     preciosCargados = false;
     if(window.PRECIOS_DINAMICOS?.[hoja]) delete window.PRECIOS_DINAMICOS[hoja];
     document.getElementById('modal-tabla').remove();
