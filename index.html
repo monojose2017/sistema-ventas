@@ -2567,7 +2567,7 @@ async function setTablaConsulta(tabla) {
         if(d.porcentaje === 'descuento') refs[d.referencia].descuento = d.valor||0;
       });
       const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
-      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => `
+      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>b[0].localeCompare(a[0])).map(([ref, data]) => `
         <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
           <div style="font-weight:800;font-size:14px;color:#5b21b6;margin-bottom:8px;">${ref}</div>
           <div style="display:flex;gap:8px;">
@@ -2590,7 +2590,7 @@ async function setTablaConsulta(tabla) {
       });
       const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
       const porcs = [0.15, 0.20, 0.25, 0.30, 0.35, 0.40];
-      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => {
+      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>b[0].localeCompare(a[0])).map(([ref, data]) => {
         const refOficina = tablaOficina[ref] || {};
         return `
           <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
@@ -2628,7 +2628,7 @@ async function setTablaConsulta(tabla) {
     const porcs = [...new Set(docs.map(d => d.porcentaje))].sort((a,b) => parseFloat(a)-parseFloat(b));
     const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
     const fmtP = p => (parseFloat(p)*100)+'%';
-    document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>a[0].localeCompare(b[0])).map(([ref, data]) => `
+    document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>b[0].localeCompare(a[0])).map(([ref, data]) => `
       <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
         <div style="font-weight:800;font-size:14px;color:#1a3c6e;margin-bottom:8px;">${ref}</div>
         ${data.vs ? `<div style="background:#dbeafe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px;font-weight:700;color:#1d4ed8;">📊 Valor Sistema: ${fmt(data.vs)}</div>` : ''}
@@ -4026,7 +4026,7 @@ function renderKpiStock() {
   });
 
   // Usar solo referencias activas
-  const refs = [...window.REFS_ACTIVAS].sort();
+  const refs = [...window.REFS_ACTIVAS].sort().reverse();
   if(refs.length === 0) {
     el.innerHTML = `<div style="text-align:center;padding:20px;color:#64748b;">
       <div style="font-size:32px;margin-bottom:8px;">🚦</div>
@@ -5761,7 +5761,7 @@ async function inicializarTabla() {
   try {
     // Obtener referencias de OFICINA
     const docs = await fbQuery('precios', 'tabla', '==', 'OFICINA');
-    const refs = [...new Set(docs.map(d => d.referencia))].sort();
+    const refs = [...new Set(docs.map(d => d.referencia))].sort().reverse();
 
     if(!refs.length) { alert('⚠️ Primero debe haber datos en la tabla OFICINA'); return; }
 
@@ -5820,7 +5820,7 @@ async function setTablaActual(hoja) {
     }
 
     // Convertir a formato values[][] compatible con renderTabla
-    const refs = [...new Set(docs.map(d => d.referencia))].sort();
+    const refs = [...new Set(docs.map(d => d.referencia))].sort().reverse();
     const porcs = [...new Set(docs.map(d => d.porcentaje))].sort();
     
     const headers = ['REFERENCIA', ...porcs];
@@ -5874,6 +5874,7 @@ function renderTabla(hoja) {
       <thead>
         <tr style="background:#7c3aed;color:white;">
           <th style="padding:8px;text-align:left;min-width:140px;">Referencia</th>
+          <th style="padding:8px;text-align:center;min-width:90px;background:#0369a1;">📊 VS</th>
           ${headers.map(h => `<th style="padding:8px;text-align:center;min-width:90px;">${fmtPorc(h)}</th>`).join('')}
           <th style="padding:8px;text-align:center;min-width:60px;">✏️</th>
         </tr>
@@ -5885,7 +5886,8 @@ function renderTabla(hoja) {
     const vsDocs = data.docs?.filter(d => d.referencia === ref);
     const vs = vsDocs?.find(d => d.valor_sistema)?.valor_sistema || 0;
     html += `<tr style="background:${i%2===0?'white':'#f8fafc'};border-bottom:1px solid #e2e8f0;">
-      <td style="padding:8px;font-weight:700;font-size:11px;">${ref}${vs?`<div style="font-size:10px;color:#0369a1;font-weight:700;">VS: $${Math.round(vs).toLocaleString('es-CO')}</div>`:''}</td>
+      <td style="padding:8px;font-weight:700;font-size:11px;">${ref}</td>
+      <td style="padding:8px;text-align:center;background:#eff6ff;font-weight:800;color:#1d4ed8;font-size:12px;">${vs ? '$'+Math.round(vs).toLocaleString('es-CO') : '-'}</td>
       ${headers.map((h, j) => `<td style="padding:8px;text-align:center;color:#0891b2;">${fmt(row[j+1])}</td>`).join('')}
       <td style="padding:8px;text-align:center;">
         <button onclick="abrirEditarFila('${hoja}',${i+1},'${ref.replace(/'/g,"\\'")}')" 
@@ -6041,7 +6043,7 @@ function abrirAgregarFila(hoja) {
         <div class="select-wrap">
           <select id="tbl-edit-ref" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:14px;">
             <option value="">Seleccionar referencia...</option>
-            ${(window.CONFIG_DATA?.referencias||[]).map(r=>`<option value="${r}">${r}</option>`).join('')}
+            ${([...(window.CONFIG_DATA?.referencias||[])].sort().reverse()).map(r=>`<option value="${r}">${r}</option>`).join('')}
           </select>
         </div>
       </div>
