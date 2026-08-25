@@ -2581,8 +2581,13 @@ async function setTablaConsulta(tabla) {
 
     // ALO_CREDIT — formato especial
     if(tabla === 'ALO_CREDIT') {
-      const PD = window.PRECIOS_DINAMICOS || {};
-      const tablaOficina = PD['OFICINA'] || {};
+      // Leer OFICINA fresco de Firebase para tener cuotas actualizadas
+      const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
+      const tablaOficina = {};
+      docsOficina.forEach(d => {
+        if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = {};
+        tablaOficina[d.referencia][d.porcentaje] = d.valor;
+      });
       const refs = {};
       docs.forEach(d => {
         if(!refs[d.referencia]) refs[d.referencia] = { vs: 0 };
