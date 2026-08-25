@@ -132,12 +132,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <!-- Selector financiera -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      <button onclick="setTablaConsulta('OFICINA')" id="tc-btn-OFICINA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:#1a3c6e;color:white;font-weight:700;cursor:pointer;font-size:12px;">OFICINA</button>
-      <button onclick="setTablaConsulta('RECOMPRA')" id="tc-btn-RECOMPRA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA</button>
-      <button onclick="setTablaConsulta('ET_OFICINA')" id="tc-btn-ET_OFICINA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">ET OFICINA</button>
-      <button onclick="setTablaConsulta('ET_CLARO')" id="tc-btn-ET_CLARO" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">ET CLARO</button>
-      <button onclick="setTablaConsulta('PAYJOY')" id="tc-btn-PAYJOY" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">PAYJOY</button>
-      <button onclick="setTablaConsulta('ALO_CREDIT')" id="tc-btn-ALO_CREDIT" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #1a3c6e;background:white;color:#1a3c6e;font-weight:700;cursor:pointer;font-size:12px;">ALO CREDIT</button>
+      <button onclick="setTablaConsulta('OFICINA')" id="tc-btn-OFICINA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #dc2626;background:#dc2626;color:white;font-weight:700;cursor:pointer;font-size:12px;">OFICINA</button>
+      <button onclick="setTablaConsulta('RECOMPRA')" id="tc-btn-RECOMPRA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #16a34a;background:white;color:#16a34a;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA</button>
+      <button onclick="setTablaConsulta('ET_OFICINA')" id="tc-btn-ET_OFICINA" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #ca8a04;background:white;color:#ca8a04;font-weight:700;cursor:pointer;font-size:12px;">ET OFICINA</button>
+      <button onclick="setTablaConsulta('ET_CLARO')" id="tc-btn-ET_CLARO" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ET CLARO</button>
+      <button onclick="setTablaConsulta('PAYJOY')" id="tc-btn-PAYJOY" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #15803d;background:white;color:#15803d;font-weight:700;cursor:pointer;font-size:12px;">PAYJOY</button>
+      <button onclick="setTablaConsulta('ALO_CREDIT')" id="tc-btn-ALO_CREDIT" style="flex:1;min-width:80px;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:12px;">ALO CREDIT</button>
     </div>
     <div id="tc-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>
     <div id="tc-contenido"></div>
@@ -2256,7 +2256,19 @@ async function startScanner(campoDestino, callback) {
     html5Scanner = new Html5Qrcode('global-qr-reader');
     await html5Scanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 100 } },
+      {
+        fps: 15,
+        qrbox: { width: 300, height: 150 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.ITF
+        ]
+      },
       (decodedText) => {
         const match = decodedText.match(/\d{15}/);
         const imei = match ? match[0] : decodedText.replace(/\D/g, '');
@@ -2556,13 +2568,23 @@ async function exportarTablaConsultaPDF() {
   const tabla = tablaConsultaActual;
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : 'NO';
 
+  const COLORES_PDF = {
+    'OFICINA':    [220,38,38],    // Rojo
+    'RECOMPRA':   [22,163,74],    // Verde
+    'ET_OFICINA': [202,138,4],    // Amarillo
+    'ET_CLARO':   [124,58,237],   // Lila
+    'PAYJOY':     [21,128,61],    // Verde oscuro
+    'ALO_CREDIT': [217,119,6]     // Naranja
+  };
+  const colorPDF = COLORES_PDF[tabla] || [26,60,110];
+
   // Título
-  doc.setFillColor(26, 60, 110);
+  doc.setFillColor(...colorPDF);
   doc.rect(10, 10, 277, 10, 'F');
   doc.setTextColor(255,255,255);
   doc.setFontSize(12);
   doc.setFont(undefined,'bold');
-  doc.text(`CUOTAS INICIALES ${tabla.replace('_',' ')} — CREDY CARIBE`, 148, 17, { align: 'center' });
+  doc.text(`CUOTAS INICIALES ${tabla.replace(/_/g,' ')}`, 148, 17, { align: 'center' });
 
   if(tabla === 'PAYJOY') {
     doc.autoTable({
@@ -2572,7 +2594,7 @@ async function exportarTablaConsultaPDF() {
         ref, d.vs ? '$'+Math.round(d.vs).toLocaleString('es-CO') : '-',
         d.descuento ? '-$'+Math.round(d.descuento).toLocaleString('es-CO') : '-'
       ]),
-      headStyles: { fillColor: [26,60,110], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      headStyles: { fillColor: colorPDF, textColor: 255, fontStyle: 'bold', fontSize: 9 },
       alternateRowStyles: { fillColor: [240,253,244] },
       styles: { fontSize: 8, fontStyle: 'bold' },
       columnStyles: { 0: { cellWidth: 80 }, 1: { halign:'center' }, 2: { halign:'center' } }
@@ -2592,7 +2614,7 @@ async function exportarTablaConsultaPDF() {
         });
         return row;
       }),
-      headStyles: { fillColor: [217,119,6], textColor: 255, fontStyle: 'bold', fontSize: 7 },
+      headStyles: { fillColor: colorPDF, textColor: 255, fontStyle: 'bold', fontSize: 7 },
       alternateRowStyles: { fillColor: [255,251,235] },
       styles: { fontSize: 7, fontStyle: 'bold' },
     });
@@ -2610,7 +2632,7 @@ async function exportarTablaConsultaPDF() {
           return v ? '$'+Math.round(v).toLocaleString('es-CO') : 'NO';
         })
       ]),
-      headStyles: { fillColor: [26,60,110], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      headStyles: { fillColor: colorPDF, textColor: 255, fontStyle: 'bold', fontSize: 8 },
       alternateRowStyles: { fillColor: [240,253,244] },
       styles: { fontSize: 8, fontStyle: 'bold' },
       columnStyles: { 0: { cellWidth: 55 } }
@@ -2629,11 +2651,22 @@ async function exportarTablaConsultaPDF() {
 
 async function setTablaConsulta(tabla) {
   tablaConsultaActual = tabla;
+  const COLORES_TABLA = {
+    'OFICINA':    '#dc2626',
+    'RECOMPRA':   '#16a34a',
+    'ET_OFICINA': '#ca8a04',
+    'ET_CLARO':   '#7c3aed',
+    'PAYJOY':     '#15803d',
+    'ALO_CREDIT': '#d97706'
+  };
+
   ['OFICINA','RECOMPRA','ET_OFICINA','ET_CLARO','PAYJOY','ALO_CREDIT'].forEach(t => {
     const btn = document.getElementById('tc-btn-'+t);
     if(!btn) return;
-    btn.style.background = t === tabla ? '#1a3c6e' : 'white';
-    btn.style.color = t === tabla ? 'white' : '#1a3c6e';
+    const color = COLORES_TABLA[t] || '#1a3c6e';
+    btn.style.background = t === tabla ? color : 'white';
+    btn.style.color = t === tabla ? 'white' : color;
+    btn.style.borderColor = color;
   });
   document.getElementById('tc-loading').style.display = 'block';
   document.getElementById('tc-contenido').innerHTML = '';
@@ -6053,11 +6086,15 @@ function renderTablaPayjoy(data) {
   document.getElementById('tablas-contenido').innerHTML = html;
 }
 
-function renderTablaAloCredit(data) {
+async function renderTablaAloCredit(data) {
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
-  // Obtener porcentajes de OFICINA
-  const PD = window.PRECIOS_DINAMICOS || {};
-  const tablaOficina = PD['OFICINA'] || {};
+  // Leer OFICINA fresco de Firebase
+  const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
+  const tablaOficina = {};
+  docsOficina.forEach(d => {
+    if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = {};
+    tablaOficina[d.referencia][d.porcentaje] = d.valor;
+  });
   const rows = data.values.slice(1).filter(r => r[0] && r[0].toString() !== '__ELIMINADO__');
   const porcs = ['0.15','0.2','0.25'];
 
