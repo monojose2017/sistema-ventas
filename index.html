@@ -2258,7 +2258,7 @@ async function startScanner(campoDestino, callback) {
       { facingMode: 'environment' },
       {
         fps: 15,
-        qrbox: { width: 300, height: 150 },
+        qrbox: { width: 320, height: 80 },
         formatsToSupport: [
           Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.CODE_128,
@@ -2707,18 +2707,27 @@ async function setTablaConsulta(tabla) {
 
     // ALO_CREDIT — formato especial
     if(tabla === 'ALO_CREDIT') {
-      // Leer OFICINA fresco de Firebase para tener cuotas actualizadas
+      // Leer OFICINA fresco de Firebase para cuotas y VS
       const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
       const tablaOficina = {};
+      const vsOficina = {};
       docsOficina.forEach(d => {
         if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = {};
         tablaOficina[d.referencia][d.porcentaje] = d.valor;
+        if(d.valor_sistema) vsOficina[d.referencia] = d.valor_sistema;
       });
+
+      // Empezar con todas las referencias de OFICINA
       const refs = {};
+      Object.keys(tablaOficina).forEach(ref => {
+        refs[ref] = { vs: vsOficina[ref] || 0 };
+      });
+      // Sobreescribir con VS propio de ALO_CREDIT si tiene
       docs.forEach(d => {
         if(!refs[d.referencia]) refs[d.referencia] = { vs: 0 };
         if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
       });
+
       const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
       const porcs = [0.15, 0.20, 0.25, 0.30, 0.35, 0.40];
       // Guardar datos con cuotas cobrar para exportar
