@@ -4039,8 +4039,9 @@ function renderKpiStock() {
   const LOCALES = window.CONFIG_LISTAS?.locales || [];
   const imeis = window.IMEIS_TODOS_CON_ESTADO || {};
 
-  // Contar disponibles por local y referencia
-  const stockPorLocalRef = {};
+  // Contar disponibles por local, referencia Y proveedor
+  const stockOficina = {}; // local → ref → cantidad
+  const stockOtros = {};   // local → ref → cantidad
   Object.values(imeis).forEach(t => {
     const estadoEsp = (t.estado_especial||'').toUpperCase();
     const estadoG = (t.estado||'').toUpperCase();
@@ -4048,15 +4049,23 @@ function renderKpiStock() {
     if(estadoFinal !== 'DISPONIBLE') return;
     const local = t.ubicacion || t.local || '';
     const ref = t.ref || '';
-    if(!stockPorLocalRef[local]) stockPorLocalRef[local] = {};
-    stockPorLocalRef[local][ref] = (stockPorLocalRef[local][ref]||0) + 1;
+    const proveedor = (t.proveedor||'').toUpperCase();
+    const esOficina = proveedor === 'OFICINA';
+    const stock = esOficina ? stockOficina : stockOtros;
+    if(!stock[local]) stock[local] = {};
+    stock[local][ref] = (stock[local][ref]||0) + 1;
   });
 
   el.innerHTML = LOCALES.map(local => {
-    const stockLocal = stockPorLocalRef[local] || {};
-    const sinStock = refs.filter(r => !stockLocal[r]);
-    const stockBajo = refs.filter(r => stockLocal[r] === 1);
-    const enStock = refs.filter(r => (stockLocal[r]||0) >= 2);
+    const oficina = stockOficina[local] || {};
+    const otros = stockOtros[local] || {};
+    // Total combinado para semáforo general
+    const total = {};
+    refs.forEach(r => { total[r] = (oficina[r]||0) + (otros[r]||0); });
+
+    const sinStock = refs.filter(r => !total[r]);
+    const stockBajo = refs.filter(r => total[r] === 1);
+    const enStock = refs.filter(r => (total[r]||0) >= 2);
 
     return `
       <div style="background:white;border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);">
@@ -4070,14 +4079,23 @@ function renderKpiStock() {
         </div>
         <div style="padding:10px 14px;">
           ${refs.map(ref => {
-            const cant = stockLocal[ref]||0;
-            const emoji = cant >= 2 ? '🟢' : cant === 1 ? '🟡' : '🔴';
-            const color = cant >= 2 ? '#16a34a' : cant === 1 ? '#d97706' : '#dc2626';
-            const bg = cant >= 2 ? '#f0fdf4' : cant === 1 ? '#fffbeb' : '#fff1f2';
+            const cantOficina = oficina[ref]||0;
+            const cantOtros = otros[ref]||0;
+            const cantTotal = cantOficina + cantOtros;
+            const emoji = cantTotal >= 2 ? '🟢' : cantTotal === 1 ? '🟡' : '🔴';
+            const color = cantTotal >= 2 ? '#16a34a' : cantTotal === 1 ? '#d97706' : '#dc2626';
+            const bg = cantTotal >= 2 ? '#f0fdf4' : cantTotal === 1 ? '#fffbeb' : '#fff1f2';
             return `
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:${bg};border-radius:8px;margin-bottom:4px;">
-                <span style="font-size:13px;font-weight:600;color:#1e293b;">${emoji} ${ref}</span>
-                <span style="font-weight:800;font-size:14px;color:${color};">${cant === 0 ? 'Sin stock' : cant === 1 ? '1 unidad' : cant+' uds'}</span>
+              <div style="padding:8px 10px;background:${bg};border-radius:8px;margin-bottom:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:13px;font-weight:600;color:#1e293b;">${emoji} ${ref}</span>
+                  <span style="font-weight:800;font-size:14px;color:${color};">${cantTotal === 0 ? 'Sin stock' : cantTotal === 1 ? '1 unidad' : cantTotal+' uds'}</span>
+                </div>
+                ${cantTotal > 0 ? `
+                <div style="display:flex;gap:6px;margin-top:5px;">
+                  ${cantOficina > 0 ? `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">🏢 Oficina: ${cantOficina}</span>` : ''}
+                  ${cantOtros > 0 ? `<span style="background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;">📦 Propios: ${cantOtros}</span>` : ''}
+                </div>` : ''}
               </div>`;
           }).join('')}
         </div>
