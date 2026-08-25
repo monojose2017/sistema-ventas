@@ -2270,9 +2270,11 @@ async function startScanner(campoDestino, callback) {
         ]
       },
       (decodedText) => {
-        const match = decodedText.match(/\d{15}/);
-        const imei = match ? match[0] : decodedText.replace(/\D/g, '');
-        if(imei.length >= 10) {
+        // El IMEI siempre tiene exactamente 15 dígitos
+        const soloNumeros = decodedText.replace(/\D/g, '');
+        const match = soloNumeros.match(/^\d{15}$/);
+        if(match) {
+          const imei = match[0];
           const campo = document.getElementById(window._scannerCampo);
           if(campo) campo.value = imei;
           stopScanner();
@@ -2280,6 +2282,7 @@ async function startScanner(campoDestino, callback) {
             window[window._scannerCallback]();
           }
         }
+        // Si no son 15 dígitos exactos, ignorar y seguir escaneando
       },
       () => {}
     );
@@ -3422,10 +3425,16 @@ async function enviarForm(tipo) {
     window._pendingFormulaIMEI = null;
 
   } else if(tipo === 'ingreso-accesorio') {
-    hoja = 'INVENTARIO_ACCESORIOS';
     const localAcc = getVal('ia-local');
+    const catAcc = getVal('ia-cat');
     const productoAcc = getVal('ia-producto').toUpperCase().trim();
-    // Validar duplicado
+    const stockAcc = parseInt(getVal('ia-stock'))||0;
+    const costoAcc = getNumero('ia-costo');
+    const pventaAcc = getNumero('ia-precio-venta');
+
+    if(!localAcc || !catAcc || !productoAcc || stockAcc <= 0 || costoAcc <= 0) {
+      alert('⚠️ Completa todos los campos'); return;
+    }
     if(window.ACCESORIOS_EXCEL) {
       const duplicado = window.ACCESORIOS_EXCEL.find(a =>
         a.local === localAcc && a.producto.toUpperCase() === productoAcc
@@ -3435,8 +3444,28 @@ async function enviarForm(tipo) {
         return;
       }
     }
-    // LOCAL, CATEGORIA, PRODUCTO, STOCK, COSTO UNITARIO, PRECIO_VENTA
-    fila = [localAcc, getVal('ia-cat'), productoAcc, parseInt(getVal('ia-stock'))||0, getNumero('ia-costo'), getNumero('ia-precio-venta')];
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      const id = await fbAdd('inventario_accesorios', {
+        local: localAcc, categoria: catAcc, producto: productoAcc,
+        cantidad: stockAcc, costo: costoAcc, precio_venta: pventaAcc,
+        fecha_ingreso: fechaHoyLocal()
+      });
+      if(!window.ACCESORIOS_EXCEL) window.ACCESORIOS_EXCEL = [];
+      window.ACCESORIOS_EXCEL.push({
+        id, local: localAcc, categoria: catAcc, producto: productoAcc,
+        stockActual: stockAcc, costoUnit: costoAcc, precioVenta: pventaAcc
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Accesorio ingresado correctamente');
+      invTab = 'acc';
+      irA('ver-inventario');
+      verInventario(true);
+    } catch(e) {
+      alert('❌ Error: ' + e.message);
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+    }
+    return;
 
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
@@ -3949,19 +3978,26 @@ async function ejecutarNuevo() {
   }
 
   try {
-    const fila = [local, cat, producto, cant, costo, pventa];
-    const ok = await agregarFilaExcel('INVENTARIO_ACCESORIOS', fila);
+    // Guardar en Firebase
+    const id = await fbAdd('inventario_accesorios', {
+      local, categoria: cat, producto, cantidad: cant,
+      costo, precio_venta: pventa,
+      fecha_ingreso: fechaHoyLocal()
+    });
+    // Actualizar memoria local
+    if(!window.ACCESORIOS_EXCEL) window.ACCESORIOS_EXCEL = [];
+    window.ACCESORIOS_EXCEL.push({
+      id, local, categoria: cat, producto,
+      stockActual: cant, costoUnit: costo, precioVenta: pventa
+    });
     btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false;
-    if(ok) { 
-      mercProductoSeleccionado = null;
-      cargarTodo();
-      mostrarExito('inventario'); 
-    } else { 
-      alert('❌ Error al ingresar'); 
-    }
-  } catch(e) { 
-    alert('❌ Error'); 
-    btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false; 
+    mostrarToastVerde('✅ Accesorio ingresado correctamente');
+    invTab = 'acc';
+    irA('ver-inventario');
+    verInventario(true);
+  } catch(e) {
+    alert('❌ Error al ingresar: ' + e.message);
+    btn.textContent = '➕ Ingresar Nuevo ✓'; btn.disabled = false;
   }
 }
 
