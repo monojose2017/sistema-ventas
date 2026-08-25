@@ -2681,7 +2681,7 @@ async function setTablaConsulta(tabla) {
     document.getElementById('tc-loading').style.display = 'none';
     const exportWrap = document.getElementById('tc-export-wrap');
 
-    if(!docs.length) {
+    if(!docs.length && tabla !== 'ALO_CREDIT') {
       document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay datos aún. Ingresa los valores desde Gerencia → Tablas</div>';
       if(exportWrap) exportWrap.style.display = 'none';
       return;
