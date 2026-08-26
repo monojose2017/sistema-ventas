@@ -3019,7 +3019,6 @@ async function buscarPorImei() {
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
 
   try {
-    // Buscar en todas las colecciones con IMEI
     const [creditos, contado, iphone, inventario] = await Promise.all([
       fbQuery('ventas_creditos', 'imei', '==', imei),
       fbQuery('ventas_contado', 'imei', '==', imei),
@@ -3034,73 +3033,73 @@ async function buscarPorImei() {
       return;
     }
 
+    // Obtener proveedor del inventario
+    const invDoc = inventario[0];
+    const proveedor = invDoc?.proveedor || '—';
+
     let html = '';
 
-    // Inventario
-    if(inventario.length) {
-      inventario.forEach(d => {
-        html += `
-          <div style="background:#dbeafe;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #0369a1;">
-            <div style="font-weight:800;font-size:13px;color:#0369a1;margin-bottom:6px;">📦 INVENTARIO</div>
-            <div style="font-weight:700;">${d.referencia||''}</div>
-            <div style="font-size:12px;color:#475569;">IMEI: ${d.imei}</div>
-            <div style="font-size:12px;color:#475569;">Proveedor: <b>${d.proveedor||'—'}</b></div>
-            <div style="font-size:12px;color:#475569;">Estado: <b>${d.estado_especial||d.estado||''}</b></div>
-            <div style="font-size:12px;color:#475569;">Ubicación: ${d.ubicacion||''} · Costo: ${fmt(d.costo)}</div>
-            <div style="font-size:12px;color:#475569;">Ingresado: ${d.fecha_ingreso||''}</div>
-          </div>`;
-      });
+    // Inventario — info base del teléfono
+    if(invDoc) {
+      html += `
+        <div style="background:#dbeafe;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #0369a1;">
+          <div style="font-weight:800;font-size:13px;color:#0369a1;margin-bottom:8px;">📦 TELÉFONO</div>
+          <div style="font-weight:800;font-size:15px;margin-bottom:6px;">${invDoc.referencia||''}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+            <div><span style="color:#64748b;">Proveedor</span><br><b>${proveedor}</b></div>
+            <div><span style="color:#64748b;">Estado</span><br><b>${invDoc.estado_especial||invDoc.estado||''}</b></div>
+            <div><span style="color:#64748b;">Ubicación</span><br><b>${invDoc.ubicacion||'—'}</b></div>
+            <div><span style="color:#64748b;">Costo</span><br><b>${fmt(invDoc.costo)}</b></div>
+            <div><span style="color:#64748b;">Ingresado</span><br><b>${invDoc.fecha_ingreso||'—'}</b></div>
+          </div>
+        </div>`;
     }
 
     // Ventas crédito
-    if(creditos.length) {
-      creditos.forEach(d => {
-        html += `
-          <div style="background:#dcfce7;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #16a34a;">
-            <div style="font-weight:800;font-size:13px;color:#16a34a;margin-bottom:6px;">💳 VENTA A CRÉDITO</div>
-            <div style="font-weight:700;">${d.referencia||''}</div>
-            <div style="font-size:12px;color:#475569;">IMEI: ${d.imei}</div>
-            <div style="font-size:12px;color:#475569;">Fecha: ${d.fecha} · Local: ${d.local}</div>
-            <div style="font-size:12px;color:#475569;">Financiera: <b>${d.tipo||''}</b> · ${d.porcentaje ? Math.round(parseFloat(d.porcentaje)*100)+'%' : ''}</div>
-            <div style="font-size:12px;color:#475569;">Cuota: ${fmt(d.cuota_neta)} · Costo: ${fmt(d.costo)}</div>
-            <div style="font-size:12px;color:#475569;">Utilidad: <b style="color:${parseFloat(d.utilidad)>=0?'#16a34a':'#dc2626'}">${fmt(d.utilidad)}</b></div>
-            <div style="font-size:12px;color:#475569;">Estado: <b>${d.estado||'OK'}</b></div>
-          </div>`;
-      });
-    }
+    creditos.forEach(d => {
+      html += `
+        <div style="background:#dcfce7;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #16a34a;">
+          <div style="font-weight:800;font-size:13px;color:#16a34a;margin-bottom:8px;">💳 VENDIDO A CRÉDITO</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+            <div><span style="color:#64748b;">Proveedor</span><br><b>${proveedor}</b></div>
+            <div><span style="color:#64748b;">Financiera</span><br><b>${d.tipo||'—'}</b></div>
+            <div><span style="color:#64748b;">Fecha</span><br><b>${d.fecha||'—'}</b></div>
+            <div><span style="color:#64748b;">Local</span><br><b>${d.local||'—'}</b></div>
+            <div><span style="color:#64748b;">Cuota</span><br><b>${fmt(d.cuota_neta)}</b></div>
+            <div><span style="color:#64748b;">Estado</span><br><b>${d.estado||'OK'}</b></div>
+          </div>
+        </div>`;
+    });
 
     // Ventas contado
-    if(contado.length) {
-      contado.forEach(d => {
-        html += `
-          <div style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #15803d;">
-            <div style="font-weight:800;font-size:13px;color:#15803d;margin-bottom:6px;">💵 VENTA DE CONTADO</div>
-            <div style="font-weight:700;">${d.referencia||''}</div>
-            <div style="font-size:12px;color:#475569;">IMEI: ${d.imei}</div>
-            <div style="font-size:12px;color:#475569;">Fecha: ${d.fecha} · Local: ${d.local}</div>
-            <div style="font-size:12px;color:#475569;">Precio: ${fmt(d.precio)} · Costo: ${fmt(d.costo)}</div>
-            <div style="font-size:12px;color:#475569;">Utilidad: <b style="color:#16a34a">${fmt(d.utilidad)}</b></div>
-          </div>`;
-      });
-    }
+    contado.forEach(d => {
+      html += `
+        <div style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #15803d;">
+          <div style="font-weight:800;font-size:13px;color:#15803d;margin-bottom:8px;">💵 VENDIDO DE CONTADO</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+            <div><span style="color:#64748b;">Proveedor</span><br><b>${proveedor}</b></div>
+            <div><span style="color:#64748b;">Precio</span><br><b>${fmt(d.precio)}</b></div>
+            <div><span style="color:#64748b;">Fecha</span><br><b>${d.fecha||'—'}</b></div>
+            <div><span style="color:#64748b;">Local</span><br><b>${d.local||'—'}</b></div>
+          </div>
+        </div>`;
+    });
 
     // Ventas iPhone
-    if(iphone.length) {
-      iphone.forEach(d => {
-        html += `
-          <div style="background:#e0e7ff;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #4338ca;">
-            <div style="font-weight:800;font-size:13px;color:#4338ca;margin-bottom:6px;">🍎 VENTA iPHONE</div>
-            <div style="font-weight:700;">${d.referencia||''}</div>
-            <div style="font-size:12px;color:#475569;">IMEI: ${d.imei}</div>
-            <div style="font-size:12px;color:#475569;">Proveedor: <b>${d.proveedor||'—'}</b></div>
-            <div style="font-size:12px;color:#475569;">Fecha: ${d.fecha} · Local: ${d.local}</div>
-            <div style="font-size:12px;color:#475569;">Financiera: <b>${d.financiera||''}</b></div>
-            <div style="font-size:12px;color:#475569;">Cliente: ${d.nombre||'—'} · CC: ${d.cedula||'—'}</div>
-            <div style="font-size:12px;color:#475569;">Cuota inicial: ${fmt(d.cuota_inicial)}</div>
-            <div style="font-size:12px;color:#475569;">Estado: <b>${d.estado||'PENDIENTE'}</b> · Liquidado: <b>${d.liquidado||'NO'}</b></div>
-          </div>`;
-      });
-    }
+    iphone.forEach(d => {
+      html += `
+        <div style="background:#e0e7ff;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #4338ca;">
+          <div style="font-weight:800;font-size:13px;color:#4338ca;margin-bottom:8px;">🍎 VENDIDO iPHONE</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+            <div><span style="color:#64748b;">Proveedor</span><br><b>${d.proveedor||'—'}</b></div>
+            <div><span style="color:#64748b;">Financiera</span><br><b>${d.financiera||'—'}</b></div>
+            <div><span style="color:#64748b;">Fecha</span><br><b>${d.fecha||'—'}</b></div>
+            <div><span style="color:#64748b;">Local</span><br><b>${d.local||'—'}</b></div>
+            <div><span style="color:#64748b;">Cliente</span><br><b>${d.nombre||'—'}</b></div>
+            <div><span style="color:#64748b;">Estado</span><br><b>${d.estado||'PENDIENTE'}</b></div>
+          </div>
+        </div>`;
+    });
 
     document.getElementById('loc-resultado').innerHTML = html;
   } catch(e) {
@@ -4502,9 +4501,14 @@ function verInventario(mantenerFiltros) {
   tabInventario(invTab);
 }
 
-function renderKpiStock() {
+async function renderKpiStock() {
   const el = document.getElementById('inv-kpi-contenido');
   if(!el) return;
+
+  // Cargar refs activas de Firebase si están vacías
+  if(!window.REFS_ACTIVAS || window.REFS_ACTIVAS.size === 0) {
+    await cargarRefsActivas();
+  }
 
   // Referencias de las tablas de cuotas
   const PD = window.PRECIOS_DINAMICOS || {};
