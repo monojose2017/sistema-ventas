@@ -2756,59 +2756,47 @@ async function setTablaConsulta(tabla) {
       return;
     }
 
-    // ── ALO_CREDIT ── solo referencias que están en ALO_CREDIT de Gerencia
+    // ── ALO_CREDIT ── misma lista de referencias que OFICINA (igual que en Gerencia)
     if(tabla === 'ALO_CREDIT') {
-      // Solo usar docs de ALO_CREDIT — no mezclar con OFICINA completa
-      if(!docs.length) {
-        document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún. Ingresa los valores desde Gerencia → Tablas → ALO CREDIT</div>';
+      // Leer OFICINA completa — esta es la lista maestra de referencias
+      const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
+      if(!docsOficina.length) {
+        document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún</div>';
         if(exportWrap) exportWrap.style.display = 'none';
         return;
       }
-      // Leer cuotas de OFICINA
-      const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
       const tablaOficina = {};
       docsOficina.forEach(d => {
-        if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = {};
-        tablaOficina[d.referencia][d.porcentaje] = d.valor;
-        if(d.valor_sistema && !tablaOficina[d.referencia]._vs) tablaOficina[d.referencia]._vs = d.valor_sistema;
+        if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = { vs:0, cuotas:{} };
+        if(d.porcentaje && d.porcentaje !== 'vs') tablaOficina[d.referencia].cuotas[d.porcentaje] = d.valor;
+        if(d.valor_sistema) tablaOficina[d.referencia].vs = d.valor_sistema;
       });
-      // Construir refs solo de ALO_CREDIT
-      const refs = {};
+      // Sobrescribir VS con el propio de ALO_CREDIT si existe para esa referencia
       docs.forEach(d => {
-        if(!refs[d.referencia]) refs[d.referencia] = { vs:0 };
-        if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
-        // Si no tiene VS propio, usar el de OFICINA
-        if(!refs[d.referencia].vs && tablaOficina[d.referencia]?._vs) {
-          refs[d.referencia].vs = tablaOficina[d.referencia]._vs;
+        if(d.valor_sistema && tablaOficina[d.referencia]) {
+          tablaOficina[d.referencia].vs = d.valor_sistema;
         }
       });
 
       const porcs = [0.15, 0.20, 0.25, 0.30, 0.35, 0.40];
       const refsConCobrar = {};
-      Object.entries(refs).forEach(([ref, data]) => {
-        const ro = tablaOficina[ref] || {};
-        refsConCobrar[ref] = { ...data, cobrar: {} };
+      Object.entries(tablaOficina).forEach(([ref, data]) => {
+        refsConCobrar[ref] = { vs: data.vs, cobrar: {} };
         porcs.forEach(p => {
           const pf = parseFloat(p);
-          refsConCobrar[ref].cobrar[p] = ro[String(pf)] || ro[pf.toFixed(2)] || ro[p] || 0;
+          refsConCobrar[ref].cobrar[p] = data.cuotas[String(pf)] || data.cuotas[pf.toFixed(2)] || data.cuotas[p] || 0;
         });
       });
       window._tablaConsultaData = refsConCobrar;
       if(exportWrap) exportWrap.style.display = 'block';
 
-      const refsConDatos = Object.entries(refs).filter(([ref, data]) => {
-        const ro = tablaOficina[ref] || {};
-        return porcs.some(p => {
-          const cuotaAlo = data.vs ? Math.round(data.vs * p) : 0;
-          const pf = parseFloat(p);
-          const cuotaCobrar = ro[String(pf)] || ro[pf.toFixed(2)] || ro[p] || 0;
-          return cuotaAlo || cuotaCobrar;
-        });
-      });
+      // Solo ocultar una referencia si OFICINA no tiene ninguna cuota registrada para ella
+      const refsConDatos = Object.entries(tablaOficina).filter(([ref, data]) =>
+        porcs.some(p => data.cuotas[String(parseFloat(p))] || data.cuotas[parseFloat(p).toFixed(2)] || data.cuotas[p])
+      );
 
       document.getElementById('tc-contenido').innerHTML = refsConDatos
         .sort((a,b) => b[0].localeCompare(a[0])).map(([ref, data]) => {
-        const ro = tablaOficina[ref] || {};
         return `
           <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
             <div style="font-weight:800;font-size:14px;color:${color};margin-bottom:8px;">${ref}</div>
@@ -2816,8 +2804,8 @@ async function setTablaConsulta(tabla) {
             ${porcs.map(p => {
               const cuotaAlo = data.vs ? Math.round(data.vs * p) : 0;
               const pf = parseFloat(p);
-              const cuotaCobrar = ro[String(pf)] || ro[pf.toFixed(2)] || ro[p] || 0;
-              if(!cuotaAlo && !cuotaCobrar) return '';
+              const cuotaCobrar = data.cuotas[String(pf)] || data.cuotas[pf.toFixed(2)] || data.cuotas[p] || 0;
+              if(!cuotaCobrar) return '';
               return `
                 <div style="display:grid;grid-template-columns:40px 1fr 24px 1fr;align-items:center;gap:6px;margin-bottom:6px;padding:8px;background:#f8fafc;border-radius:8px;">
                   <div style="font-size:12px;font-weight:800;color:#64748b;text-align:center;">${Math.round(p*100)}%</div>
@@ -2828,12 +2816,12 @@ async function setTablaConsulta(tabla) {
                   <div style="text-align:center;font-size:14px;">→</div>
                   <div style="background:#f0fdf4;border-radius:6px;padding:6px;text-align:center;">
                     <div style="font-size:9px;color:#15803d;">Cobrar</div>
-                    <div style="font-weight:800;color:#15803d;font-size:13px;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</div>
+                    <div style="font-weight:800;color:#15803d;font-size:13px;">${fmt(cuotaCobrar)}</div>
                   </div>
                 </div>`;
             }).join('')}
           </div>`;
-      }).join('') || '<div style="text-align:center;color:#64748b;padding:20px;">Ninguna referencia de ALO CREDIT tiene datos en la tabla OFICINA aún</div>';
+      }).join('') || '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún</div>';
       return;
     }
 
