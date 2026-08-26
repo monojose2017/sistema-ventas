@@ -3515,7 +3515,7 @@ async function enviarForm(tipo) {
     if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
     try {
       const id = await fbAdd('inventario_accesorios', {
-        local: localAcc, categoria: catAcc, producto: productoAcc,
+        local: localAcc, categoria: catAcc, referencia: productoAcc,
         cantidad: stockAcc, costo: costoAcc, precio_venta: pventaAcc,
         fecha_ingreso: fechaHoyLocal()
       });
@@ -4173,7 +4173,7 @@ async function ejecutarNuevo() {
   try {
     // Guardar en Firebase
     const id = await fbAdd('inventario_accesorios', {
-      local, categoria: cat, producto, cantidad: cant,
+      local, categoria: cat, referencia: producto, cantidad: cant,
       costo, precio_venta: pventa,
       fecha_ingreso: fechaHoyLocal()
     });
