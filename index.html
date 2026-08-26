@@ -6197,20 +6197,28 @@ function renderTablaPayjoy(data) {
 
 async function renderTablaAloCredit(data) {
   const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
-  // Leer OFICINA fresco de Firebase
+
+  // Leer OFICINA completa de Firebase
   const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
-  const tablaOficina = {};
+
+  // Construir estructura por referencia
+  const refs = {};
   docsOficina.forEach(d => {
-    if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = {};
-    tablaOficina[d.referencia][d.porcentaje] = d.valor;
+    if(!refs[d.referencia]) refs[d.referencia] = { vs: d.valor_sistema||0, cuotas: {} };
+    refs[d.referencia].cuotas[d.porcentaje] = d.valor;
+    if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
   });
-  const rows = data.values.slice(1).filter(r => r[0] && r[0].toString() !== '__ELIMINADO__');
-  // Obtener todos los porcentajes de OFICINA
-  const porcsSet = new Set();
-  docsOficina.forEach(d => { if(d.porcentaje && d.porcentaje !== 'vs') porcsSet.add(d.porcentaje); });
-  const porcs = [...porcsSet].sort((a,b) => parseFloat(a)-parseFloat(b));
-  // Si no hay porcentajes, usar defaults
-  if(!porcs.length) porcs.push('0.15','0.20','0.25','0.30','0.35','0.40');
+
+  // También leer VS de ALO_CREDIT si tiene propio
+  const docsAlo = await fbQuery('precios', 'tabla', '==', 'ALO_CREDIT');
+  docsAlo.forEach(d => {
+    if(d.valor_sistema && refs[d.referencia]) {
+      refs[d.referencia].vs = d.valor_sistema;
+    }
+  });
+
+  const porcs = [...new Set(docsOficina.map(d => d.porcentaje).filter(p => p !== 'vs'))].sort((a,b) => parseFloat(a)-parseFloat(b));
+  const refsOrdenadas = Object.entries(refs).sort((a,b) => b[0].localeCompare(a[0]));
 
   let html = `<div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
@@ -6219,44 +6227,59 @@ async function renderTablaAloCredit(data) {
           <th style="padding:6px;text-align:left;min-width:130px;">Referencia</th>
           <th style="padding:6px;text-align:center;min-width:80px;">VS</th>
           ${porcs.map(p => `
-            <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO ${Math.round(parseFloat(p)*100)}%</th>
-            <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>`).join('')}
-          <th style="padding:6px;text-align:center;">✏️</th>
+            <th style="padding:6px;text-align:center;min-width:70px;background:#92400e;">ALO ${Math.round(parseFloat(p)*100)}%</th>
+            <th style="padding:6px;text-align:center;min-width:70px;">Cobrar</th>`).join('')}
+          <th style="padding:6px;text-align:center;">VS✏️</th>
         </tr>
       </thead><tbody>`;
 
-  rows.forEach((row, i) => {
-    const ref = row[0]?.toString()||'';
-    const vsDocs = data.docs?.filter(d => d.referencia === ref);
-    const vs = vsDocs?.find(d => d.valor_sistema)?.valor_sistema || 0;
-    const refOficina = tablaOficina[ref] || {};
-
+  refsOrdenadas.forEach(([ref, data], i) => {
+    const vs = data.vs || 0;
     html += `<tr style="background:${i%2===0?'white':'#fffbeb'};border-bottom:1px solid #e2e8f0;">
       <td style="padding:6px;font-weight:700;font-size:10px;">${ref}</td>
-      <td style="padding:6px;text-align:center;color:#0369a1;font-weight:700;font-size:11px;">${fmt(vs)}</td>
+      <td style="padding:6px;text-align:center;color:#0369a1;font-weight:700;">${vs ? fmt(vs) : '<span style="color:#dc2626">Sin VS</span>'}</td>
       ${porcs.map(p => {
         const cuotaAlo = vs ? Math.round(vs * parseFloat(p)) : 0;
-        // Buscar cuota con el formato exacto de Firebase (ej: '0.2' no '0.20')
-        const pFloat = parseFloat(p);
-        const cuotaCobrar = refOficina[p] || refOficina[String(pFloat)] || refOficina[pFloat.toFixed(2)] || 0;
+        const cuotaCobrar = data.cuotas[p] || 0;
         return `
           <td style="padding:6px;text-align:center;background:#fef3c7;color:#b45309;font-weight:700;">${cuotaAlo ? fmt(cuotaAlo) : '-'}</td>
           <td style="padding:6px;text-align:center;color:#16a34a;font-weight:800;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</td>`;
       }).join('')}
       <td style="padding:6px;text-align:center;">
-        <button onclick="abrirEditarFila('ALO_CREDIT',${i+1},'${ref.replace(/'/g,"\\'")}')" 
+        <button onclick="editarVsAloCredit('${ref.replace(/'/g,"\\'")}', ${vs})"
           style="padding:4px 6px;background:#d97706;color:white;border:none;border-radius:6px;cursor:pointer;font-size:10px;">✏️</button>
-        <button onclick="confirmarEliminarFilaTabla('ALO_CREDIT',${i+1},'${ref.replace(/'/g,"\\'")}')"
-          style="padding:4px 6px;background:#dc2626;color:white;border:none;border-radius:6px;cursor:pointer;font-size:10px;margin-left:2px;">🗑️</button>
       </td>
     </tr>`;
   });
 
   html += `</tbody></table></div>
-    <div style="font-size:11px;color:#64748b;margin-top:8px;">🟡 ALO = % del Valor Sistema · 🟢 Cobrar = cuota de tabla OFICINA</div>
-    <button onclick="abrirAgregarFila('ALO_CREDIT')" style="width:100%;margin-top:10px;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">+ Agregar referencia</button>`;
+    <div style="font-size:11px;color:#64748b;margin-top:8px;">🟡 ALO = cuota que muestra el sistema (% del VS) · 🟢 Cobrar = cuota de tabla OFICINA</div>
+    <button onclick="abrirAgregarFila('ALO_CREDIT')" style="width:100%;margin-top:10px;padding:12px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;">+ Agregar VS personalizado</button>`;
+
   document.getElementById('tablas-contenido').innerHTML = html;
 }
+
+async function editarVsAloCredit(ref, vsActual) {
+  const vsNuevo = prompt(`Valor Sistema para ${ref}:`, vsActual || '');
+  if(!vsNuevo) return;
+  const vs = parseInt(vsNuevo.replace(/[^0-9]/g,''));
+  if(!vs) return;
+  try {
+    // Buscar si ya tiene doc en ALO_CREDIT
+    const docs = await fbQuery('precios', 'referencia', '==', ref);
+    const docAlo = docs.find(d => d.tabla === 'ALO_CREDIT');
+    if(docAlo) {
+      await fbUpdate('precios', docAlo.id, { valor_sistema: vs });
+    } else {
+      await fbAdd('precios', { tabla: 'ALO_CREDIT', referencia: ref, porcentaje: 'vs', valor: 0, valor_sistema: vs });
+    }
+    mostrarToastVerde('✅ VS actualizado');
+    await setTablaActual('ALO_CREDIT');
+  } catch(e) {
+    alert('❌ Error: ' + e.message);
+  }
+}
+
 
 function abrirEditarFila(hoja, rowIdx, ref) {
   const data = tablaDatos[hoja];
