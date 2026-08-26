@@ -2014,7 +2014,7 @@ async function cargarTodo() {
     }
   } catch(e) {
     console.error('Error Firebase:', e);
-    setEstadoCarga('error', 'Error conectando: ' + e.message);
+    setEstadoCarga('error', 'Error: ' + e.message + ' — ' + e.stack?.split('\n')[1]);
   }
 }
 
