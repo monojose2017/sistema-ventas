@@ -89,7 +89,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="header"><h1>📱 Sistema de Ventas</h1><p>Selecciona el tipo de registro</p></div>
   <div class="inicio-body">
     <!-- Indicador de estado de carga -->
-    <div id="btn-conectar" onclick="reintentarCarga()" style="width:100%;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;text-align:center;margin-bottom:20px;cursor:pointer;transition:all .3s;">⏳ Conectando con Firebase...</div>
+    <div id="btn-conectar" onclick="reintentarCarga()" style="width:100%;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:800;font-family:'Nunito',sans-serif;text-align:center;margin-bottom:20px;cursor:pointer;transition:all .3s;">⏳ Conectando con Excel...</div>
 
     <!-- Menú bloqueado hasta que cargue -->
     <div id="menu-bloqueado" style="display:none;background:#f1f5f9;border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;">
@@ -2014,7 +2014,7 @@ async function cargarTodo() {
     }
   } catch(e) {
     console.error('Error Firebase:', e);
-    setEstadoCarga('error', 'Error: ' + e.message + ' — ' + e.stack?.split('\n')[1]);
+    setEstadoCarga('error', 'Error conectando: ' + e.message);
   }
 }
 
@@ -2201,8 +2201,8 @@ function volver(){irA('inicio');}
 
 // Cargar IMEIs al iniciar
 window.onload = async function() {
-  // Cargar datos desde Firebase
-  await cargarTodo();
+  // Inicializar Firebase y cargar datos
+  await initMSAL();
 
   // Poner fecha de hoy en todos los formularios
   const hoy = fechaHoyLocal();
@@ -4505,9 +4505,8 @@ function renderKpiStock() {
   const el = document.getElementById('inv-kpi-contenido');
   if(!el) return;
 
-  // Cargar refs activas de Firebase si están vacías
   if(!window.REFS_ACTIVAS || window.REFS_ACTIVAS.size === 0) {
-    cargarRefsActivas().then(() => renderKpiStock());
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">No hay referencias activas. Ve a Gerencia → Config Admin → Referencias Activas.</div>';
     return;
   }
 
