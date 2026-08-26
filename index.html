@@ -1150,6 +1150,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="rep-seccion">
         <div class="rep-titulo">🍎 iPhone</div>
         <div id="rep-proy-iphone"></div>
+        <div id="rep-proy-total" style="margin-top:8px;"></div>
       </div>
     </div>
 
@@ -7900,7 +7901,40 @@ function renderProyeccion() {
   document.getElementById('rep-proy-contado').innerHTML = renderSeccion('Contado', utilContado, ventasContado, '#15803d', '#dcfce7');
   document.getElementById('rep-proy-accesorios').innerHTML = renderSeccion('Accesorios', utilAccesorios, ventasAccesorios, '#d97706', '#fff7ed');
   document.getElementById('rep-proy-iphone').innerHTML = renderSeccion('iPhone', utilIphone, ventasIphone, '#4338ca', '#e0e7ff');
-}
+
+  // Total general
+  const utilTotal = utilCredito + utilContado + utilAccesorios + utilIphone;
+  const ventasTotal = ventasCredito + ventasContado + ventasAccesorios + ventasIphone;
+  const ritmoTotal = diaActual > 0 ? utilTotal/diaActual : 0;
+  const proyTotal = Math.round(ritmoTotal * diasMes);
+  const diasRestantes = diasMes - diaActual;
+  const faltaTotal = Math.round(ritmoTotal * diasRestantes);
+
+  const elTotal = document.getElementById('rep-proy-total');
+  if(elTotal) elTotal.innerHTML = `
+    <div style="background:linear-gradient(135deg,#1a3c6e,#0369a1);border-radius:14px;padding:16px;color:white;">
+      <div style="font-size:13px;font-weight:800;opacity:.8;margin-bottom:12px;">🎯 TOTAL GENERAL</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:800;opacity:.8;">ACUMULADO</div>
+          <div style="font-size:18px;font-weight:900;">${fmt(utilTotal)}</div>
+          <div style="font-size:11px;opacity:.8;">${ventasTotal} ventas</div>
+        </div>
+        <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:800;opacity:.8;">PROYECCIÓN MES</div>
+          <div style="font-size:18px;font-weight:900;">${fmt(proyTotal)}</div>
+          <div style="font-size:11px;opacity:.8;">~${Math.round(ritmoTotal*diasMes/Math.max(utilTotal/ventasTotal,1))} ventas</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(255,255,255,.1);border-radius:10px;font-size:13px;">
+        <span style="opacity:.8;">📈 Ritmo diario</span>
+        <span style="font-weight:800;">${fmt(ritmoTotal)}/día</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(255,255,255,.1);border-radius:10px;font-size:13px;margin-top:6px;">
+        <span style="opacity:.8;">🎯 Falta por generar</span>
+        <span style="font-weight:800;color:#86efac;">${fmt(faltaTotal)}</span>
+      </div>
+    </div>`;
 
 
 async function cargarReporteInventario() {
