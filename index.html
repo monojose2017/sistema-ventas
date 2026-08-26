@@ -2669,7 +2669,7 @@ async function exportarTablaConsultaPDF() {
 
 async function setTablaConsulta(tabla) {
   tablaConsultaActual = tabla;
-  const COLORES_TABLA = {
+  const COLORES = {
     'OFICINA':    '#dc2626',
     'RECOMPRA':   '#16a34a',
     'ET_OFICINA': '#ca8a04',
@@ -2677,110 +2677,128 @@ async function setTablaConsulta(tabla) {
     'PAYJOY':     '#15803d',
     'ALO_CREDIT': '#d97706'
   };
+  const color = COLORES[tabla] || '#1a3c6e';
 
   ['OFICINA','RECOMPRA','ET_OFICINA','ET_CLARO','PAYJOY','ALO_CREDIT'].forEach(t => {
     const btn = document.getElementById('tc-btn-'+t);
     if(!btn) return;
-    const color = COLORES_TABLA[t] || '#1a3c6e';
-    btn.style.background = t === tabla ? color : 'white';
-    btn.style.color = t === tabla ? 'white' : color;
-    btn.style.borderColor = color;
+    const c = COLORES[t] || '#1a3c6e';
+    btn.style.background = t === tabla ? c : 'white';
+    btn.style.color = t === tabla ? 'white' : c;
+    btn.style.borderColor = c;
   });
+
   document.getElementById('tc-loading').style.display = 'block';
   document.getElementById('tc-contenido').innerHTML = '';
+  const exportWrap = document.getElementById('tc-export-wrap');
+
   try {
     const docs = await fbQuery('precios', 'tabla', '==', tabla);
     document.getElementById('tc-loading').style.display = 'none';
-    const exportWrap = document.getElementById('tc-export-wrap');
 
-    if(!docs.length && tabla !== 'ALO_CREDIT') {
-      document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">No hay datos aún. Ingresa los valores desde Gerencia → Tablas</div>';
-      if(exportWrap) exportWrap.style.display = 'none';
-      return;
-    }
-    if(exportWrap) exportWrap.style.display = 'block';
+    const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
 
-    // PAYJOY — formato especial
+    // ── PAYJOY ──
     if(tabla === 'PAYJOY') {
+      if(!docs.length) {
+        document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún</div>';
+        if(exportWrap) exportWrap.style.display = 'none';
+        return;
+      }
       const refs = {};
       docs.forEach(d => {
-        if(!refs[d.referencia]) refs[d.referencia] = { vs: d.valor_sistema||0, descuento: d.descuento||d.valor||0 };
+        if(!refs[d.referencia]) refs[d.referencia] = { vs:0, descuento:0 };
         if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
-        if(d.descuento) refs[d.referencia].descuento = d.descuento;
         if(d.porcentaje === 'descuento') refs[d.referencia].descuento = d.valor||0;
+        if(d.descuento) refs[d.referencia].descuento = d.descuento;
       });
       window._tablaConsultaData = refs;
-      const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
-      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>b[0].localeCompare(a[0])).map(([ref, data]) => `
+      if(exportWrap) exportWrap.style.display = 'block';
+      document.getElementById('tc-contenido').innerHTML = Object.entries(refs)
+        .filter(([,d]) => d.vs || d.descuento)
+        .sort((a,b) => b[0].localeCompare(a[0])).map(([ref, d]) => `
         <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
-          <div style="font-weight:800;font-size:14px;color:#5b21b6;margin-bottom:8px;">${ref}</div>
-          <div style="display:flex;gap:8px;">
-            ${data.vs ? `<div style="flex:1;background:#ede9fe;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#5b21b6;font-weight:700;">Valor Sistema</div><div style="font-size:15px;font-weight:900;color:#5b21b6;">${fmt(data.vs)}</div></div>` : ''}
-            ${data.descuento ? `<div style="flex:1;background:#fee2e2;border-radius:8px;padding:10px;text-align:center;"><div style="font-size:11px;color:#dc2626;font-weight:700;">Descuento</div><div style="font-size:15px;font-weight:900;color:#dc2626;">-${fmt(data.descuento)}</div></div>` : ''}
+          <div style="font-weight:800;font-size:14px;color:${color};margin-bottom:10px;">${ref}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div style="background:#ede9fe;border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:11px;color:#5b21b6;font-weight:700;">Valor Sistema</div>
+              <div style="font-size:16px;font-weight:900;color:#5b21b6;">${fmt(d.vs)}</div>
+            </div>
+            <div style="background:#fee2e2;border-radius:8px;padding:10px;text-align:center;">
+              <div style="font-size:11px;color:#dc2626;font-weight:700;">Descuento</div>
+              <div style="font-size:16px;font-weight:900;color:#dc2626;">-${fmt(d.descuento)}</div>
+            </div>
           </div>
-          ${data.vs && data.descuento ? `<div style="margin-top:8px;background:#f0fdf4;border-radius:8px;padding:8px;text-align:center;font-size:13px;color:#15803d;font-weight:700;">Al valor que diga el sistema, réstale ${fmt(data.descuento)}</div>` : ''}
+          <div style="background:#f0fdf4;border-radius:8px;padding:8px;text-align:center;font-size:13px;color:#15803d;font-weight:700;">
+            Al valor del sistema réstale ${fmt(d.descuento)}
+          </div>
         </div>`).join('');
       return;
     }
 
-    // ALO_CREDIT — formato especial
+    // ── ALO_CREDIT ── solo referencias que están en ALO_CREDIT de Gerencia
     if(tabla === 'ALO_CREDIT') {
-      // Leer OFICINA fresco de Firebase para cuotas y VS
+      // Solo usar docs de ALO_CREDIT — no mezclar con OFICINA completa
+      if(!docs.length) {
+        document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún. Ingresa los valores desde Gerencia → Tablas → ALO CREDIT</div>';
+        if(exportWrap) exportWrap.style.display = 'none';
+        return;
+      }
+      // Leer cuotas de OFICINA
       const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
       const tablaOficina = {};
-      const vsOficina = {};
       docsOficina.forEach(d => {
         if(!tablaOficina[d.referencia]) tablaOficina[d.referencia] = {};
         tablaOficina[d.referencia][d.porcentaje] = d.valor;
-        if(d.valor_sistema) vsOficina[d.referencia] = d.valor_sistema;
+        if(d.valor_sistema && !tablaOficina[d.referencia]._vs) tablaOficina[d.referencia]._vs = d.valor_sistema;
       });
-
-      // Empezar con todas las referencias de OFICINA
+      // Construir refs solo de ALO_CREDIT
       const refs = {};
-      Object.keys(tablaOficina).forEach(ref => {
-        refs[ref] = { vs: vsOficina[ref] || 0 };
-      });
-      // Sobreescribir con VS propio de ALO_CREDIT si tiene
       docs.forEach(d => {
-        if(!refs[d.referencia]) refs[d.referencia] = { vs: 0 };
+        if(!refs[d.referencia]) refs[d.referencia] = { vs:0 };
         if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
+        // Si no tiene VS propio, usar el de OFICINA
+        if(!refs[d.referencia].vs && tablaOficina[d.referencia]?._vs) {
+          refs[d.referencia].vs = tablaOficina[d.referencia]._vs;
+        }
       });
 
-      const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
       const porcs = [0.15, 0.20, 0.25, 0.30, 0.35, 0.40];
-      // Guardar datos con cuotas cobrar para exportar
       const refsConCobrar = {};
       Object.entries(refs).forEach(([ref, data]) => {
-        const refOficina = tablaOficina[ref] || {};
+        const ro = tablaOficina[ref] || {};
         refsConCobrar[ref] = { ...data, cobrar: {} };
         porcs.forEach(p => {
-          const pFloat = parseFloat(p);
-          refsConCobrar[ref].cobrar[p] = refOficina[p] || refOficina[String(pFloat)] || refOficina[pFloat.toFixed(2)] || 0;
+          const pf = parseFloat(p);
+          refsConCobrar[ref].cobrar[p] = ro[String(pf)] || ro[pf.toFixed(2)] || ro[p] || 0;
         });
       });
       window._tablaConsultaData = refsConCobrar;
-      document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>b[0].localeCompare(a[0])).map(([ref, data]) => {
-        const refOficina = tablaOficina[ref] || {};
+      if(exportWrap) exportWrap.style.display = 'block';
+
+      document.getElementById('tc-contenido').innerHTML = Object.entries(refs)
+        .sort((a,b) => b[0].localeCompare(a[0])).map(([ref, data]) => {
+        const ro = tablaOficina[ref] || {};
         return `
           <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
-            <div style="font-weight:800;font-size:14px;color:#b45309;margin-bottom:8px;">${ref}</div>
-            ${data.vs ? `<div style="background:#fef3c7;border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:13px;font-weight:700;color:#b45309;">📊 Valor Sistema: ${fmt(data.vs)}</div>` : '<div style="color:#94a3b8;font-size:12px;margin-bottom:8px;">Sin valor sistema aún</div>'}
+            <div style="font-weight:800;font-size:14px;color:${color};margin-bottom:8px;">${ref}</div>
+            ${data.vs ? `<div style="background:#fef3c7;border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:13px;font-weight:700;color:#b45309;">📊 VS: ${fmt(data.vs)}</div>` : ''}
             ${porcs.map(p => {
               const cuotaAlo = data.vs ? Math.round(data.vs * p) : 0;
-              const pKey = p.toFixed(2);
-              const pKey2 = String(p);
-              const cuotaCobrar = refOficina[pKey] || refOficina[pKey2] || 0;
+              const pf = parseFloat(p);
+              const cuotaCobrar = ro[String(pf)] || ro[pf.toFixed(2)] || ro[p] || 0;
+              if(!cuotaAlo && !cuotaCobrar) return '';
               return `
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px;background:#f8fafc;border-radius:8px;">
-                  <div style="font-size:12px;font-weight:800;color:#64748b;min-width:30px;">${Math.round(p*100)}%</div>
-                  <div style="flex:1;background:#fef3c7;border-radius:6px;padding:6px;text-align:center;">
-                    <div style="font-size:10px;color:#b45309;">ALO muestra</div>
-                    <div style="font-weight:800;color:#b45309;">${cuotaAlo ? fmt(cuotaAlo) : '-'}</div>
+                <div style="display:grid;grid-template-columns:40px 1fr 24px 1fr;align-items:center;gap:6px;margin-bottom:6px;padding:8px;background:#f8fafc;border-radius:8px;">
+                  <div style="font-size:12px;font-weight:800;color:#64748b;text-align:center;">${Math.round(p*100)}%</div>
+                  <div style="background:#fef3c7;border-radius:6px;padding:6px;text-align:center;">
+                    <div style="font-size:9px;color:#b45309;">ALO muestra</div>
+                    <div style="font-weight:800;color:#b45309;font-size:13px;">${cuotaAlo ? fmt(cuotaAlo) : '-'}</div>
                   </div>
-                  <div style="font-size:16px;">→</div>
-                  <div style="flex:1;background:#f0fdf4;border-radius:6px;padding:6px;text-align:center;">
-                    <div style="font-size:10px;color:#15803d;">Cobrar</div>
-                    <div style="font-weight:800;color:#15803d;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</div>
+                  <div style="text-align:center;font-size:14px;">→</div>
+                  <div style="background:#f0fdf4;border-radius:6px;padding:6px;text-align:center;">
+                    <div style="font-size:9px;color:#15803d;">Cobrar</div>
+                    <div style="font-weight:800;color:#15803d;font-size:13px;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</div>
                   </div>
                 </div>`;
             }).join('')}
@@ -2788,28 +2806,42 @@ async function setTablaConsulta(tabla) {
       }).join('');
       return;
     }
+
+    // ── OFICINA, RECOMPRA, ET_OFICINA, ET_CLARO ── tarjetas
+    if(!docs.length) {
+      document.getElementById('tc-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún</div>';
+      if(exportWrap) exportWrap.style.display = 'none';
+      return;
+    }
+    if(exportWrap) exportWrap.style.display = 'block';
+
     const refs = {};
     docs.forEach(d => {
       if(!refs[d.referencia]) refs[d.referencia] = { porcentajes:{}, vs: d.valor_sistema||0 };
-      refs[d.referencia].porcentajes[d.porcentaje] = d.valor;
+      if(d.porcentaje && d.porcentaje !== 'vs') refs[d.referencia].porcentajes[d.porcentaje] = d.valor;
       if(d.valor_sistema) refs[d.referencia].vs = d.valor_sistema;
     });
     window._tablaConsultaData = refs;
-    const porcs = [...new Set(docs.map(d => d.porcentaje))].sort((a,b) => parseFloat(a)-parseFloat(b));
-    const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '-';
-    const fmtP = p => (parseFloat(p)*100)+'%';
-    document.getElementById('tc-contenido').innerHTML = Object.entries(refs).sort((a,b)=>b[0].localeCompare(a[0])).map(([ref, data]) => `
+    const porcs = [...new Set(docs.map(d => d.porcentaje).filter(p => p && p !== 'vs'))].sort((a,b) => parseFloat(a)-parseFloat(b));
+
+    document.getElementById('tc-contenido').innerHTML = Object.entries(refs)
+      .sort((a,b) => b[0].localeCompare(a[0])).map(([ref, data]) => `
       <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
-        <div style="font-weight:800;font-size:14px;color:#1a3c6e;margin-bottom:8px;">${ref}</div>
-        ${data.vs ? `<div style="background:#dbeafe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:13px;font-weight:700;color:#1d4ed8;">📊 Valor Sistema: ${fmt(data.vs)}</div>` : ''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${porcs.map(p => `
-            <div style="flex:1;min-width:60px;background:#f8fafc;border-radius:8px;padding:8px;text-align:center;">
-              <div style="font-size:11px;color:#64748b;font-weight:700;">${fmtP(p)}</div>
-              <div style="font-size:14px;font-weight:800;color:#1e293b;">${fmt(data.porcentajes[p])}</div>
-            </div>`).join('')}
+        <div style="font-weight:800;font-size:14px;color:${color};margin-bottom:8px;">${ref}</div>
+        ${data.vs ? `<div style="background:#f1f5f9;border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:13px;font-weight:700;color:#0369a1;">📊 VS: ${fmt(data.vs)}</div>` : ''}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;">
+          ${porcs.map(p => {
+            const v = data.porcentajes[p] || 0;
+            if(!v) return '';
+            return `
+              <div style="background:#f8fafc;border-radius:8px;padding:10px;text-align:center;">
+                <div style="font-size:11px;font-weight:700;color:#64748b;">${Math.round(parseFloat(p)*100)}%</div>
+                <div style="font-size:15px;font-weight:900;color:${color};">${fmt(v)}</div>
+              </div>`;
+          }).join('')}
         </div>
       </div>`).join('');
+
   } catch(e) {
     document.getElementById('tc-loading').style.display = 'none';
     document.getElementById('tc-contenido').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
@@ -3486,24 +3518,69 @@ async function enviarForm(tipo) {
   } else if(tipo === 'nueva-deuda') {
     const monto = getNumero('nd-monto');
     const localDeuda = getVal('nd-local') || 'GENERAL';
-    hoja = 'DEUDAS';
-    fila = [getVal('nd-fecha')||fecha, getVal('nd-acreedor'), getVal('nd-concepto'), getVal('nd-tipo'), monto, monto, 'ACTIVA', getVal('nd-vence'), '', localDeuda, getVal('nd-proposito')||'OPERATIVA'];
-    if(ndRecibido) {
-      const ndPago = getVal('nd-pago') || 'EFECTIVO';
-      const ndEfectivo = getNumero('nd-efectivo') || (ndPago === 'EFECTIVO' ? monto : 0);
-      const ndTransfer = getNumero('nd-transfer') || (ndPago === 'TRANSFERENCIA' ? monto : 0);
-      await agregarFilaExcel('INGRESOS_GERENCIA', [getVal('nd-fecha')||fecha, 'PRESTAMO RECIBIDO', '', 'Prestamo de '+getVal('nd-acreedor'), localDeuda, monto, ndPago, ndEfectivo, ndTransfer]);
-    }
+    if(!monto) { alert('⚠️ Ingresa el monto'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('deudas', {
+        fecha: getVal('nd-fecha')||fecha, acreedor: getVal('nd-acreedor'),
+        concepto: getVal('nd-concepto'), tipo: getVal('nd-tipo'),
+        monto, saldo: monto, estado: 'ACTIVA',
+        vence: getVal('nd-vence'), local: localDeuda,
+        proposito: getVal('nd-proposito')||'OPERATIVA'
+      });
+      if(ndRecibido) {
+        const ndPago = getVal('nd-pago') || 'EFECTIVO';
+        const ndEfectivo = getNumero('nd-efectivo') || (ndPago === 'EFECTIVO' ? monto : 0);
+        const ndTransfer = getNumero('nd-transfer') || (ndPago === 'TRANSFERENCIA' ? monto : 0);
+        await fbAdd('ingresos_gerencia', {
+          fecha: getVal('nd-fecha')||fecha, tipo: 'PRESTAMO RECIBIDO',
+          descripcion: 'Prestamo de '+getVal('nd-acreedor'),
+          local: localDeuda, valor: monto, metodo_pago: ndPago,
+          efectivo: ndEfectivo, transferencia: ndTransfer
+        });
+      }
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Deuda registrada');
+      irA('control-deudas');
+    } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
+    return;
 
   } else if(tipo === 'abono-deuda') {
     const idx = document.getElementById('ab-acreedor').value;
     const deuda = idx !== '' ? deudasActivas[parseInt(idx)] : null;
-    hoja = 'ABONOS_DEUDAS';
-    fila = [getVal('ab-fecha')||fecha, deuda ? deuda.acreedor : '', getVal('ab-concepto'), getNumero('ab-valor'), getVal('ab-pago'), getNumero('ab-efectivo'), getNumero('ab-transfer'), getVal('ab-local')];
+    if(!deuda) { alert('⚠️ Selecciona la deuda'); return; }
+    if(!getNumero('ab-valor')) { alert('⚠️ Ingresa el valor'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('abonos_deudas', {
+        fecha: getVal('ab-fecha')||fecha, acreedor: deuda.acreedor,
+        concepto: getVal('ab-concepto'), valor: getNumero('ab-valor'),
+        metodo_pago: getVal('ab-pago'), efectivo: getNumero('ab-efectivo'),
+        transferencia: getNumero('ab-transfer'), local: getVal('ab-local')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Abono registrado');
+      irA('control-deudas');
+    } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
+    return;
 
   } else if(tipo === 'ingresos-local') {
-    hoja = 'INGRESOS_LOCAL';
-    fila = [getVal('il-fecha')||fecha, getVal('il-local'), getVal('il-tipo'), getVal('il-desc'), getNumero('il-valor'), getVal('il-pago'), getNumero('il-efectivo'), getNumero('il-transfer'), getVal('il-resp')];
+    if(!getVal('il-local')) { alert('⚠️ Selecciona el local'); return; }
+    if(!getNumero('il-valor')) { alert('⚠️ Ingresa el valor'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('ingresos_local', {
+        fecha: getVal('il-fecha')||fecha, local: getVal('il-local'),
+        tipo: getVal('il-tipo'), descripcion: getVal('il-desc'),
+        valor: getNumero('il-valor'), metodo_pago: getVal('il-pago'),
+        efectivo: getNumero('il-efectivo'), transferencia: getNumero('il-transfer'),
+        responsable: getVal('il-resp')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Ingreso registrado');
+      ['il-desc','il-valor','il-efectivo','il-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
+    return;
 
   } else if(tipo === 'apertura-caja') {
     if(!getVal('ac-local')) { alert('⚠️ Selecciona el local'); return; }
@@ -3549,18 +3626,67 @@ async function enviarForm(tipo) {
     return;
 
   } else if(tipo === 'ingresos-gerencia') {
-    hoja = 'INGRESOS_GERENCIA';
-    fila = [getVal('ig-fecha')||fecha, getVal('ig-tipo'), getVal('ig-proveedor'), getVal('ig-desc'), getVal('ig-local'), getNumero('ig-valor'), getVal('ig-pago'), getNumero('ig-efectivo'), getNumero('ig-transfer')];
+    if(!getVal('ig-valor') && !getNumero('ig-valor')) { alert('⚠️ Ingresa el valor'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('ingresos_gerencia', {
+        fecha: getVal('ig-fecha')||fecha,
+        tipo: getVal('ig-tipo'),
+        proveedor: getVal('ig-proveedor'),
+        descripcion: getVal('ig-desc'),
+        local: getVal('ig-local'),
+        valor: getNumero('ig-valor'),
+        metodo_pago: getVal('ig-pago'),
+        efectivo: getNumero('ig-efectivo'),
+        transferencia: getNumero('ig-transfer')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Ingreso registrado');
+      // Limpiar
+      ['ig-desc','ig-valor','ig-efectivo','ig-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
+    return;
 
   } else if(tipo === 'gastos') {
-    hoja = 'GASTOS_DIARIOS';
-    // FECHA, LOCAL, TIPO GASTO, DESCRIPCION, VALOR, METODO PAGO, RESPONSABLE
-    fila = [getVal('ga-fecha')||fecha, getVal('ga-local'), getVal('ga-tipo'), getVal('ga-desc'), getNumero('ga-valor'), getVal('ga-metodo'), getVal('ga-resp')];
+    if(!getVal('ga-local')) { alert('⚠️ Selecciona el local'); return; }
+    if(!getNumero('ga-valor')) { alert('⚠️ Ingresa el valor'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('gastos_diarios', {
+        fecha: getVal('ga-fecha')||fecha,
+        local: getVal('ga-local'),
+        tipo: getVal('ga-tipo'),
+        descripcion: getVal('ga-desc'),
+        valor: getNumero('ga-valor'),
+        metodo_pago: getVal('ga-metodo'),
+        responsable: getVal('ga-resp')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Gasto registrado');
+      ['ga-desc','ga-valor'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
+    return;
 
   } else if(tipo === 'gerencia') {
-    hoja = 'EGRESOS_GERENCIA';
-    // FECHA, TIPO, CATEGORIA, DESCRIPCION, LOCAL, VALOR, TIPO DE PAGO, EFECTIVO, TRANSFERENCIA, CONTROL DE PAGO, RESPONSABLE
-    fila = [getVal('g-fecha')||fecha, getVal('g-tipo'), getVal('g-tipo-cat'), getVal('g-desc'), getVal('g-local'), getNumero('g-valor'), getVal('g-pago'), getNumero('g-efectivo'), getNumero('g-transfer'), 'OK', ''];
+    if(!getNumero('g-valor')) { alert('⚠️ Ingresa el valor'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('egresos_gerencia', {
+        fecha: getVal('g-fecha')||fecha,
+        tipo: getVal('g-tipo'),
+        categoria: getVal('g-tipo-cat'),
+        concepto: getVal('g-desc'),
+        local: getVal('g-local'),
+        valor: getNumero('g-valor'),
+        metodo_pago: getVal('g-pago'),
+        efectivo: getNumero('g-efectivo'),
+        transferencia: getNumero('g-transfer')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Egreso registrado');
+      ['g-desc','g-valor','g-efectivo','g-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
+    return;
   }
 
   let ok = false;
@@ -5689,14 +5815,26 @@ async function registrarPrestamoEntrante() {
   if(!imei||!ref||!quien||!costo||!ubicacion){alert('⚠️ Completa todos los campos obligatorios');return;}
   const hoy=fechaHoyLocal();
   const observacion=`PRESTADO DE: ${quien}${obs?' — '+obs:''}`;
-  const fila=[imei,ref,costo,hoy,quien,observacion,'DISPONIBLE','PRESTADO','',ubicacion,0,'','PRESTADO'];
   try {
-    await agregarFilaExcel('INVENTARIO_TELEFONO',fila);
+    await fbAdd('inventario_telefono', {
+      imei, referencia: ref, costo, fecha_ingreso: hoy,
+      proveedor: quien, origen: observacion,
+      estado: 'DISPONIBLE', tipo_venta: 'PRESTADO',
+      alerta: '', ubicacion, precio_venta: 0,
+      alerta_reposicion: '', estado_especial: 'PRESTADO'
+    });
+    // Actualizar memoria
+    if(window.IMEIS_TODOS_CON_ESTADO) {
+      window.IMEIS_TODOS_CON_ESTADO[imei] = {
+        imei, ref, costo, proveedor: quien, estado: 'DISPONIBLE',
+        estado_especial: 'PRESTADO', ubicacion
+      };
+    }
     await cargarTodo();
     mostrarToastVerde('✅ Teléfono prestado ingresado al inventario');
     ['pe-imei','pe-ref','pe-quien','pe-costo','pe-obs'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('pe-ubicacion').value='';irA('prestamos');
-  } catch(e){alert('❌ Error al registrar. Verifica conexión.');}
+  } catch(e){alert('❌ Error al registrar: '+e.message);}
 }
 
 // =============================================
@@ -6505,14 +6643,26 @@ async function enviarVentaIphone() {
   ];
 
   try {
-    await agregarFilaExcel('VENTAS_IPHONE', fila);
+    const id = await fbAdd('ventas_iphone', {
+      fecha, local, referencia: ref, financiera,
+      imei: getVal('vi-imei')||'',
+      cedula: getVal('vi-cedula')||'',
+      nombre: getVal('vi-nombre')||'',
+      cuota_inicial: cuotaInicial,
+      metodo_pago: pago,
+      efectivo: getNumero('vi-efectivo')||0,
+      transferencia: getNumero('vi-transfer')||0,
+      estado: 'PENDIENTE',
+      liquidado: 'NO'
+    });
     if(btn) { btn.textContent = viTabActual === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓'; btn.disabled = false; }
     // Limpiar formulario
     ['vi-imei','vi-cedula','vi-nombre','vi-cuota','vi-precio-contado','vi-efectivo','vi-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
     document.getElementById('vi-pago').value = '';
     document.getElementById('vi-pago-fields').style.display = 'none';
     if(viTabActual === 'credito') document.getElementById('vi-financiera').value = '';
-    mostrarExito('venta-iphone');
+    mostrarToastVerde('✅ Venta iPhone registrada');
+    irA('inicio');
   } catch(e) {
     if(btn) { btn.textContent = viTabActual === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓'; btn.disabled = false; }
     alert('❌ Error: ' + e.message);
@@ -7175,15 +7325,16 @@ function mostrarPreviewUtilidad(pagoFinanciera) {
   const v = liqVentaActual;
   const costo = parseFloat(v.costo) || 0;
   const cuota = parseFloat(v.cuotaFinal) || parseFloat(v.cuotaSug) || 0;
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
   let utilidad = 0;
   let detalle = '';
   const tipo = v.tipo;
   if(tipo === 'ET_CLARO' || tipo === 'PAYJOY' || tipo === 'ADDI' || tipo === 'ET_OFICINA') {
     utilidad = cuota + pagoFinanciera - costo;
-    detalle = `Cuota ($${cuota.toLocaleString('es-CO')}) + Pago ($${pagoFinanciera.toLocaleString('es-CO')}) - Costo ($${costo.toLocaleString('es-CO')})`;
+    detalle = `Cuota (${fmt(cuota)}) + Paga financiera (${fmt(pagoFinanciera)}) - Costo (${fmt(costo)})`;
   } else if(tipo === 'ALO_CREDIT') {
-    utilidad = 110000 - (cuota - pagoFinanciera);
-    detalle = `$110.000 comisión - diferencia con MOVISIM`;
+    utilidad = cuota + pagoFinanciera - costo;
+    detalle = `Cuota (${fmt(cuota)}) + Paga ALO (${fmt(pagoFinanciera)}) - Costo (${fmt(costo)})`;
   }
   const el = document.getElementById('liq-utilidad-preview');
   el.style.display = 'block';
