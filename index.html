@@ -2754,9 +2754,8 @@ async function setTablaConsulta(tabla) {
         const refOficina = tablaOficina[ref] || {};
         refsConCobrar[ref] = { ...data, cobrar: {} };
         porcs.forEach(p => {
-          const pKey = p.toFixed(2);
-          const pKey2 = String(p);
-          refsConCobrar[ref].cobrar[p] = refOficina[pKey] || refOficina[pKey2] || 0;
+          const pFloat = parseFloat(p);
+          refsConCobrar[ref].cobrar[p] = refOficina[p] || refOficina[String(pFloat)] || refOficina[pFloat.toFixed(2)] || 0;
         });
       });
       window._tablaConsultaData = refsConCobrar;
@@ -3508,17 +3507,46 @@ async function enviarForm(tipo) {
 
   } else if(tipo === 'apertura-caja') {
     if(!getVal('ac-local')) { alert('⚠️ Selecciona el local'); return; }
-    if(!getNumero('ac-saldo') && getNumero('ac-saldo') !== 0) { alert('⚠️ Ingresa el saldo'); return; }
     if(!getVal('ac-responsable')) { alert('⚠️ Selecciona el responsable'); return; }
-    hoja = 'APERTURA_CAJA';
-    fila = [getVal('ac-fecha')||fecha, getVal('ac-local'), getNumero('ac-saldo'), getVal('ac-responsable')];
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('apertura_caja', {
+        fecha: getVal('ac-fecha')||fecha,
+        local: getVal('ac-local'),
+        saldo: getNumero('ac-saldo')||0,
+        responsable: getVal('ac-responsable')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Apertura registrada correctamente');
+      document.getElementById('ac-saldo').value = '';
+    } catch(e) {
+      alert('❌ Error: ' + e.message);
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+    }
+    return;
 
   } else if(tipo === 'retiro-caja') {
-    hoja = 'RETIROS_CAJA';
-    fila = [getVal('rc-fecha')||fecha, getVal('rc-local'), getNumero('rc-valor'), getVal('rc-desc'), getVal('rc-responsable')];
     if(!getVal('rc-local')) { alert('⚠️ Selecciona el local'); return; }
     if(!getNumero('rc-valor')) { alert('⚠️ Ingresa el valor retirado'); return; }
     if(!getVal('rc-responsable')) { alert('⚠️ Selecciona el responsable'); return; }
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('retiros_caja', {
+        fecha: getVal('rc-fecha')||fecha,
+        local: getVal('rc-local'),
+        valor: getNumero('rc-valor'),
+        concepto: getVal('rc-desc')||'',
+        responsable: getVal('rc-responsable')
+      });
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Retiro registrado correctamente');
+      document.getElementById('rc-valor').value = '';
+      document.getElementById('rc-desc').value = '';
+    } catch(e) {
+      alert('❌ Error: ' + e.message);
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+    }
+    return;
 
   } else if(tipo === 'ingresos-gerencia') {
     hoja = 'INGRESOS_GERENCIA';
@@ -6023,10 +6051,23 @@ async function setTablaActual(hoja) {
     const docs = await fbQuery('precios', 'tabla', '==', hoja);
     
     if(docs.length === 0) {
+      // ALO_CREDIT: cargar referencias de OFICINA automáticamente
+      if(hoja === 'ALO_CREDIT') {
+        const docsOficina = await fbQuery('precios', 'tabla', '==', 'OFICINA');
+        const refs = [...new Set(docsOficina.map(d => d.referencia))].sort().reverse();
+        tablaDatos[hoja] = {
+          values: [['REFERENCIA'], ...refs.map(r => [r])],
+          docs: []
+        };
+        document.getElementById('tablas-loading').style.display = 'none';
+        document.getElementById('btn-inicializar-wrap').style.display = 'none';
+        renderTabla(hoja);
+        return;
+      }
       tablaDatos[hoja] = { values: [['REFERENCIA']], docs: [] };
       document.getElementById('tablas-loading').style.display = 'none';
       const btnInit = document.getElementById('btn-inicializar-wrap');
-      if(btnInit) btnInit.style.display = (hoja === 'PAYJOY' || hoja === 'ALO_CREDIT') ? 'block' : 'none';
+      if(btnInit) btnInit.style.display = hoja === 'PAYJOY' ? 'block' : 'none';
       renderTabla(hoja);
       return;
     }
@@ -6164,7 +6205,12 @@ async function renderTablaAloCredit(data) {
     tablaOficina[d.referencia][d.porcentaje] = d.valor;
   });
   const rows = data.values.slice(1).filter(r => r[0] && r[0].toString() !== '__ELIMINADO__');
-  const porcs = ['0.15','0.2','0.25'];
+  // Obtener todos los porcentajes de OFICINA
+  const porcsSet = new Set();
+  docsOficina.forEach(d => { if(d.porcentaje && d.porcentaje !== 'vs') porcsSet.add(d.porcentaje); });
+  const porcs = [...porcsSet].sort((a,b) => parseFloat(a)-parseFloat(b));
+  // Si no hay porcentajes, usar defaults
+  if(!porcs.length) porcs.push('0.15','0.20','0.25','0.30','0.35','0.40');
 
   let html = `<div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:11px;">
@@ -6172,12 +6218,9 @@ async function renderTablaAloCredit(data) {
         <tr style="background:#d97706;color:white;">
           <th style="padding:6px;text-align:left;min-width:130px;">Referencia</th>
           <th style="padding:6px;text-align:center;min-width:80px;">VS</th>
-          <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO 15%</th>
-          <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>
-          <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO 20%</th>
-          <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>
-          <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO 25%</th>
-          <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>
+          ${porcs.map(p => `
+            <th style="padding:6px;text-align:center;min-width:80px;background:#92400e;">ALO ${Math.round(parseFloat(p)*100)}%</th>
+            <th style="padding:6px;text-align:center;min-width:80px;">→ Cobrar</th>`).join('')}
           <th style="padding:6px;text-align:center;">✏️</th>
         </tr>
       </thead><tbody>`;
@@ -6193,7 +6236,9 @@ async function renderTablaAloCredit(data) {
       <td style="padding:6px;text-align:center;color:#0369a1;font-weight:700;font-size:11px;">${fmt(vs)}</td>
       ${porcs.map(p => {
         const cuotaAlo = vs ? Math.round(vs * parseFloat(p)) : 0;
-        const cuotaCobrar = refOficina[p] || refOficina[parseFloat(p).toFixed(2)] || 0;
+        // Buscar cuota con el formato exacto de Firebase (ej: '0.2' no '0.20')
+        const pFloat = parseFloat(p);
+        const cuotaCobrar = refOficina[p] || refOficina[String(pFloat)] || refOficina[pFloat.toFixed(2)] || 0;
         return `
           <td style="padding:6px;text-align:center;background:#fef3c7;color:#b45309;font-weight:700;">${cuotaAlo ? fmt(cuotaAlo) : '-'}</td>
           <td style="padding:6px;text-align:center;color:#16a34a;font-weight:800;">${cuotaCobrar ? fmt(cuotaCobrar) : '-'}</td>`;
