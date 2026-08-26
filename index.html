@@ -941,7 +941,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div style="background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:14px;">
       <div style="font-size:12px;font-weight:800;color:#1e40af;margin-bottom:8px;">📋 Datos del cliente</div>
       <div class="field"><label>IMEI <span id="ci-imei-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-imei-edit" placeholder="15 dígitos"></div>
-      <div class="field"><label>Proveedor iPhone</label><input type="text" id="ci-proveedor-edit" placeholder="Ej: MOVISIM, COMTEL..." style="text-transform:uppercase;"></div>
       <div class="field"><label>Cédula <span id="ci-cedula-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-cedula-edit" placeholder="Número de cédula"></div>
       <div class="field"><label>Nombre y apellido <span id="ci-nombre-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-nombre-edit" placeholder="Nombre completo"></div>
     </div>
@@ -1151,7 +1150,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="rep-seccion">
         <div class="rep-titulo">🍎 iPhone</div>
         <div id="rep-proy-iphone"></div>
-        <div id="rep-proy-total" style="margin-top:8px;"></div>
       </div>
     </div>
 
@@ -2779,7 +2777,6 @@ async function setTablaConsulta(tabla) {
       if(exportWrap) exportWrap.style.display = 'block';
 
       document.getElementById('tc-contenido').innerHTML = Object.entries(refs)
-        .filter(([, data]) => data.vs > 0) // Solo mostrar si tiene VS
         .sort((a,b) => b[0].localeCompare(a[0])).map(([ref, data]) => {
         const ro = tablaOficina[ref] || {};
         return `
@@ -6649,7 +6646,6 @@ async function enviarVentaIphone() {
     const id = await fbAdd('ventas_iphone', {
       fecha, local, referencia: ref, financiera,
       imei: getVal('vi-imei')||'',
-      proveedor: (getVal('vi-proveedor')||'').toUpperCase(),
       cedula: getVal('vi-cedula')||'',
       nombre: getVal('vi-nombre')||'',
       cuota_inicial: cuotaInicial,
@@ -6661,7 +6657,7 @@ async function enviarVentaIphone() {
     });
     if(btn) { btn.textContent = viTabActual === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓'; btn.disabled = false; }
     // Limpiar formulario
-    ['vi-imei','vi-proveedor','vi-cedula','vi-nombre','vi-cuota','vi-precio-contado','vi-efectivo','vi-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    ['vi-imei','vi-cedula','vi-nombre','vi-cuota','vi-precio-contado','vi-efectivo','vi-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
     document.getElementById('vi-pago').value = '';
     document.getElementById('vi-pago-fields').style.display = 'none';
     if(viTabActual === 'credito') document.getElementById('vi-financiera').value = '';
@@ -6795,8 +6791,7 @@ async function cargarVentasIphone() {
     iphoneVentas = docs.map((d, i) => ({
       idx: i, id: d.id,
       fecha: d.fecha||'', local: d.local||'', ref: d.referencia||'', financiera: d.financiera||'',
-      imei: d.imei||'', proveedor: d.proveedor||'',
-      cedula: d.cedula||'', nombre: d.nombre||'',
+      imei: d.imei||'', cedula: d.cedula||'', nombre: d.nombre||'',
       cuotaInicial: parseFloat(d.cuota_inicial)||0, metodoPago: d.metodo_pago||'',
       efectivo: parseFloat(d.efectivo)||0, transfer: parseFloat(d.transferencia)||0,
       vs: parseFloat(d.vs)||0, cuotaSistema: parseFloat(d.cuota_sistema)||0,
@@ -6837,7 +6832,6 @@ function renderListaIphone() {
           <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;background:${v.estado==='PENDIENTE'?'#fef3c7':'#dcfce7'};color:${v.estado==='PENDIENTE'?'#d97706':'#16a34a'};">${v.estado}</span>
         </div>
         <div style="font-size:12px;color:#64748b;">${v.fecha} · ${v.local} · ${v.financiera}</div>
-        ${v.proveedor ? `<div style="font-size:12px;color:#0369a1;margin-top:3px;font-weight:700;">📦 Proveedor: ${v.proveedor}</div>` : ''}
         ${v.nombre ? `<div style="font-size:12px;color:#475569;margin-top:3px;">👤 ${v.nombre}</div>` : ''}
         <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px;">
           <span>${v.financiera==='CONTADO'?'Precio':'Cuota inicial'}: <b>${fmt(v.cuotaInicial)}</b></span>
@@ -6879,8 +6873,6 @@ function abrirCompletarIphone(idx) {
   const cedulaEl = document.getElementById('ci-cedula-edit');
   const nombreEl = document.getElementById('ci-nombre-edit');
   if(imeiEl) { imeiEl.value = v.imei||''; document.getElementById('ci-imei-req').style.display = v.imei ? 'none' : 'inline'; }
-  const proveedorEl = document.getElementById('ci-proveedor-edit');
-  if(proveedorEl) proveedorEl.value = v.proveedor||'';
   if(cedulaEl) { cedulaEl.value = v.cedula||''; document.getElementById('ci-cedula-req').style.display = v.cedula ? 'none' : 'inline'; }
   if(nombreEl) { nombreEl.value = v.nombre||''; document.getElementById('ci-nombre-req').style.display = v.nombre ? 'none' : 'inline'; }
 
@@ -7007,7 +6999,6 @@ async function guardarCompletarIphone() {
   if(!v || !v._calc) { alert('⚠️ Completa los datos primero'); return; }
 
   const imei = document.getElementById('ci-imei-edit')?.value.trim()||'';
-  const proveedor = (document.getElementById('ci-proveedor-edit')?.value.trim()||'').toUpperCase();
   const cedula = document.getElementById('ci-cedula-edit')?.value.trim()||'';
   const nombre = document.getElementById('ci-nombre-edit')?.value.trim()||'';
 
@@ -7024,7 +7015,7 @@ async function guardarCompletarIphone() {
 
   try {
     await fbUpdate('ventas_iphone', v.id, {
-      imei, cedula, nombre, proveedor,
+      imei, cedula, nombre,
       vs: esContado ? 0 : getN('ci-vs'),
       cuota_sistema: esContado ? 0 : getN('ci-cuota-sistema'),
       descuento: esContado ? 0 : getN('ci-descuento'),
@@ -7909,40 +7900,7 @@ function renderProyeccion() {
   document.getElementById('rep-proy-contado').innerHTML = renderSeccion('Contado', utilContado, ventasContado, '#15803d', '#dcfce7');
   document.getElementById('rep-proy-accesorios').innerHTML = renderSeccion('Accesorios', utilAccesorios, ventasAccesorios, '#d97706', '#fff7ed');
   document.getElementById('rep-proy-iphone').innerHTML = renderSeccion('iPhone', utilIphone, ventasIphone, '#4338ca', '#e0e7ff');
-
-  // Total general
-  const utilTotal = utilCredito + utilContado + utilAccesorios + utilIphone;
-  const ventasTotal = ventasCredito + ventasContado + ventasAccesorios + ventasIphone;
-  const ritmoTotal = diaActual > 0 ? utilTotal/diaActual : 0;
-  const proyTotal = Math.round(ritmoTotal * diasMes);
-  const diasRestantes = diasMes - diaActual;
-  const faltaTotal = Math.round(ritmoTotal * diasRestantes);
-
-  const elTotal = document.getElementById('rep-proy-total');
-  if(elTotal) elTotal.innerHTML = `
-    <div style="background:linear-gradient(135deg,#1a3c6e,#0369a1);border-radius:14px;padding:16px;color:white;">
-      <div style="font-size:13px;font-weight:800;opacity:.8;margin-bottom:12px;">🎯 TOTAL GENERAL</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-        <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;font-weight:800;opacity:.8;">ACUMULADO</div>
-          <div style="font-size:18px;font-weight:900;">${fmt(utilTotal)}</div>
-          <div style="font-size:11px;opacity:.8;">${ventasTotal} ventas</div>
-        </div>
-        <div style="background:rgba(255,255,255,.15);border-radius:10px;padding:10px;text-align:center;">
-          <div style="font-size:10px;font-weight:800;opacity:.8;">PROYECCIÓN MES</div>
-          <div style="font-size:18px;font-weight:900;">${fmt(proyTotal)}</div>
-          <div style="font-size:11px;opacity:.8;">~${Math.round(ritmoTotal*diasMes/Math.max(utilTotal/ventasTotal,1))} ventas</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(255,255,255,.1);border-radius:10px;font-size:13px;">
-        <span style="opacity:.8;">📈 Ritmo diario</span>
-        <span style="font-weight:800;">${fmt(ritmoTotal)}/día</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:10px;background:rgba(255,255,255,.1);border-radius:10px;font-size:13px;margin-top:6px;">
-        <span style="opacity:.8;">🎯 Falta por generar</span>
-        <span style="font-weight:800;color:#86efac;">${fmt(faltaTotal)}</span>
-      </div>
-    </div>`;
+}
 
 
 async function cargarReporteInventario() {
