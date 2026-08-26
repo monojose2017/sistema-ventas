@@ -2090,7 +2090,14 @@ function irA(s){
     const sel = document.getElementById('ac-responsable');
     if(sel) {
       sel.innerHTML = '<option value="">Seleccionar...</option>';
-      (window.CONFIG_LISTAS?.responsables||[]).forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
+      let responsables = window.CONFIG_LISTAS?.responsables || window.CONFIG_DATA?.responsables || [];
+      if(responsables.length) {
+        responsables.forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
+      } else {
+        fbQuery('config', 'tipo', '==', 'responsable').then(docs => {
+          docs.map(d => d.valor).filter(Boolean).forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
+        }).catch(()=>{});
+      }
     }
   }
   if(s === 'retiro-caja') {
@@ -2099,9 +2106,14 @@ function irA(s){
     const sel = document.getElementById('rc-responsable');
     if(sel) {
       sel.innerHTML = '<option value="">Seleccionar...</option>';
-      (window.CONFIG_LISTAS?.responsables||['CARO','ADISSON','JOHANETH','DIANA']).forEach(r => {
-        sel.innerHTML += `<option value="${r}">${r}</option>`;
-      });
+      const responsables = window.CONFIG_LISTAS?.responsables || window.CONFIG_DATA?.responsables || [];
+      if(responsables.length) {
+        responsables.forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
+      } else {
+        fbQuery('config', 'tipo', '==', 'responsable').then(docs => {
+          docs.map(d => d.valor).filter(Boolean).forEach(r => sel.innerHTML += `<option value="${r}">${r}</option>`);
+        }).catch(()=>{});
+      }
     }
   }
   if(s === 'gerencia-iphone') {
@@ -5414,7 +5426,7 @@ async function iniciarMisRegistros() {
 
     MR_DATOS = { creditos:[], contado:[], accesorios:[], gastos:[], ingresos:[], retiros:[], aperturas:[], iphone:[] };
 
-    creditos.forEach(d => { if(d.fecha) MR_DATOS.creditos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', ref:d.referencia||'', imei:d.imei||'', cuota:parseFloat(d.cuota)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0, estado:d.estado||'' }); });
+    creditos.forEach(d => { if(d.fecha) MR_DATOS.creditos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', ref:d.referencia||'', imei:d.imei||'', cuota:parseFloat(d.cuota)||0, descuento:parseFloat(d.descuento)||0, cuota_neta:parseFloat(d.cuota_neta)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0, estado:d.estado||'' }); });
     contado.forEach(d => { if(d.fecha) MR_DATOS.contado.push({ fecha:d.fecha, local:d.local||'', imei:d.imei||'', ref:d.referencia||'', precio:parseFloat(d.precio)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
     accesorios.forEach(d => { if(d.fecha) MR_DATOS.accesorios.push({ fecha:d.fecha, local:d.local||'', cat:d.categoria||'', prod:d.producto||'', cant:parseInt(d.cantidad)||0, total:parseFloat(d.total)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
     gastos.forEach(d => { if(d.fecha) MR_DATOS.gastos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', desc:d.descripcion||'', valor:parseFloat(d.valor)||0, metodo:d.metodo_pago||'EFECTIVO' }); });
@@ -5475,7 +5487,7 @@ function renderMisRegistros(local, fecha) {
   const listaIphone = (MR_DATOS.iphone||[]).filter(v => v.local===local && v.fecha===fecha);
   const totalVentas = listaCred.length + listaCont.length + listaAcc.length + listaIphone.length;
   const totalEfectivoEntrado =
-    listaCred.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.cuota:i.pago==='MIXTO'?i.efectivo:0),0) +
+    listaCred.reduce((s,i) => s+(i.pago==='EFECTIVO'?(i.cuota_neta||i.cuota):i.pago==='MIXTO'?i.efectivo:0),0) +
     listaCont.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.precio:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaAcc.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.total:i.pago==='MIXTO'?i.efectivo:0),0) +
     listaIphone.reduce((s,i) => s+(i.pago==='EFECTIVO'?i.cuota:i.pago==='MIXTO'?i.efectivo:0),0) +
@@ -5502,8 +5514,12 @@ function renderMisRegistros(local, fecha) {
           <div style="font-weight:700;font-size:13px;">${v.ref}</div>
           <div style="font-size:11px;color:#64748b;">${v.imei} · <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:4px;font-weight:700;">${v.tipo.replace('_',' ')}</span></div>
           <div style="font-size:11px;color:#64748b;">💳 ${v.pago}${v.pago==='MIXTO'?' · Efectivo: $'+v.efectivo.toLocaleString('es-CO'):''}</div>
+          ${v.descuento>0?`<div style="font-size:11px;color:#dc2626;">Descuento: -${fmt(v.descuento)}</div>`:''}
         </div>
-        <div style="font-weight:800;color:#2563eb;font-size:14px;">${fmt(v.cuota)}</div>
+        <div style="text-align:right;">
+          ${v.descuento>0?`<div style="font-size:11px;color:#94a3b8;text-decoration:line-through;">${fmt(v.cuota)}</div>`:''}
+          <div style="font-weight:800;color:#2563eb;font-size:14px;">${fmt(v.cuota_neta||v.cuota)}</div>
+        </div>
       </div>
     </div>`).join('');
 
