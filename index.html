@@ -2854,7 +2854,11 @@ async function setTablaConsulta(tabla) {
     window._tablaConsultaData = refs;
     const porcs = [...new Set(docs.map(d => d.porcentaje).filter(p => p && p !== 'vs'))].sort((a,b) => parseFloat(a)-parseFloat(b));
 
-    document.getElementById('tc-contenido').innerHTML = Object.entries(refs)
+    const refsConDatosGen = Object.entries(refs).filter(([ref, data]) =>
+      porcs.some(p => data.porcentajes[p])
+    );
+
+    document.getElementById('tc-contenido').innerHTML = refsConDatosGen
       .sort((a,b) => b[0].localeCompare(a[0])).map(([ref, data]) => `
       <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.07);">
         <div style="font-weight:800;font-size:14px;color:${color};margin-bottom:8px;">${ref}</div>
@@ -2870,7 +2874,7 @@ async function setTablaConsulta(tabla) {
               </div>`;
           }).join('')}
         </div>
-      </div>`).join('');
+      </div>`).join('') || '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos aún</div>';
 
   } catch(e) {
     document.getElementById('tc-loading').style.display = 'none';
