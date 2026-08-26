@@ -286,6 +286,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('anular-credito')"><div class="btn-icon rojo">🔄</div><div class="btn-info"><div class="btn-titulo">Anular Crédito</div><div class="btn-sub">Liberar IMEI de una venta anulada</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="abrirCorregirRegistros()"><div class="btn-icon rojo">✏️</div><div class="btn-info"><div class="btn-titulo">Corregir Registros</div><div class="btn-sub">Editar o eliminar ventas, gastos, accesorios</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('localizador-imei')"><div class="btn-icon" style="background:linear-gradient(135deg,#0369a1,#0284c7);color:white;font-size:20px;">🔍</div><div class="btn-info"><div class="btn-titulo">Localizador de IMEI</div><div class="btn-sub">Busca cualquier venta por IMEI</div></div><span class="btn-arrow">›</span></button>
 
     <div class="divider"></div>
     <p class="sec-titulo">Reportes</p>
@@ -296,6 +297,24 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <button class="btn-menu" onclick="cargarConfigAdmin();irA('admin-config')"><div class="btn-icon morado">⚙️</div><div class="btn-info"><div class="btn-titulo">Administrar Listas</div><div class="btn-sub">Proveedores · Referencias · Ubicaciones · más</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarTablas();irA('tablas')"><div class="btn-icon morado">📊</div><div class="btn-info"><div class="btn-titulo">Tablas de Cuotas</div><div class="btn-sub">OFICINA · ET OFICINA · ET CLARO · RECOMPRA</div></div><span class="btn-arrow">›</span></button>
 
+  </div>
+</div>
+
+<!-- LOCALIZADOR IMEI -->
+<div class="screen" id="screen-localizador-imei">
+  <div class="form-header" style="background:linear-gradient(135deg,#0369a1,#0284c7)">
+    <button class="back-btn" onclick="irA('gerencia')">‹</button>
+    <div><div class="form-header-title">🔍 Localizador de IMEI</div><div class="form-header-sub">Busca cualquier venta por IMEI</div></div>
+  </div>
+  <div class="form-body">
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input type="text" id="loc-imei" placeholder="Ingresa el IMEI..." maxlength="20"
+        style="flex:1;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;"
+        onkeyup="if(event.key==='Enter') buscarPorImei()">
+      <button onclick="buscarPorImei()" style="padding:12px 16px;background:#0369a1;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:16px;">🔍</button>
+    </div>
+    <div id="loc-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Buscando...</div>
+    <div id="loc-resultado"></div>
   </div>
 </div>
 
@@ -941,6 +960,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div style="background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:14px;">
       <div style="font-size:12px;font-weight:800;color:#1e40af;margin-bottom:8px;">📋 Datos del cliente</div>
       <div class="field"><label>IMEI <span id="ci-imei-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-imei-edit" placeholder="15 dígitos"></div>
+      <div class="field"><label>Proveedor iPhone</label><div class="select-wrap"><select id="ci-proveedor-edit"><option value="">Seleccionar...</option></select></div></div>
       <div class="field"><label>Cédula <span id="ci-cedula-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-cedula-edit" placeholder="Número de cédula"></div>
       <div class="field"><label>Nombre y apellido <span id="ci-nombre-req" style="color:#dc2626;font-size:11px;">* obligatorio</span></label><input type="text" id="ci-nombre-edit" placeholder="Nombre completo"></div>
     </div>
@@ -6873,6 +6893,14 @@ function abrirCompletarIphone(idx) {
   const cedulaEl = document.getElementById('ci-cedula-edit');
   const nombreEl = document.getElementById('ci-nombre-edit');
   if(imeiEl) { imeiEl.value = v.imei||''; document.getElementById('ci-imei-req').style.display = v.imei ? 'none' : 'inline'; }
+  const provEl = document.getElementById('ci-proveedor-edit');
+  if(provEl) {
+    provEl.innerHTML = '<option value="">Seleccionar...</option>';
+    (window.CONFIG_LISTAS?.proveedores||window.CONFIG_DATA?.proveedores||[]).forEach(p => {
+      provEl.innerHTML += `<option value="${p}" ${p===v.proveedor?'selected':''}>${p}</option>`;
+    });
+    provEl.value = v.proveedor||'';
+  }
   if(cedulaEl) { cedulaEl.value = v.cedula||''; document.getElementById('ci-cedula-req').style.display = v.cedula ? 'none' : 'inline'; }
   if(nombreEl) { nombreEl.value = v.nombre||''; document.getElementById('ci-nombre-req').style.display = v.nombre ? 'none' : 'inline'; }
 
@@ -6999,6 +7027,7 @@ async function guardarCompletarIphone() {
   if(!v || !v._calc) { alert('⚠️ Completa los datos primero'); return; }
 
   const imei = document.getElementById('ci-imei-edit')?.value.trim()||'';
+  const proveedor = document.getElementById('ci-proveedor-edit')?.value||'';
   const cedula = document.getElementById('ci-cedula-edit')?.value.trim()||'';
   const nombre = document.getElementById('ci-nombre-edit')?.value.trim()||'';
 
@@ -7015,7 +7044,7 @@ async function guardarCompletarIphone() {
 
   try {
     await fbUpdate('ventas_iphone', v.id, {
-      imei, cedula, nombre,
+      imei, cedula, nombre, proveedor,
       vs: esContado ? 0 : getN('ci-vs'),
       cuota_sistema: esContado ? 0 : getN('ci-cuota-sistema'),
       descuento: esContado ? 0 : getN('ci-descuento'),
@@ -8950,6 +8979,38 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
 // Parchear agregarFilaExcel para incluir LIQUIDACIONES
 const _agregarFilaOriginal = agregarFilaExcel;
 window._tablaMapExtra = { 'LIQUIDACIONES': 'TBL_LIQUIDACIONES' };
+
+async function buscarPorImei() {
+  const imei = document.getElementById('loc-imei').value.trim();
+  if(imei.length < 5) { alert('⚠️ Ingresa al menos 5 dígitos del IMEI'); return; }
+  document.getElementById('loc-loading').style.display = 'block';
+  document.getElementById('loc-resultado').innerHTML = '';
+  const fmt = n => n ? '$'+Math.round(n).toLocaleString('es-CO') : '$0';
+  try {
+    const [creditos, contado, iphone, inventario] = await Promise.all([
+      fbQuery('ventas_creditos', 'imei', '==', imei),
+      fbQuery('ventas_contado', 'imei', '==', imei),
+      fbQuery('ventas_iphone', 'imei', '==', imei),
+      fbQuery('inventario_telefono', 'imei', '==', imei)
+    ]);
+    document.getElementById('loc-loading').style.display = 'none';
+    if(!creditos.length && !contado.length && !iphone.length && !inventario.length) {
+      document.getElementById('loc-resultado').innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;">No se encontró ningún registro con ese IMEI</div>';
+      return;
+    }
+    const invDoc = inventario[0];
+    const proveedor = invDoc?.proveedor || '—';
+    let html = '';
+    if(invDoc) html += `<div style="background:#dbeafe;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #0369a1;"><div style="font-weight:800;font-size:13px;color:#0369a1;margin-bottom:8px;">📦 TELÉFONO</div><div style="font-weight:800;font-size:15px;margin-bottom:6px;">${invDoc.referencia||''}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;"><div><span style="color:#64748b;">Proveedor</span><br><b>${proveedor}</b></div><div><span style="color:#64748b;">Estado</span><br><b>${invDoc.estado_especial||invDoc.estado||''}</b></div><div><span style="color:#64748b;">Ubicación</span><br><b>${invDoc.ubicacion||'—'}</b></div><div><span style="color:#64748b;">Costo</span><br><b>${fmt(invDoc.costo)}</b></div></div></div>`;
+    creditos.forEach(d => { html += `<div style="background:#dcfce7;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #16a34a;"><div style="font-weight:800;font-size:13px;color:#16a34a;margin-bottom:8px;">💳 VENTA A CRÉDITO</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;"><div><span style="color:#64748b;">Proveedor</span><br><b>${proveedor}</b></div><div><span style="color:#64748b;">Financiera</span><br><b>${d.tipo||'—'}</b></div><div><span style="color:#64748b;">Fecha</span><br><b>${d.fecha||'—'}</b></div><div><span style="color:#64748b;">Local</span><br><b>${d.local||'—'}</b></div><div><span style="color:#64748b;">Cuota</span><br><b>${fmt(d.cuota_neta)}</b></div><div><span style="color:#64748b;">Estado</span><br><b>${d.estado||'OK'}</b></div></div></div>`; });
+    contado.forEach(d => { html += `<div style="background:#f0fdf4;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #15803d;"><div style="font-weight:800;font-size:13px;color:#15803d;margin-bottom:8px;">💵 VENTA DE CONTADO</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;"><div><span style="color:#64748b;">Proveedor</span><br><b>${proveedor}</b></div><div><span style="color:#64748b;">Precio</span><br><b>${fmt(d.precio)}</b></div><div><span style="color:#64748b;">Fecha</span><br><b>${d.fecha||'—'}</b></div><div><span style="color:#64748b;">Local</span><br><b>${d.local||'—'}</b></div></div></div>`; });
+    iphone.forEach(d => { html += `<div style="background:#e0e7ff;border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid #4338ca;"><div style="font-weight:800;font-size:13px;color:#4338ca;margin-bottom:8px;">🍎 VENTA iPHONE</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;"><div><span style="color:#64748b;">Proveedor</span><br><b>${d.proveedor||'—'}</b></div><div><span style="color:#64748b;">Financiera</span><br><b>${d.financiera||'—'}</b></div><div><span style="color:#64748b;">Fecha</span><br><b>${d.fecha||'—'}</b></div><div><span style="color:#64748b;">Local</span><br><b>${d.local||'—'}</b></div><div><span style="color:#64748b;">Cliente</span><br><b>${d.nombre||'—'}</b></div><div><span style="color:#64748b;">Estado</span><br><b>${d.estado||'PENDIENTE'}</b></div></div></div>`; });
+    document.getElementById('loc-resultado').innerHTML = html;
+  } catch(e) {
+    document.getElementById('loc-loading').style.display = 'none';
+    document.getElementById('loc-resultado').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
+  }
+}
 
 </script>
 </body>
