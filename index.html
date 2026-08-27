@@ -2443,7 +2443,8 @@ function calcularCuota(){
 
   // Usar precios dinámicos de Firebase
   const PD = window.PRECIOS_DINAMICOS || PRECIOS_DINAMICOS;
-  const tabla = PD[tipo] || PRECIOS[tipo];
+  const tablaKey = tipo === 'ALO_CREDIT' ? 'OFICINA' : tipo;
+  const tabla = PD[tablaKey] || PRECIOS[tablaKey];
   const refData = tabla?.[ref];
   const cuota = refData?.[porcKey] || refData?.[porcKey2] || refData?.[parseFloat(porc).toString()];
   if(!tabla || !refData || !cuota){
@@ -3435,7 +3436,18 @@ async function enviarForm(tipo) {
       const porcKey = parseFloat(porcFinal).toFixed(2);
       const porcKey2 = String(parseFloat(porcFinal));
       const tablaRecompra = PD['RECOMPRA']?.[ref];
-      cuotaRealOficina = tablaRecompra?.[porcKey] || tablaRecompra?.[porcKey2] || cuota;
+      const cuotaTabla = tablaRecompra?.[porcKey] || tablaRecompra?.[porcKey2] || cuota;
+      cuotaRealOficina = Math.max(0, cuotaTabla - EXTRA_OFICINA);
+      pagoFinanciera = cuotaRealOficina - COMISION_OFICINA;
+      utilidad = cuotaNeta - cuotaRealOficina + COMISION_OFICINA;
+    } else if(tipoVenta === 'ALO_CREDIT') {
+      const PD = window.PRECIOS_DINAMICOS || {};
+      const ref = getVal('c-ref');
+      const porcKey = parseFloat(porcFinal).toFixed(2);
+      const porcKey2 = String(parseFloat(porcFinal));
+      const tablaAlo = PD['ALO_CREDIT']?.[ref] || PD['OFICINA']?.[ref];
+      const cuotaTabla = tablaAlo?.[porcKey] || tablaAlo?.[porcKey2] || cuota;
+      cuotaRealOficina = Math.max(0, cuotaTabla - EXTRA_OFICINA);
       pagoFinanciera = cuotaRealOficina - COMISION_OFICINA;
       utilidad = cuotaNeta - cuotaRealOficina + COMISION_OFICINA;
     }
@@ -8254,7 +8266,7 @@ async function cargarReporteProveedores() {
       if(d.estado==='ANULADO') return;
       const tipo = d.tipo||'';
       if(!tiposMovisimDif.includes(tipo)) return;
-      const dif = parseFloat(d.utilidad)||0;
+      const dif = parseFloat(d.pago_financiera)||0;
       movData[tipo].dif += dif;
       movData[tipo].ventas.push({ ref:d.referencia||'', tipo, dif });
     });
@@ -8278,28 +8290,31 @@ async function cargarReporteProveedores() {
     // Render helper para diferencia MOVISIM
     const renderMovisimDif = (tipo, data, containerId) => {
       const saldo = data.dif;
+      // pago_financiera negativo = te pagan, positivo = tú pagas
+      const tePagan = Math.max(0, -saldo);
+      const tuPagas = Math.max(0, saldo);
       document.getElementById(containerId).innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
           <div style="background:#fee2e2;border-radius:12px;padding:10px;text-align:center;">
             <div style="font-size:10px;font-weight:800;color:#64748b;">TÚ PAGAS</div>
-            <div style="font-size:16px;font-weight:900;color:#dc2626;">${fmt(Math.max(0,saldo))}</div>
+            <div style="font-size:16px;font-weight:900;color:#dc2626;">${fmt(tuPagas)}</div>
           </div>
           <div style="background:#dcfce7;border-radius:12px;padding:10px;text-align:center;">
             <div style="font-size:10px;font-weight:800;color:#64748b;">TE PAGAN</div>
-            <div style="font-size:16px;font-weight:900;color:#16a34a;">${fmt(Math.abs(Math.min(0,saldo)))}</div>
+            <div style="font-size:16px;font-weight:900;color:#16a34a;">${fmt(tePagan)}</div>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;padding:12px;background:${saldo>0?'#fee2e2':'#dcfce7'};border-radius:12px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;padding:12px;background:${saldo<=0?'#dcfce7':'#fee2e2'};border-radius:12px;margin-bottom:10px;">
           <span style="font-weight:800;">Saldo neto</span>
-          ${fmtColor(saldo)}
+          <span style="font-weight:900;color:${saldo<=0?'#16a34a':'#dc2626'};">${saldo<=0?'+':'-'}${fmt(Math.abs(saldo))}</span>
         </div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${data.ventas.length} ventas en la semana</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:8px;">${data.ventas.length} ventas en el mes</div>
         ${data.ventas.map(v=>`
           <div style="display:flex;justify-content:space-between;padding:8px;background:#f8fafc;border-radius:8px;margin-bottom:4px;font-size:13px;">
             <span style="color:#475569;">${v.ref}</span>
-            ${fmtColor(v.dif)}
+            <span style="font-weight:800;color:${v.dif<=0?'#16a34a':'#dc2626'};">${v.dif<=0?'+':'-'}${fmt(Math.abs(v.dif))}</span>
           </div>`).join('')}
-        ${data.ventas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin ventas esta semana</div>':''}`;
+        ${data.ventas.length===0?'<div style="text-align:center;color:#94a3b8;padding:12px;">Sin ventas este mes</div>':''}`;
     };
 
     // Render helper para liquidaciones
