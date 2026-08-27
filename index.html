@@ -9010,9 +9010,6 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
   }
 }
 
-// Parchear agregarFilaExcel para incluir LIQUIDACIONES
-const _agregarFilaOriginal = agregarFilaExcel;
-window._tablaMapExtra = { 'LIQUIDACIONES': 'TBL_LIQUIDACIONES' };
 
 async function buscarPorImei() {
   const imei = document.getElementById('loc-imei').value.trim();
