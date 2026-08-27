@@ -370,7 +370,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="setTablaActual('ET_OFICINA')" id="tbl-btn-ET_OFICINA" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ET OFICINA</button>
       <button onclick="setTablaActual('ET_CLARO')" id="tbl-btn-ET_CLARO" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ET CLARO</button>
       <button onclick="setTablaActual('RECOMPRA')" id="tbl-btn-RECOMPRA" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA</button>
-      <button onclick="setTablaActual('RECOMPRA_REAL')" id="tbl-btn-RECOMPRA_REAL" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">RECOMPRA REAL</button>
       <button onclick="setTablaActual('PAYJOY')" id="tbl-btn-PAYJOY" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">PAYJOY</button>
       <button onclick="setTablaActual('ALO_CREDIT')" id="tbl-btn-ALO_CREDIT" style="flex:1;min-width:45%;padding:10px;border-radius:10px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:700;cursor:pointer;font-size:12px;">ALO CREDIT</button>
     </div>
@@ -3435,9 +3434,8 @@ async function enviarForm(tipo) {
       const ref = getVal('c-ref');
       const porcKey = parseFloat(porcFinal).toFixed(2);
       const porcKey2 = String(parseFloat(porcFinal));
-      const tablaReal = PD['RECOMPRA_REAL']?.[ref];
-      cuotaRealOficina = tablaReal?.[porcKey] || tablaReal?.[porcKey2] || cuota;
-      // Si negativo → ellos me deben. Si positivo → yo debo
+      const tablaRecompra = PD['RECOMPRA']?.[ref];
+      cuotaRealOficina = tablaRecompra?.[porcKey] || tablaRecompra?.[porcKey2] || cuota;
       pagoFinanciera = cuotaRealOficina - COMISION_OFICINA;
       utilidad = cuotaNeta - cuotaRealOficina + COMISION_OFICINA;
     }
@@ -6206,7 +6204,7 @@ async function inicializarTabla() {
 
 async function setTablaActual(hoja) {
   tablaActual = hoja;
-  ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','RECOMPRA_REAL','PAYJOY','ALO_CREDIT'].forEach(t => {
+  ['OFICINA','ET_OFICINA','ET_CLARO','RECOMPRA','PAYJOY','ALO_CREDIT'].forEach(t => {
     const btn = document.getElementById('tbl-btn-'+t);
     if(!btn) return;
     btn.style.background = t === hoja ? '#7c3aed' : 'white';
