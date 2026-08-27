@@ -1170,8 +1170,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div class="rep-seccion">
         <div class="rep-titulo">🍎 iPhone</div>
         <div id="rep-proy-iphone"></div>
-        <div id="rep-proy-total" style="margin-top:8px;"></div>
       </div>
+      <div id="rep-proy-total" style="margin-top:8px;margin-bottom:14px;"></div>
     </div>
 
     <!-- VENTAS -->
@@ -7938,7 +7938,6 @@ function renderProyeccion() {
   const ritmoTotal = diaActual > 0 ? utilTotal / diaActual : 0;
   const proyTotal = Math.round(ritmoTotal * diasMes);
   const faltaTotal = Math.round(ritmoTotal * (diasMes - diaActual));
-  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
 
   const elTotal = document.getElementById('rep-proy-total');
   if(elTotal) elTotal.innerHTML = `
