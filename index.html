@@ -3024,21 +3024,20 @@ async function recalcularUtilidadesEtClaro() {
     for(const liq of liqDocs) {
       if(liq.tipo_venta !== 'ET_CLARO') continue;
       if(!liq.pago_financiera || !liq.imei) continue;
-      const venta = ventasDocs.find(v => v.imei?.toString() === liq.imei?.toString() && v.estado !== 'ANULADO');
+      const imeiKey = liq.imei.toString().trim();
+      const venta = ventasDocs.find(v => v.imei?.toString().trim() === imeiKey && v.estado !== 'ANULADO');
       if(!venta) continue;
       const cuotaCliente = parseFloat(venta.cuota_neta)||0;
       const pagoFinanciera = parseFloat(liq.pago_financiera)||0;
       const costoClaro = parseFloat(liq.costo_claro)||0;
       const nuevaUtil = cuotaCliente + pagoFinanciera - costoClaro;
-      if(Math.abs(nuevaUtil - (parseFloat(venta.utilidad)||0)) > 100) {
-        await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(nuevaUtil), pago_financiera: pagoFinanciera });
-        corregidas++;
-      }
+      await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(nuevaUtil), pago_financiera: pagoFinanciera });
+      corregidas++;
     }
-    btn.textContent = '✅ Recalcular ET_CLARO'; btn.disabled = false;
+    btn.textContent = '🔧 Recalcular ET CLARO'; btn.disabled = false;
     alert(`✅ Corregidas ${corregidas} ventas ET_CLARO`);
   } catch(e) {
-    btn.textContent = '✅ Recalcular ET_CLARO'; btn.disabled = false;
+    btn.textContent = '🔧 Recalcular ET CLARO'; btn.disabled = false;
     alert('❌ Error: ' + e.message);
   }
 }
@@ -7411,10 +7410,10 @@ function abrirLiquidacion(idx, tipo) {
     if(v.valorSistema) { document.getElementById('calc-pj-vs').value = '$'+parseFloat(v.valorSistema).toLocaleString('es-CO'); try{calcPayjoy();}catch(e){} }
   }
 
-  // Si es edición, prellenar valor y mostrar utilidad
   document.getElementById('liq-pago-financiera').value = v.pagoFinanciera ? '$'+parseFloat(v.pagoFinanciera).toLocaleString('es-CO') : '';
   document.getElementById('liq-observacion').value = v.obs || '';
-  if(v.esEdicion && v.pagoFinanciera) {
+  // Mostrar utilidad preview automáticamente si hay pago financiera
+  if(v.pagoFinanciera) {
     mostrarPreviewUtilidad(parseFloat(v.pagoFinanciera));
   } else {
     document.getElementById('liq-utilidad-preview').style.display = 'none';
