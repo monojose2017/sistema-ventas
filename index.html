@@ -5628,9 +5628,10 @@ let MR_CARGANDO = false;
 
 function setFechaRegistro(tipo) {
   const hoy = fechaHoyLocal();
+  let fechaVal = '';
   let fechaLabel = '';
   if(tipo === 'hoy') {
-    document.getElementById('mr-fecha').value = hoy;
+    fechaVal = hoy;
     fechaLabel = `Hoy · ${hoy}`;
     document.getElementById('mr-btn-hoy').style.background = '#1d4ed8';
     document.getElementById('mr-btn-hoy').style.color = 'white';
@@ -5638,23 +5639,30 @@ function setFechaRegistro(tipo) {
     document.getElementById('mr-btn-ayer').style.color = '#1d4ed8';
   } else if(tipo === 'ayer') {
     const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
-    const ayerStr = ayer.toISOString().split('T')[0];
-    document.getElementById('mr-fecha').value = ayerStr;
-    fechaLabel = `Ayer · ${ayerStr}`;
+    fechaVal = ayer.toISOString().split('T')[0];
+    fechaLabel = `Ayer · ${fechaVal}`;
     document.getElementById('mr-btn-ayer').style.background = '#1d4ed8';
     document.getElementById('mr-btn-ayer').style.color = 'white';
     document.getElementById('mr-btn-hoy').style.background = 'white';
     document.getElementById('mr-btn-hoy').style.color = '#1d4ed8';
   } else {
-    fechaLabel = document.getElementById('mr-fecha').value;
+    fechaVal = document.getElementById('mr-fecha').value;
+    fechaLabel = fechaVal;
     document.getElementById('mr-btn-hoy').style.background = 'white';
     document.getElementById('mr-btn-hoy').style.color = '#1d4ed8';
     document.getElementById('mr-btn-ayer').style.background = 'white';
     document.getElementById('mr-btn-ayer').style.color = '#1d4ed8';
   }
+  document.getElementById('mr-fecha').value = fechaVal;
   const headerFecha = document.getElementById('mr-header-fecha');
   if(headerFecha && fechaLabel) headerFecha.textContent = fechaLabel;
-  cargarMisRegistros();
+  // Renderizar directamente con la fecha correcta
+  const local = document.getElementById('mr-local').value;
+  if(local && fechaVal && MR_DATOS) {
+    renderMisRegistros(local, fechaVal);
+  } else {
+    cargarMisRegistros();
+  }
 }
 
 async function iniciarMisRegistros() {
@@ -7344,18 +7352,27 @@ function abrirLiquidacion(idx, tipo) {
     const porcLabel = v.porc ? (parseFloat(v.porc)*100)+'%' : '?%';
     document.getElementById('calc-eto-porc-label').textContent = porcLabel;
     document.getElementById('calc-eto-porc-show').textContent = porcLabel;
+    if(v.valorSistema) { document.getElementById('calc-eto-vs').value = '$'+parseFloat(v.valorSistema).toLocaleString('es-CO'); calcEtOficina(); }
   } else if(v.tipo === 'ET_CLARO') {
     document.getElementById('calc-etclaro').style.display = 'block';
     document.getElementById('calc-porc-label').textContent = v.porc ? (parseFloat(v.porc)*100)+'%' : '?%';
+    if(v.valorSistema) document.getElementById('calc-vs').value = '$'+parseFloat(v.valorSistema).toLocaleString('es-CO');
+    if(v.costoClaro) document.getElementById('calc-costo-claro').value = '$'+parseFloat(v.costoClaro).toLocaleString('es-CO');
+    if(v.valorSistema || v.costoClaro) calcEtClaro();
   } else if(v.tipo === 'PAYJOY') {
     document.getElementById('calc-payjoy').style.display = 'block';
     document.getElementById('calc-pj-cuota').textContent = v.cuotaSug ? '$'+parseFloat(v.cuotaSug).toLocaleString('es-CO') : '$0';
+    if(v.valorSistema) { document.getElementById('calc-pj-vs').value = '$'+parseFloat(v.valorSistema).toLocaleString('es-CO'); calcPayjoy(); }
   }
 
-  // Si es edición, prellenar valor
+  // Si es edición, prellenar valor y mostrar utilidad
   document.getElementById('liq-pago-financiera').value = v.pagoFinanciera ? '$'+parseFloat(v.pagoFinanciera).toLocaleString('es-CO') : '';
   document.getElementById('liq-observacion').value = v.obs || '';
-  document.getElementById('liq-utilidad-preview').style.display = 'none';
+  if(v.esEdicion && v.pagoFinanciera) {
+    mostrarPreviewUtilidad(parseFloat(v.pagoFinanciera));
+  } else {
+    document.getElementById('liq-utilidad-preview').style.display = 'none';
+  }
 
   irA('liquidacion-detalle');
 }
@@ -7511,7 +7528,7 @@ async function guardarLiquidacion() {
           const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
           if(venta) {
             const cuotaCliente = parseFloat(venta.cuota_neta)||0;
-            const utilidad = cuotaCliente + pagoFinanciera - costoClaro - (parseFloat(v.costo)||0);
+            const utilidad = cuotaCliente + pagoFinanciera - costoClaro;
             await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(utilidad), pago_financiera: pagoFinanciera });
           }
         } catch(e) { console.error('Error actualizando utilidad ET_CLARO:', e); }
