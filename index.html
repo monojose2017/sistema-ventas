@@ -2575,7 +2575,7 @@ async function corregirEliminar(col, id) {
       const local = doc.local||'';
       const cantidad = parseInt(doc.cantidad)||1;
       if(producto && local) {
-        const docs = await fbQuery('inventario_accesorios', 'referencia', '==', producto);
+        const docs = await fbQuery('inventario_accesorios', 'producto', '==', producto);
         const invDoc = docs.find(d => d.local === local);
         if(invDoc) {
           const nuevoStock = (parseFloat(invDoc.cantidad)||0) + cantidad;
@@ -3535,7 +3535,7 @@ async function enviarForm(tipo) {
     if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
     try {
       const id = await fbAdd('inventario_accesorios', {
-        local: localAcc, categoria: catAcc, referencia: productoAcc,
+        local: localAcc, categoria: catAcc, producto: productoAcc,
         cantidad: stockAcc, costo: costoAcc, precio_venta: pventaAcc,
         fecha_ingreso: fechaHoyLocal()
       });
@@ -3794,7 +3794,7 @@ async function enviarForm(tipo) {
       const localSel = getVal('a-local');
       const catSel = getVal('a-cat');
       try {
-        const docs = await fbQuery('inventario_accesorios', 'referencia', '==', productoSel);
+        const docs = await fbQuery('inventario_accesorios', 'producto', '==', productoSel);
         const doc = docs.find(d => d.local === localSel);
         if(doc) {
           const nuevoStock = Math.max(0, (parseFloat(doc.cantidad)||0) - cant);
@@ -4138,7 +4138,7 @@ async function ejecutarReponer() {
   const prod = mercProductoSeleccionado;
 
   try {
-    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', prod.producto);
+    const docs = await fbQuery('inventario_accesorios', 'producto', '==', prod.producto);
     const doc = docs.find(d => d.local === prod.local);
     if(!doc) { alert('❌ Producto no encontrado'); btn.textContent='🔄 Reponer Stock ✓'; btn.disabled=false; return; }
 
@@ -4775,7 +4775,7 @@ async function actualizarPrecioAccesorio() {
   const btn = document.querySelector('#precio-acc-fields .submit-btn');
   if(btn) { btn.textContent = 'Actualizando...'; btn.disabled = true; }
   try {
-    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', producto);
+    const docs = await fbQuery('inventario_accesorios', 'producto', '==', producto);
     const doc = docs.find(d => d.local === local);
     if(!doc) { alert('❌ Producto no encontrado'); if(btn){btn.textContent='Actualizar Precio ✓';btn.disabled=false;} return; }
     await fbUpdate('inventario_accesorios', doc.id, { precio_venta: precioNuevo });
@@ -4947,7 +4947,7 @@ async function reponerAccesorio() {
 
   try {
     // Buscar en Firebase
-    const docs = await fbQuery('inventario_accesorios', 'referencia', '==', prod.producto);
+    const docs = await fbQuery('inventario_accesorios', 'producto', '==', prod.producto);
     const doc = docs.find(d => d.local === local);
     if(!doc) { alert('❌ No se encontró el producto en Firebase'); if(btn){btn.textContent='Reponer Stock ✓';btn.disabled=false;} return; }
 
@@ -5624,7 +5624,7 @@ async function iniciarMisRegistros() {
 
     creditos.forEach(d => { if(d.fecha) MR_DATOS.creditos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', ref:d.referencia||'', imei:d.imei||'', cuota:parseFloat(d.cuota)||0, descuento:parseFloat(d.descuento)||0, cuota_neta:parseFloat(d.cuota_neta)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0, estado:d.estado||'' }); });
     contado.forEach(d => { if(d.fecha) MR_DATOS.contado.push({ fecha:d.fecha, local:d.local||'', imei:d.imei||'', ref:d.referencia||'', precio:parseFloat(d.precio)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
-    accesorios.forEach(d => { if(d.fecha) MR_DATOS.accesorios.push({ fecha:d.fecha, local:d.local||'', cat:d.categoria||'', prod:d.producto||'', cant:parseInt(d.cantidad)||0, total:parseFloat(d.total)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
+    accesorios.forEach(d => { if(d.fecha) MR_DATOS.accesorios.push({ fecha:d.fecha, local:d.local||'', cat:d.categoria||'', prod:d.producto||d.referencia||'', cant:parseInt(d.cantidad)||0, total:parseFloat(d.total)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
     gastos.forEach(d => { if(d.fecha) MR_DATOS.gastos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', desc:d.descripcion||'', valor:parseFloat(d.valor)||0, metodo:d.metodo_pago||'EFECTIVO' }); });
     ingresos.forEach(d => { if(d.fecha) MR_DATOS.ingresos.push({ fecha:d.fecha, local:d.local||'', tipo:d.concepto||'', desc:d.concepto||'', valor:parseFloat(d.valor)||0 }); });
     retiros.forEach(d => { if(d.fecha) MR_DATOS.retiros.push({ fecha:d.fecha, local:d.local||'', valor:parseFloat(d.valor)||0, desc:d.concepto||'', resp:d.responsable||'' }); });
@@ -7144,7 +7144,7 @@ async function cargarLiquidaciones() {
   document.getElementById("liq-loading").style.display = "block";
   document.getElementById("liq-lista").innerHTML = "";
   try {
-    const tipos = ["ET_CLARO","ET_OFICINA","PAYJOY","ADDI","ALO_CREDIT","OFICINA","RECOMPRA"];
+    const tipos = ["ET_CLARO","ET_OFICINA","PAYJOY","ADDI","ALO_CREDIT"];
     const [ventas, liqDocs] = await Promise.all([fbGetAll("ventas_creditos"), fbGetAll("liquidaciones")]);
     const normImei = v => { let s = v ? v.toString().trim() : ""; if(s.includes("E+")) s = Math.round(parseFloat(s)).toString(); return s; };
     const liquidados = {};
