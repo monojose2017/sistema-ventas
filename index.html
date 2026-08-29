@@ -1544,9 +1544,13 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
 <!-- MIS REGISTROS DEL DIA -->
 <div class="screen" id="screen-mis-registros">
-  <div class="form-header" style="background:linear-gradient(135deg,#1a3c6e,#2563eb)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">📋 Mis Registros del Día</div><div class="form-header-sub">Verifica lo que ingresaste</div></div></div>
+  <div class="form-header" style="background:linear-gradient(135deg,#1a3c6e,#2563eb)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">📋 Mis Registros del Día</div><div class="form-header-sub" id="mr-header-fecha">Verifica lo que ingresaste</div></div></div>
   <div class="form-body">
     <!-- Filtros -->
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button onclick="setFechaRegistro('hoy')" id="mr-btn-hoy" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1d4ed8;background:#1d4ed8;color:white;font-weight:700;font-size:13px;cursor:pointer;">Hoy</button>
+      <button onclick="setFechaRegistro('ayer')" id="mr-btn-ayer" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1d4ed8;background:white;color:#1d4ed8;font-weight:700;font-size:13px;cursor:pointer;">Ayer</button>
+    </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <div style="flex:1;">
         <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px;">LOCAL</div>
@@ -1556,7 +1560,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       </div>
       <div style="flex:1;">
         <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:4px;">FECHA</div>
-        <input type="date" id="mr-fecha" onchange="cargarMisRegistros()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:13px;">
+        <input type="date" id="mr-fecha" onchange="setFechaRegistro(null)" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:13px;">
       </div>
     </div>
 
@@ -5620,6 +5624,37 @@ function quitarFiltro(campo, valor) {
 // Datos cargados en memoria para Mis Registros
 let MR_DATOS = null;
 let MR_CARGANDO = false;
+
+function setFechaRegistro(tipo) {
+  const hoy = fechaHoyLocal();
+  let fechaLabel = '';
+  if(tipo === 'hoy') {
+    document.getElementById('mr-fecha').value = hoy;
+    fechaLabel = `Hoy · ${hoy}`;
+    document.getElementById('mr-btn-hoy').style.background = '#1d4ed8';
+    document.getElementById('mr-btn-hoy').style.color = 'white';
+    document.getElementById('mr-btn-ayer').style.background = 'white';
+    document.getElementById('mr-btn-ayer').style.color = '#1d4ed8';
+  } else if(tipo === 'ayer') {
+    const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
+    const ayerStr = ayer.toISOString().split('T')[0];
+    document.getElementById('mr-fecha').value = ayerStr;
+    fechaLabel = `Ayer · ${ayerStr}`;
+    document.getElementById('mr-btn-ayer').style.background = '#1d4ed8';
+    document.getElementById('mr-btn-ayer').style.color = 'white';
+    document.getElementById('mr-btn-hoy').style.background = 'white';
+    document.getElementById('mr-btn-hoy').style.color = '#1d4ed8';
+  } else {
+    fechaLabel = document.getElementById('mr-fecha').value;
+    document.getElementById('mr-btn-hoy').style.background = 'white';
+    document.getElementById('mr-btn-hoy').style.color = '#1d4ed8';
+    document.getElementById('mr-btn-ayer').style.background = 'white';
+    document.getElementById('mr-btn-ayer').style.color = '#1d4ed8';
+  }
+  const headerFecha = document.getElementById('mr-header-fecha');
+  if(headerFecha && fechaLabel) headerFecha.textContent = fechaLabel;
+  cargarMisRegistros();
+}
 
 async function iniciarMisRegistros() {
   if(MR_CARGANDO) return;
