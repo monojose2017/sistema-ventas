@@ -1066,6 +1066,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div style="font-size:12px;font-weight:800;color:#1e40af;text-transform:uppercase;margin-bottom:8px;">📅 Período</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="setPeriodo('hoy')" id="per-hoy" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:#1d6fa4;color:white;font-weight:700;cursor:pointer;font-size:12px;">Hoy</button>
+        <button onclick="setPeriodo('ayer')" id="per-ayer" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Ayer</button>
         <button onclick="setPeriodo('semana')" id="per-semana" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Semana</button>
         <button onclick="setPeriodo('mes')" id="per-mes" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">Este mes</button>
         <button onclick="setPeriodo('custom')" id="per-custom" style="padding:8px 12px;border-radius:8px;border:2px solid #1d6fa4;background:white;color:#1d6fa4;font-weight:700;cursor:pointer;font-size:12px;">📅</button>
@@ -8403,7 +8404,7 @@ async function cargarReporteProveedores() {
 
 function setPeriodo(p) {
   repPeriodo = p;
-  ['hoy','semana','mes','custom'].forEach(x => {
+  ['hoy','ayer','semana','mes','custom'].forEach(x => {
     const btn = document.getElementById('per-'+x);
     if(btn) { btn.style.background = x===p?'#1d6fa4':'white'; btn.style.color = x===p?'white':'#1d6fa4'; }
   });
@@ -8416,6 +8417,10 @@ function getFechasPeriodo() {
   const hoy = new Date();
   const fmt = d => d.toISOString().split('T')[0];
   if(repPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
+  if(repPeriodo === 'ayer') {
+    const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
+    return { desde: fmt(ayer), hasta: fmt(ayer) };
+  }
   if(repPeriodo === 'semana') {
     const diaSemana = hoy.getDay() === 0 ? 7 : hoy.getDay(); const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSemana + 1);
     return { desde: fmt(lunes), hasta: fmt(hoy) };
