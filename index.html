@@ -503,45 +503,9 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-control-reposicion">
   <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)">
     <button class="back-btn" onclick="irA('inventario')">‹</button>
-    <div><div class="form-header-title">🔁 Control de Reposición</div><div class="form-header-sub">Teléfonos vendidos por financiera incorrecta</div></div>
+    <div><div class="form-header-title">🔁 Control de Reposición</div><div class="form-header-sub">Teléfonos pendientes de reponer</div></div>
   </div>
   <div class="form-body">
-
-    <!-- Registrar nueva reposición -->
-    <div style="background:#fffbeb;border-radius:12px;padding:14px;margin-bottom:16px;border:2px solid #d97706;">
-      <div style="font-weight:800;font-size:14px;color:#b45309;margin-bottom:12px;">➕ Registrar Reposición</div>
-
-      <div class="field">
-        <label>Tipo de anomalía</label>
-        <div class="select-wrap">
-          <select id="rep-tipo-anomalia" onchange="cambiarTipoAnomalia()">
-            <option value="">Seleccionar...</option>
-            <option value="mio_en_oficina">📤 Teléfono MÍO vendido por OFICINA/RECOMPRA/ALO</option>
-            <option value="oficina_en_otro">📥 Teléfono OFICINA vendido por otra financiera</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="field"><label>Referencia</label>
-        <div class="select-wrap"><select id="rep-referencia"><option value="">Seleccionar...</option></select></div>
-      </div>
-
-      <div class="field"><label id="rep-imei1-label">IMEI del teléfono vendido mal</label>
-        <input type="text" id="rep-imei1" placeholder="IMEI" maxlength="20" style="font-size:15px;">
-      </div>
-
-      <div class="field"><label id="rep-imei2-label">IMEI del teléfono de reposición</label>
-        <input type="text" id="rep-imei2" placeholder="IMEI (opcional hasta tenerlo)" style="font-size:15px;">
-      </div>
-
-      <div class="field"><label>Observación (opcional)</label>
-        <input type="text" id="rep-obs" placeholder="Ej: Hablar con María en oficina" style="font-size:15px;">
-      </div>
-
-      <button onclick="guardarReposicion()" class="submit-btn" style="background:linear-gradient(135deg,#b45309,#d97706);">🔁 Registrar Reposición</button>
-    </div>
-
-    <!-- Lista de reposiciones -->
     <div style="font-weight:800;font-size:14px;color:#475569;margin-bottom:10px;">📋 Pendientes de Reposición</div>
     <div id="rep-loading" style="display:none;text-align:center;padding:20px;color:#64748b;">⏳ Cargando...</div>
     <div id="rep-lista"></div>
@@ -1025,6 +989,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div>📱 <b id="liq-det-ref"></b></div>
         <div>🔢 IMEI: <b id="liq-det-imei"></b></div>
         <div>📅 Fecha: <b id="liq-det-fecha"></b></div>
+        <div>🏪 Local: <b id="liq-det-local"></b></div>
         <div>💳 Tipo: <b id="liq-det-tipo"></b></div>
         <div>📊 Porcentaje: <b id="liq-det-porc"></b></div>
         <div>💰 Costo: <b id="liq-det-costo"></b></div>
@@ -2972,7 +2937,7 @@ async function cargarReposiciones() {
             <div style="flex:1;">
               <div style="font-weight:800;font-size:14px;">${d.referencia}</div>
               <div style="font-size:12px;color:${color};font-weight:700;margin-top:2px;">${label}</div>
-              <div style="font-size:12px;color:#64748b;margin-top:4px;">📅 ${d.fecha}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:4px;">📅 ${d.fecha}${d.local ? ` · 🏪 ${d.local}` : ''}</div>
               <div style="font-size:12px;margin-top:4px;">
                 <span style="background:white;border-radius:6px;padding:2px 6px;font-weight:700;">IMEI vendido: ${d.imei_vendido_mal}</span>
               </div>
@@ -3009,8 +2974,35 @@ async function agregarImeiReposicion(id) {
 async function completarReposicion(id) {
   if(!confirm('¿Marcar esta reposición como completada?')) return;
   try {
+    // Buscar la reposición
+    const repDocs = await fbGetAll('reposiciones');
+    const rep = repDocs.find(r => r.id === id);
+    if(!rep) { alert('❌ No se encontró la reposición'); return; }
+
+    // Si tiene IMEI de repuesto, cruzar el costo
+    if(rep.imei_repuesto) {
+      const imeiRep = rep.imei_repuesto.toString().trim();
+      // Buscar costo del teléfono de repuesto en inventario
+      const invDocs = await fbQuery('inventario_telefono', 'imei', '==', imeiRep);
+      const telRep = invDocs[0];
+      const costoReal = parseFloat(telRep?.costo) || 0;
+
+      if(costoReal > 0 && rep.imei_vendido) {
+        // Buscar venta original
+        const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', rep.imei_vendido.toString());
+        if(ventasDocs.length > 0) {
+          const venta = ventasDocs[0];
+          const cuotaNeta = parseFloat(venta.cuota_neta)||0;
+          const cuotaReal = parseFloat(venta.cuota_real_oficina)||0;
+          const nuevaUtil = cuotaNeta - cuotaReal + 80000 - costoReal;
+          await fbUpdate('ventas_creditos', venta.id, { costo: costoReal, utilidad: nuevaUtil });
+          mostrarToastVerde(`✅ Reposición completada. Costo $${costoReal.toLocaleString('es-CO')} actualizado en la venta.`);
+        }
+      }
+    }
+
     await fbUpdate('reposiciones', id, { estado: 'COMPLETADA', fecha_completada: fechaHoyLocal() });
-    mostrarToastVerde('✅ Reposición completada');
+    if(!rep.imei_repuesto) mostrarToastVerde('✅ Reposición completada');
     cargarReposiciones();
   } catch(e) { alert('❌ Error: ' + e.message); }
 }
@@ -3508,9 +3500,37 @@ async function enviarForm(tipo) {
       }
     }
     const repuesto = getVal('it-repuesto');
-    // IMEI, REFERENCIA, COSTO, FECHA, PROVEEDOR, ORIGEN, ESTADO, TIPO_VENTA, ALERTA, UBICACION, PRECIO_VENTA
-    fila = [imeiNuevo, getVal('it-ref-sel'), getNumero('it-costo'), getVal('it-fecha')||fecha, getVal('it-proveedor-sel'), repuesto, 'DISPONIBLE', '', '', getVal('it-local'), getNumero('it-precio-venta'), '', ''];
-    window._pendingFormulaIMEI = null;
+    const refNuevo = getVal('it-ref-sel');
+    const costoNuevo = getNumero('it-costo');
+    const localNuevo = getVal('it-local');
+    const proveedorNuevo = getVal('it-proveedor-sel');
+
+    if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
+    try {
+      await fbAdd('inventario_telefono', {
+        imei: imeiNuevo, referencia: refNuevo, costo: costoNuevo,
+        fecha_ingreso: getVal('it-fecha')||fecha, proveedor: proveedorNuevo,
+        origen: repuesto||'', estado: 'DISPONIBLE', tipo_venta: '',
+        alerta: '', ubicacion: localNuevo, precio_venta: getNumero('it-precio-venta'),
+        alerta_reposicion: '', estado_especial: repuesto||''
+      });
+      if(window.IMEIS_TODOS_CON_ESTADO) {
+        window.IMEIS_TODOS_CON_ESTADO[imeiNuevo] = {
+          imei: imeiNuevo, ref: refNuevo, costo: costoNuevo,
+          proveedor: proveedorNuevo, estado: 'DISPONIBLE',
+          estado_especial: repuesto||'', ubicacion: localNuevo
+        };
+      }
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+      mostrarToastVerde('✅ Teléfono ingresado al inventario');
+      document.getElementById('it-imei').value = '';
+      document.getElementById('it-costo').value = '';
+      irA('ver-inventario');
+    } catch(e) {
+      alert('❌ Error: '+e.message);
+      if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
+    }
+    return;
 
   } else if(tipo === 'ingreso-accesorio') {
     const localAcc = getVal('ia-local');
@@ -7256,6 +7276,7 @@ function abrirLiquidacion(idx, tipo) {
 
   document.getElementById('liq-det-titulo').textContent = tipo==='pendiente' ? '💱 Liquidar Venta' : '✏️ Editar Liquidación';
   document.getElementById('liq-det-ref').textContent = v.ref || '';
+  document.getElementById('liq-det-local').textContent = v.local || '';
   document.getElementById('liq-det-imei').textContent = v.imei || '';
   // Convertir fecha si viene como número de Excel
   let fechaDet = v.fecha || '';
