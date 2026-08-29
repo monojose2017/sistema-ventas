@@ -7243,7 +7243,22 @@ async function cargarLiquidaciones() {
     const [ventas, liqDocs] = await Promise.all([fbGetAll("ventas_creditos"), fbGetAll("liquidaciones")]);
     const normImei = v => { let s = v ? v.toString().trim() : ""; if(s.includes("E+")) s = Math.round(parseFloat(s)).toString(); return s; };
     const liquidados = {};
-    liqDocs.forEach(d => { if(d.imei) { const key = normImei(d.imei); liquidados[key] = { imei:key, ref:d.referencia, tipo:d.tipo_venta, porc:d.porcentaje, costo:d.costo, fecha:d.fecha, pagoFinanciera:d.pago_financiera, obs:d.observacion, fechaAct:d.fecha_actualizacion, costoClaro:d.costo_claro||0, valorSistema:d.valor_sistema||0, id:d.id }; } });
+    liqDocs.forEach(d => { 
+      if(d.imei) { 
+        const key = normImei(d.imei); 
+        const venta = ventas.find(v => normImei(v.imei) === key);
+        liquidados[key] = { 
+          imei:key, ref:d.referencia, tipo:d.tipo_venta, 
+          porc:d.porcentaje, costo:d.costo, fecha:d.fecha, 
+          local: venta?.local || d.local || '',
+          cuotaFinal: parseFloat(venta?.cuota_neta)||parseFloat(venta?.cuota)||0,
+          cuotaSug: parseFloat(venta?.cuota)||0,
+          pagoFinanciera:d.pago_financiera, obs:d.observacion, 
+          fechaAct:d.fecha_actualizacion, costoClaro:d.costo_claro||0, 
+          valorSistema:d.valor_sistema||0, id:d.id 
+        }; 
+      } 
+    });
     liqCompletadas = Object.values(liquidados);
     window.LIQ_PENDIENTES = [];
     ventas.forEach(d => {
