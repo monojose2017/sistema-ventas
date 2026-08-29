@@ -281,6 +281,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div class="divider"></div>
     <p class="sec-titulo">Control</p>
+    <button class="btn-menu" style="background:#faf5ff;border:2px solid #7c3aed;" onclick="recalcularUtilidadesEtClaro()"><div class="btn-icon" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;font-size:20px;">🔧</div><div class="btn-info"><div class="btn-titulo">Recalcular ET CLARO</div><div class="btn-sub">Corregir utilidades con costo real</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
@@ -3029,7 +3030,12 @@ async function recalcularUtilidadesEtClaro() {
       if(!venta) continue;
       const cuotaCliente = parseFloat(venta.cuota_neta)||0;
       const pagoFinanciera = parseFloat(liq.pago_financiera)||0;
-      const costoReal = parseFloat(venta.costo)||0;
+      let costoReal = parseFloat(venta.costo)||0;
+      // Si el costo en la venta es 0, buscarlo en inventario por IMEI
+      if(!costoReal) {
+        const invDocs = await fbQuery('inventario_telefono', 'imei', '==', imeiKey);
+        costoReal = parseFloat(invDocs[0]?.costo)||0;
+      }
       const nuevaUtil = cuotaCliente + pagoFinanciera - costoReal;
       await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(nuevaUtil), pago_financiera: pagoFinanciera });
       corregidas++;
