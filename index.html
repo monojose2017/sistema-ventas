@@ -7144,7 +7144,7 @@ async function cargarLiquidaciones() {
   document.getElementById("liq-loading").style.display = "block";
   document.getElementById("liq-lista").innerHTML = "";
   try {
-    const tipos = ["ET_CLARO","ET_OFICINA","PAYJOY","ADDI","ALO_CREDIT"];
+    const tipos = ["ET_CLARO","ET_OFICINA","PAYJOY","ADDI"];
     const [ventas, liqDocs] = await Promise.all([fbGetAll("ventas_creditos"), fbGetAll("liquidaciones")]);
     const normImei = v => { let s = v ? v.toString().trim() : ""; if(s.includes("E+")) s = Math.round(parseFloat(s)).toString(); return s; };
     const liquidados = {};
