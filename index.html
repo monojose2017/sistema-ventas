@@ -3028,8 +3028,8 @@ async function recalcularUtilidadesEtClaro() {
       if(!venta) continue;
       const cuotaCliente = parseFloat(venta.cuota_neta)||0;
       const pagoFinanciera = parseFloat(liq.pago_financiera)||0;
-      const costoClaro = parseFloat(liq.costo_claro)||0;
-      const nuevaUtil = cuotaCliente + pagoFinanciera - costoClaro;
+      const costoReal = parseFloat(venta.costo)||0;
+      const nuevaUtil = cuotaCliente + pagoFinanciera - costoReal;
       await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(nuevaUtil), pago_financiera: pagoFinanciera });
       corregidas++;
     }
@@ -7572,7 +7572,8 @@ async function guardarLiquidacion() {
           const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
           if(venta) {
             const cuotaCliente = parseFloat(venta.cuota_neta)||0;
-            const utilidad = cuotaCliente + pagoFinanciera - costoClaro;
+            const costoReal = parseFloat(venta.costo)||0;
+            const utilidad = cuotaCliente + pagoFinanciera - costoReal;
             await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(utilidad), pago_financiera: pagoFinanciera });
           }
         } catch(e) { console.error('Error actualizando utilidad ET_CLARO:', e); }
