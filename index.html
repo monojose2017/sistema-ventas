@@ -4198,7 +4198,8 @@ async function ejecutarReponer() {
   const prod = mercProductoSeleccionado;
 
   try {
-    const docs = await fbQuery('inventario_accesorios', 'producto', '==', prod.producto);
+    let docs = await fbQuery('inventario_accesorios', 'producto', '==', prod.producto);
+    if(!docs.length) docs = await fbQuery('inventario_accesorios', 'referencia', '==', prod.producto);
     const doc = docs.find(d => d.local === prod.local);
     if(!doc) { alert('❌ Producto no encontrado'); btn.textContent='🔄 Reponer Stock ✓'; btn.disabled=false; return; }
 
