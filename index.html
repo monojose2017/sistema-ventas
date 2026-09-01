@@ -5661,7 +5661,7 @@ function quitarFiltro(campo, valor) {
 let MR_DATOS = null;
 let MR_CARGANDO = false;
 
-function setFechaRegistro(tipo) {
+async function setFechaRegistro(tipo) {
   const hoy = fechaHoyLocal();
   let fechaVal = '';
   let fechaLabel = '';
@@ -5691,10 +5691,12 @@ function setFechaRegistro(tipo) {
   document.getElementById('mr-fecha').value = fechaVal;
   const headerFecha = document.getElementById('mr-header-fecha');
   if(headerFecha && fechaLabel) headerFecha.textContent = fechaLabel;
-  // Renderizar directamente con la fecha correcta
+  // Limpiar memoria para forzar recarga con nueva fecha
+  MR_DATOS = null;
+  // Renderizar con la fecha correcta
   const local = document.getElementById('mr-local').value;
-  if(local && fechaVal && MR_DATOS) {
-    renderMisRegistros(local, fechaVal);
+  if(local && fechaVal) {
+    await iniciarMisRegistros();
   } else {
     cargarMisRegistros();
   }
