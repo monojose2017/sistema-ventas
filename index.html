@@ -281,6 +281,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div class="divider"></div>
     <p class="sec-titulo">Control</p>
+    <button class="btn-menu" onclick="crearReposicionesFaltantes()"><div class="btn-icon" style="background:linear-gradient(135deg,#d97706,#b45309);color:white;font-size:20px;">🔁</div><div class="btn-info"><div class="btn-titulo">Crear Reposiciones Faltantes</div><div class="btn-sub">Detecta ventas de OFICINA sin reposición</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
@@ -3038,6 +3039,68 @@ async function recalcularUtilidadesEtClaro() {
     alert(`✅ Corregidas ${corregidas} ventas ET_CLARO`);
   } catch(e) {
     btn.textContent = '🔧 Recalcular ET CLARO'; btn.disabled = false;
+    alert('❌ Error: ' + e.message);
+  }
+}
+
+async function crearReposicionesFaltantes() {
+  const btn = event.target.closest('button');
+  btn.querySelector('.btn-sub').textContent = '⏳ Buscando...';
+  try {
+    const [contadoDocs, creditoDocs, reposDocs, inventarioDocs] = await Promise.all([
+      fbGetAll('ventas_contado'),
+      fbGetAll('ventas_creditos'),
+      fbGetAll('reposiciones'),
+      fbGetAll('inventario_telefono')
+    ]);
+
+    const imeiConRepo = new Set(reposDocs.map(r => (r.imei_vendido_mal||'').toString().trim()));
+    let creadas = 0;
+
+    // Ventas contado con proveedor OFICINA sin reposición
+    for(const v of contadoDocs) {
+      if(v.estado === 'ANULADO') continue;
+      const imei = (v.imei||'').toString().trim();
+      if(!imei || imeiConRepo.has(imei)) continue;
+      const tel = inventarioDocs.find(t => t.imei?.toString().trim() === imei);
+      const proveedor = (tel?.proveedor||v.proveedor||'').toUpperCase();
+      if(proveedor !== 'OFICINA') continue;
+      await fbAdd('reposiciones', {
+        fecha: v.fecha||fechaHoyLocal(), tipo: 'oficina_en_otro',
+        referencia: v.referencia||'', local: v.local||'',
+        imei_vendido_mal: imei, imei_reposicion: '',
+        observacion: `Auto-detectado: CONTADO (proveedor: OFICINA)`,
+        estado: 'PENDIENTE'
+      });
+      imeiConRepo.add(imei);
+      creadas++;
+    }
+
+    // Ventas crédito con proveedor OFICINA por otra financiera sin reposición
+    const FINANCIERAS_OTRAS = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI'];
+    for(const v of creditoDocs) {
+      if(v.estado === 'ANULADO') continue;
+      const imei = (v.imei||'').toString().trim();
+      if(!imei || imeiConRepo.has(imei)) continue;
+      if(!FINANCIERAS_OTRAS.includes(v.tipo)) continue;
+      const tel = inventarioDocs.find(t => t.imei?.toString().trim() === imei);
+      const proveedor = (tel?.proveedor||v.proveedor||'').toUpperCase();
+      if(proveedor !== 'OFICINA') continue;
+      await fbAdd('reposiciones', {
+        fecha: v.fecha||fechaHoyLocal(), tipo: 'oficina_en_otro',
+        referencia: v.referencia||'', local: v.local||'',
+        imei_vendido_mal: imei, imei_reposicion: '',
+        observacion: `Auto-detectado: ${v.tipo} (proveedor: OFICINA)`,
+        estado: 'PENDIENTE'
+      });
+      imeiConRepo.add(imei);
+      creadas++;
+    }
+
+    btn.querySelector('.btn-sub').textContent = 'Detecta ventas de OFICINA sin reposición';
+    alert(`✅ ${creadas} reposición(es) creada(s)`);
+  } catch(e) {
+    btn.querySelector('.btn-sub').textContent = 'Detecta ventas de OFICINA sin reposición';
     alert('❌ Error: ' + e.message);
   }
 }
