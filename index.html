@@ -7855,7 +7855,6 @@ async function cargarFlujoCaja() {
     // Salidas egresos gerencia con local
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
-      if((d.tipo||'').toUpperCase() === 'INVERSION') return; // inversiones no afectan rentabilidad
       const local = d.local?.trim()||'';
       if(local && flujoLocal[local]) {
         flujoLocal[local].salidasEgresos += parseFloat(d.valor)||0;
@@ -7867,7 +7866,6 @@ async function cargarFlujoCaja() {
 
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
-      if((d.tipo||'').toUpperCase() === 'INVERSION') return;
       if(!d.local?.trim()) egresosGeneralSinLocal += parseFloat(d.valor)||0;
     });
 
@@ -8932,9 +8930,11 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
     });
 
     // EGRESOS_GERENCIA → si tienen local van a ese local, sino van a General
+    // Inversiones NO afectan la rentabilidad operativa
     let egresosGeneralTotal = 0;
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
+      if((d.tipo||'').toUpperCase() === 'INVERSION') return;
       const valor = parseFloat(d.valor)||0;
       const local = d.local?.trim()||'';
       if(local && datos[local]) {
