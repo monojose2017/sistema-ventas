@@ -895,6 +895,11 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <!-- Resumen de utilidades -->
     <div id="iphone-resumen-util" style="display:none;background:#f0fdf4;border-radius:12px;padding:14px;margin-top:12px;">
       <div style="font-size:12px;font-weight:800;color:#15803d;margin-bottom:10px;">💰 RESUMEN UTILIDADES (Ventas Completas)</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input type="date" id="iphone-res-desde" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;" onchange="renderResumenIphone()">
+        <input type="date" id="iphone-res-hasta" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:12px;" onchange="renderResumenIphone()">
+        <button onclick="document.getElementById('iphone-res-desde').value='';document.getElementById('iphone-res-hasta').value='';renderResumenIphone();" style="padding:8px;background:#64748b;color:white;border:none;border-radius:8px;font-size:11px;cursor:pointer;">Todo</button>
+      </div>
       <div id="iphone-resumen-contenido"></div>
       <div style="display:flex;gap:8px;margin-top:12px;">
         <button onclick="generarReporteUtilIphone('excel')" style="flex:1;padding:10px;background:#15803d;color:white;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;">📊 Excel</button>
@@ -6885,8 +6890,17 @@ let iphoneVentas = [];
 let iphoneVentaSeleccionada = null;
 
 function mostrarResumenUtilIphone() {
-  const completas = iphoneVentas.filter(v => v.estado === 'COMPLETA');
-  if(completas.length === 0) {
+  renderResumenIphone();
+}
+
+function renderResumenIphone() {
+  const desde = document.getElementById('iphone-res-desde')?.value || '';
+  const hasta = document.getElementById('iphone-res-hasta')?.value || '';
+  let completas = iphoneVentas.filter(v => v.estado === 'COMPLETA');
+  if(desde) completas = completas.filter(v => (v.fecha||'') >= desde);
+  if(hasta) completas = completas.filter(v => (v.fecha||'') <= hasta);
+
+  if(!completas.length) {
     document.getElementById('iphone-resumen-util').style.display = 'none';
     return;
   }
@@ -6921,7 +6935,7 @@ function mostrarResumenUtilIphone() {
         <div style="font-size:18px;font-weight:900;color:${color(utilNetaTotal)};">${fmt(utilNetaTotal)}</div>
       </div>
     </div>
-    <div style="font-size:12px;color:#64748b;text-align:center;">${completas.length} ventas completas</div>`;
+    <div style="font-size:12px;color:#64748b;text-align:center;">${completas.length} ventas completas${desde||hasta ? ` · ${desde||'inicio'} → ${hasta||'hoy'}` : ''}</div>`;
 
   document.getElementById('iphone-resumen-util').style.display = 'block';
 }
