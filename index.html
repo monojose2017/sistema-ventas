@@ -2852,10 +2852,6 @@ async function setTablaConsulta(tabla) {
 
 async function abrirControlReposicion() {
   irA('control-reposicion');
-  // Llenar referencias
-  const sel = document.getElementById('rep-referencia');
-  sel.innerHTML = '<option value="">Seleccionar...</option>';
-  (window.CONFIG_DATA?.referencias||[]).forEach(r => sel.innerHTML += `<option>${r}</option>`);
   cargarReposiciones();
 }
 
@@ -2992,9 +2988,9 @@ async function completarReposicion(id) {
       const telRep = invDocs[0];
       const costoReal = parseFloat(telRep?.costo) || 0;
 
-      if(costoReal > 0 && rep.imei_vendido) {
-        // Buscar venta original
-        const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', rep.imei_vendido.toString());
+      if(costoReal > 0 && (rep.imei_vendido_mal || rep.imei_vendido)) {
+        const imeiVendido = (rep.imei_vendido_mal || rep.imei_vendido).toString();
+        const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', imeiVendido);
         if(ventasDocs.length > 0) {
           const venta = ventasDocs[0];
           const cuotaNeta = parseFloat(venta.cuota_neta)||0;
@@ -3436,6 +3432,13 @@ async function enviarForm(tipo) {
   let imei = '';
 
   if(tipo === 'credito') {
+    // Validaciones obligatorias
+    if(!getVal('c-local')) { alert('⚠️ Debes seleccionar el LOCAL'); return; }
+    if(!getVal('c-fecha')) { alert('⚠️ Debes ingresar la FECHA'); return; }
+    if(!getVal('c-tipo')) { alert('⚠️ Debes seleccionar el TIPO DE VENTA (financiera)'); return; }
+    if(!getVal('c-imei')) { alert('⚠️ Debes seleccionar el IMEI'); return; }
+    if(!getVal('c-porc') && getVal('c-tipo') !== 'PAYJOY') { alert('⚠️ Debes seleccionar el PORCENTAJE'); return; }
+
     const imeiSel = getVal('c-imei');
     imei = imeiSel ? imeiSel.split('|')[0] : '';
     const tipoVenta = getVal('c-tipo');
@@ -3807,7 +3810,7 @@ async function enviarForm(tipo) {
       }
 
       // Detectar anomalía de financiera
-      if(tipo === 'credito') {
+      if(tipo === 'credito' || tipo === 'contado') {
         const telData = window.IMEIS_TODOS_CON_ESTADO?.[imei.toString().trim()];
         const proveedor = (telData?.proveedor||'').toUpperCase();
         const FINANCIERAS_OFICINA = ['OFICINA','RECOMPRA','ALO_CREDIT'];
@@ -3816,7 +3819,9 @@ async function enviarForm(tipo) {
         const esProveedorMio = !esProveedorOficina && proveedor !== '';
         let tipoAnomalia = null;
 
-        if(esProveedorOficina && FINANCIERAS_OTRAS.includes(tipoVenta)) {
+        if(tipo === 'contado' && esProveedorOficina) {
+          tipoAnomalia = 'oficina_en_otro'; // vendido de contado siendo de OFICINA
+        } else if(esProveedorOficina && FINANCIERAS_OTRAS.includes(tipoVenta)) {
           tipoAnomalia = 'oficina_en_otro';
         } else if(esProveedorMio && FINANCIERAS_OFICINA.includes(tipoVenta)) {
           tipoAnomalia = 'mio_en_oficina';
@@ -3829,9 +3834,10 @@ async function enviarForm(tipo) {
             fecha: fechaHoyLocal(),
             tipo: tipoAnomalia,
             referencia: ref,
+            local: getVal('ct-local') || getVal('c-local') || '',
             imei_vendido_mal: imei.toString(),
             imei_reposicion: '',
-            observacion: `Auto-detectado: vendido por ${tipoVenta} (proveedor: ${proveedor})`,
+            observacion: `Auto-detectado: vendido ${tipo === 'contado' ? 'de CONTADO' : `por ${tipoVenta}`} (proveedor: ${proveedor})`,
             estado: 'PENDIENTE'
           });
           // Mostrar aviso naranja
@@ -8485,25 +8491,26 @@ function setPeriodo(p) {
 }
 
 function getFechasPeriodo() {
-  const hoy = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
-  if(repPeriodo === 'hoy') return { desde: fmt(hoy), hasta: fmt(hoy) };
-  if(repPeriodo === 'ayer') {
-    const ayer = new Date(hoy); ayer.setDate(hoy.getDate()-1);
-    return { desde: fmt(ayer), hasta: fmt(ayer) };
-  }
+  const hoy = fechaHoyLocal();
+  const ayer = (() => { const d = new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+  const fmtD = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+  if(repPeriodo === 'hoy') return { desde: hoy, hasta: hoy };
+  if(repPeriodo === 'ayer') return { desde: ayer, hasta: ayer };
   if(repPeriodo === 'semana') {
-    const diaSemana = hoy.getDay() === 0 ? 7 : hoy.getDay(); const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - diaSemana + 1);
-    return { desde: fmt(lunes), hasta: fmt(hoy) };
+    const d = new Date();
+    const diaSemana = d.getDay() === 0 ? 7 : d.getDay();
+    d.setDate(d.getDate() - diaSemana + 1);
+    return { desde: fmtD(d), hasta: hoy };
   }
   if(repPeriodo === 'mes') {
-    const ini = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-    return { desde: fmt(ini), hasta: fmt(hoy) };
+    const d = new Date();
+    return { desde: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`, hasta: hoy };
   }
   if(repPeriodo === 'custom') {
     return { desde: document.getElementById('per-desde').value, hasta: document.getElementById('per-hasta').value };
   }
-  return { desde: fmt(hoy), hasta: fmt(hoy) };
+  return { desde: hoy, hasta: hoy };
 }
 
 function enPeriodo(fechaStr, desde, hasta) {
