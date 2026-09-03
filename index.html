@@ -5542,7 +5542,9 @@ async function cargarRegistros() {
       if(esIngreso) {
         regDatosCompletos.push({
           fecha: fechaStr, fechaComp, id: d.id,
-          tipo: d.tipo||'', proveedor: d.proveedor||'', desc: d.concepto||'',
+          tipo: d.tipo||d.categoria||'INGRESO',
+          proveedor: d.proveedor||'',
+          desc: d.descripcion||d.concepto||d.desc||'',
           local: d.local||'', valor: parseFloat(d.valor)||0,
           metodo: d.metodo_pago||'', efectivo: parseFloat(d.efectivo)||0,
           transfer: parseFloat(d.transferencia)||0
@@ -5550,8 +5552,14 @@ async function cargarRegistros() {
       } else {
         regDatosCompletos.push({
           fecha: fechaStr, fechaComp, id: d.id,
-          concepto: d.concepto||'', valor: parseFloat(d.valor)||0,
-          metodo: d.metodo_pago||'', resp: d.responsable||''
+          tipo: d.tipo||d.categoria||'EGRESO',
+          cat: d.categoria||'',
+          desc: d.concepto||d.descripcion||d.desc||'',
+          local: d.local||'',
+          valor: parseFloat(d.valor)||0,
+          metodo: d.metodo_pago||'', resp: d.responsable||'',
+          efectivo: parseFloat(d.efectivo)||0,
+          transfer: parseFloat(d.transferencia)||0
         });
       }
     }
