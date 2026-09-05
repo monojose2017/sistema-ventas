@@ -4476,23 +4476,24 @@ async function guardarEdicionTelefono() {
   const proveedor = document.getElementById('edit-tel-proveedor').value;
   const ubicacion = document.getElementById('edit-tel-ubicacion').value;
   try {
-    // editTelRowIndex ahora es el ID de Firebase
     await fbUpdate('inventario_telefono', editTelRowIndex, {
       referencia: ref, costo, precio_venta: precioVenta,
       proveedor, ubicacion
     });
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
-    // Actualizar memoria local
     const imei = Object.keys(window.IMEIS_TODOS_CON_ESTADO||{}).find(k => window.IMEIS_TODOS_CON_ESTADO[k].id === editTelRowIndex);
     if(imei && window.IMEIS_TODOS_CON_ESTADO[imei]) {
       window.IMEIS_TODOS_CON_ESTADO[imei].ref = ref;
       window.IMEIS_TODOS_CON_ESTADO[imei].costo = costo;
-      window.IMEIS_TODOS_CON_ESTADO[imei].precio = precioVenta;
+      window.IMEIS_TODOS_CON_ESTADO[imei].ubicacion = ubicacion;
+      window.IMEIS_TODOS_CON_ESTADO[imei].proveedor = proveedor;
     }
     editTelRowIndex = null;
-    mostrarExito('ver-inventario');
+    mostrarToastVerde('✅ Cambios guardados');
+    irA('ver-inventario');
+    verInventario(true);
   } catch(e) {
-    alert('❌ Error al guardar');
+    alert('❌ Error al guardar: ' + e.message);
     if(btn) { btn.textContent = 'Guardar Cambios ✓'; btn.disabled = false; }
   }
 }
@@ -5755,8 +5756,9 @@ async function setFechaRegistro(tipo) {
     document.getElementById('mr-btn-ayer').style.background = 'white';
     document.getElementById('mr-btn-ayer').style.color = '#1d4ed8';
   } else if(tipo === 'ayer') {
-    const ayer = new Date(); ayer.setDate(ayer.getDate()-1);
-    fechaVal = ayer.toISOString().split('T')[0];
+    const ayer = new Date();
+    ayer.setDate(ayer.getDate()-1);
+    fechaVal = `${ayer.getFullYear()}-${String(ayer.getMonth()+1).padStart(2,'0')}-${String(ayer.getDate()).padStart(2,'0')}`;
     fechaLabel = `Ayer · ${fechaVal}`;
     document.getElementById('mr-btn-ayer').style.background = '#1d4ed8';
     document.getElementById('mr-btn-ayer').style.color = 'white';
