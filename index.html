@@ -8450,7 +8450,7 @@ async function cargarReporteProveedores() {
       if(!enSemana(d.fecha)) return;
       if(d.estado==='ANULADO') return;
       if(d.tipo !== 'ET_OFICINA') return;
-      const pago = (parseFloat(d.pago_financiera)||0) + 30000;
+      const pago = parseFloat(d.pago_financiera)||0;
       movisimEtTotal += pago;
       movisimEtVentas.push({ ref:d.referencia||'', imei:d.imei||'', pago });
     });
