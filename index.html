@@ -404,14 +404,14 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-header" style="background:linear-gradient(135deg,#16a34a,#15803d)"><button class="back-btn" onclick="volver()">‹</button><div><div class="form-header-title">📥 Ingresos Adicionales</div><div class="form-header-sub">Registra un ingreso del local</div></div></div>
   <div class="form-body">
     <div class="field"><label>Fecha</label><input type="date" id="il-fecha"></div>
-    <div class="field"><label>Local</label><div class="select-wrap"><select id="il-local"><option value="">Seleccionar...</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="il-local"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Tipo</label><div class="select-wrap"><select id="il-tipo"><option value="">Seleccionar...</option><option>ABONO CLIENTE</option><option>OTROS</option></select></div></div>
     <div class="field"><label>Descripción</label><input type="text" id="il-desc" placeholder="Detalle del ingreso"></div>
     <div class="field"><label>Valor</label><input type="text" id="il-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('il')"></div>
     <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="il-pago" onchange="manejarPago('il')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="il-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('il')"></div><div class="field"><label>Transferencia</label><input type="text" id="il-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('il')"></div></div>
     <div id="il-mixto-error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:12px;">⚠️ La suma debe ser igual al valor</div>
-    <div class="field"><label>Responsable</label><div class="select-wrap"><select id="il-resp"><option value="">Seleccionar...</option><option>CARO</option><option>ADISSON</option><option>JOHANETH</option><option>DIANA</option></select></div></div>
+    <div class="field"><label>Responsable</label><div class="select-wrap"><select id="il-resp"><option value="">Seleccionar...</option></select></div></div>
     <button class="submit-btn" style="background:linear-gradient(135deg,#16a34a,#15803d);box-shadow:0 4px 12px rgba(22,163,74,.35)" onclick="enviarForm('ingresos-local')">Registrar Ingreso ✓</button>
   </div>
 </div>
@@ -424,7 +424,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div class="field"><label>Tipo</label><div class="select-wrap"><select id="ig-tipo" onchange="onTipoIngresoGerencia()"><option value="">Seleccionar...</option><option>PAGO DE PROVEEDOR</option><option>PRESTAMO RECIBIDO</option><option>ABONO CLIENTE</option><option>OTROS</option></select></div></div>
     <div class="field" id="ig-proveedor-wrap" style="display:none"><label>Proveedor</label><div class="select-wrap"><select id="ig-proveedor"><option value="">Seleccionar...</option></select></div></div>
     <div class="field"><label>Descripción</label><input type="text" id="ig-desc" placeholder="Detalle del ingreso"></div>
-    <div class="field"><label>Local</label><div class="select-wrap"><select id="ig-local"><option value="">Seleccionar...</option><option>GENERAL</option><option>PALMAR DE VARELA</option><option>SABANALARGA</option><option>PUERTO COLOMBIA</option></select></div></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ig-local"><option value="">Seleccionar...</option><option>GENERAL</option></select></div></div>
     <div class="field"><label>Valor</label><input type="text" id="ig-valor" placeholder="$0" oninput="formatMoney(this);manejarPago('ig')"></div>
     <div class="field"><label>Método de Pago</label><div class="select-wrap"><select id="ig-pago" onchange="manejarPago('ig')"><option value="">Seleccionar...</option><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>MIXTO</option></select></div></div>
     <div class="row2"><div class="field"><label>Efectivo</label><input type="text" id="ig-efectivo" placeholder="$0" oninput="formatMoney(this);validarMixto('ig')"></div><div class="field"><label>Transferencia</label><input type="text" id="ig-transfer" placeholder="$0" oninput="formatMoney(this);validarMixto('ig')"></div></div>
@@ -2123,16 +2123,31 @@ function irA(s){
   if(s === 'gerencia-iphone') {
     cargarVentasIphone();
   }
+  if(s === 'ingresos-local') {
+    const locales = window.CONFIG_LISTAS?.locales || window.CONFIG_DATA?.locales || [];
+    const resp = window.CONFIG_LISTAS?.responsables || window.CONFIG_DATA?.responsables || [];
+    const selLocal = document.getElementById('il-local');
+    if(selLocal) { selLocal.innerHTML = '<option value="">Seleccionar...</option>'; locales.forEach(l => selLocal.innerHTML += `<option>${l}</option>`); }
+    const selResp = document.getElementById('il-resp');
+    if(selResp) { selResp.innerHTML = '<option value="">Seleccionar...</option>'; resp.forEach(r => selResp.innerHTML += `<option>${r}</option>`); }
+    const fechaEl = document.getElementById('il-fecha');
+    if(fechaEl && !fechaEl.value) fechaEl.value = fechaHoyLocal();
+  }
   if(s === 'ingresos-gerencia') {
+    const locales = window.CONFIG_LISTAS?.locales || window.CONFIG_DATA?.locales || [];
+    const selLocal = document.getElementById('ig-local');
+    if(selLocal) {
+      selLocal.innerHTML = '<option value="">Seleccionar...</option><option value="GENERAL">GENERAL</option>';
+      locales.forEach(l => selLocal.innerHTML += `<option>${l}</option>`);
+    }
     const sel = document.getElementById('ig-proveedor');
     if(sel) {
       sel.innerHTML = '<option value="">Seleccionar...</option>';
       const provsPago = window.CONFIG_LISTAS?.proveedoresPago || ['MOVISIM','COMTEL','PAYJOY','ADDI'];
       provsPago.forEach(p => sel.innerHTML += `<option value="${p}">${p}</option>`);
     }
-    const hoy = fechaHoyLocal();
     const fechaEl = document.getElementById('ig-fecha');
-    if(fechaEl && !fechaEl.value) fechaEl.value = hoy;
+    if(fechaEl && !fechaEl.value) fechaEl.value = fechaHoyLocal();
   }
   if(s === 'abono-deuda') {
     const sel = document.getElementById('ab-local');
@@ -5811,7 +5826,7 @@ async function iniciarMisRegistros() {
     contado.forEach(d => { if(d.fecha) MR_DATOS.contado.push({ fecha:d.fecha, local:d.local||'', imei:d.imei||'', ref:d.referencia||'', precio:parseFloat(d.precio)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
     accesorios.forEach(d => { if(d.fecha) MR_DATOS.accesorios.push({ fecha:d.fecha, local:d.local||'', cat:d.categoria||'', prod:d.producto||d.referencia||'', cant:parseInt(d.cantidad)||0, total:parseFloat(d.total)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0 }); });
     gastos.forEach(d => { if(d.fecha) MR_DATOS.gastos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||'', desc:d.descripcion||'', valor:parseFloat(d.valor)||0, metodo:d.metodo_pago||'EFECTIVO' }); });
-    ingresos.forEach(d => { if(d.fecha) MR_DATOS.ingresos.push({ fecha:d.fecha, local:d.local||'', tipo:d.concepto||'', desc:d.concepto||'', valor:parseFloat(d.valor)||0 }); });
+    ingresos.forEach(d => { if(d.fecha) MR_DATOS.ingresos.push({ fecha:d.fecha, local:d.local||'', tipo:d.tipo||d.concepto||'', desc:d.descripcion||d.concepto||d.desc||'', valor:parseFloat(d.valor)||0, pago:d.metodo_pago||'' }); });
     retiros.forEach(d => { if(d.fecha) MR_DATOS.retiros.push({ fecha:d.fecha, local:d.local||'', valor:parseFloat(d.valor)||0, desc:d.concepto||'', resp:d.responsable||'' }); });
     aperturas.forEach(d => { if(d.fecha) MR_DATOS.aperturas.push({ fecha:d.fecha, local:d.local||'', saldo:parseFloat(d.saldo)||0 }); });
     iphoneData.forEach(d => { if(d.fecha) MR_DATOS.iphone.push({ fecha:d.fecha, local:d.local||'', ref:d.referencia||'', financiera:d.financiera||'', imei:d.imei||'', nombre:d.nombre||'', cuota:parseFloat(d.cuota_inicial)||0, pago:d.metodo_pago||'', efectivo:parseFloat(d.efectivo)||0, transfer:parseFloat(d.transferencia)||0, estado:d.estado||'PENDIENTE' }); });
