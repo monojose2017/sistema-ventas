@@ -2494,8 +2494,12 @@ function corregirEditar(idx) {
   const campos = [];
   if(d.fecha !== undefined) campos.push({key:'fecha', label:'Fecha', val:d.fecha||'', type:'date'});
   if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'text'});
+  if(d.acreedor !== undefined) campos.push({key:'acreedor', label:'Acreedor', val:d.acreedor||'', type:'text'});
   if(d.concepto !== undefined) campos.push({key:'concepto', label:'Concepto', val:d.concepto||'', type:'text'});
   if(d.descripcion !== undefined) campos.push({key:'descripcion', label:'Descripción', val:d.descripcion||'', type:'text'});
+  if(d.monto !== undefined) campos.push({key:'monto', label:'Monto original', val:d.monto||0, type:'number'});
+  if(d.saldo !== undefined) campos.push({key:'saldo', label:'Saldo pendiente', val:d.saldo||0, type:'number'});
+  if(d.estado !== undefined && window._corrTipo === 'deudas') campos.push({key:'estado', label:'Estado', val:d.estado||'', type:'text'});
   if(d.valor !== undefined) campos.push({key:'valor', label:'Valor', val:d.valor||0, type:'number'});
   if(d.cuota !== undefined) campos.push({key:'cuota', label:'Cuota', val:d.cuota||0, type:'number'});
   if(d.cuota_neta !== undefined) campos.push({key:'cuota_neta', label:'Cuota neta', val:d.cuota_neta||0, type:'number'});
