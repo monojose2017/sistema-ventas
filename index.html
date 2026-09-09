@@ -9232,11 +9232,13 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
       if((d.tipo||'').toUpperCase() === 'INVERSION') return;
-      const local = d.local?.trim()||'';
-      // Solo mostrar los que son GENERAL o sin local
+      const local = (d.local||'').trim();
       if(!local || local === 'GENERAL') {
         detalleEgresosGeneral.push({
-          fecha: d.fecha, cat: 'EGRESO', desc: d.concepto||'Sin descripción', valor: parseFloat(d.valor)||0
+          fecha: d.fecha, cat: 'EGRESO',
+          desc: d.concepto||d.descripcion||'Sin descripción',
+          local: local,
+          valor: parseFloat(d.valor)||0
         });
       }
     });
