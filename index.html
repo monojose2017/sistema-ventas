@@ -3768,9 +3768,11 @@ async function enviarForm(tipo) {
         efectivo: getNumero('ab-efectivo'),
         transferencia: getNumero('ab-transfer')
       });
-      // Actualizar saldo de la deuda
+      // Actualizar saldo de la deuda usando el ID directamente
       const nuevoSaldo = (parseFloat(deuda.saldo)||0) - valorAbono;
-      await actualizarSaldoDeuda(deuda.acreedor, nuevoSaldo);
+      const updates = { saldo: Math.max(0, nuevoSaldo) };
+      if(nuevoSaldo <= 0) updates.estado = 'PAGADA';
+      await fbUpdate('deudas', deuda.id, updates);
       await cargarDeudas();
       if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
       mostrarToastVerde('✅ Abono registrado y egreso generado');
