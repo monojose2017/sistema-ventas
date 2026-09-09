@@ -9228,9 +9228,14 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
     let detalleEgresosGeneral = [];
     egresos.forEach(d => {
       if(!enRango(d.fecha)) return;
-      detalleEgresosGeneral.push({
-        fecha: d.fecha, cat: 'EGRESO', desc: d.concepto||'Sin descripción', valor: parseFloat(d.valor)||0
-      });
+      if((d.tipo||'').toUpperCase() === 'INVERSION') return;
+      const local = d.local?.trim()||'';
+      // Solo mostrar los que son GENERAL o sin local
+      if(!local || local === 'GENERAL') {
+        detalleEgresosGeneral.push({
+          fecha: d.fecha, cat: 'EGRESO', desc: d.concepto||'Sin descripción', valor: parseFloat(d.valor)||0
+        });
+      }
     });
 
     // RENTABILIDAD POR LOCAL
