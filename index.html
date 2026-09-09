@@ -1878,6 +1878,13 @@ function setEstadoCarga(estado, detalle) {
 }
 
 async function cargarTodo() {
+  // Caché de 5 minutos — no releer Firebase si ya cargó recientemente
+  const ahora = Date.now();
+  if(window._cargarTodoCacheTs && (ahora - window._cargarTodoCacheTs) < 5 * 60 * 1000) {
+    setEstadoCarga('ok');
+    return;
+  }
+  window._cargarTodoCacheTs = ahora;
   setEstadoCarga('cargando');
   try {
     const [invDocs, accDocs, cfgDocs, preciosDocs] = await Promise.all([
@@ -7370,6 +7377,13 @@ async function guardarPagoIphone(idx) {
 }
 
 async function cargarLiquidaciones() {
+  // Caché de 2 minutos
+  const ahora = Date.now();
+  if(window._liqCacheTs && (ahora - window._liqCacheTs) < 2 * 60 * 1000 && window.LIQ_PENDIENTES) {
+    renderListaLiquidaciones();
+    return;
+  }
+  window._liqCacheTs = ahora;
   document.getElementById("liq-loading").style.display = "block";
   document.getElementById("liq-lista").innerHTML = "";
   try {
