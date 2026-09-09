@@ -3739,14 +3739,34 @@ async function enviarForm(tipo) {
     if(!getNumero('ab-valor')) { alert('⚠️ Ingresa el valor'); return; }
     if(btn){ btn.textContent = 'Enviando...'; btn.disabled = true; }
     try {
+      const valorAbono = getNumero('ab-valor');
+      const fechaAbono = getVal('ab-fecha')||fecha;
+      const localAbono = getVal('ab-local')||'';
+      const pagoAbono = getVal('ab-pago')||'';
       await fbAdd('abonos_deudas', {
-        fecha: getVal('ab-fecha')||fecha, acreedor: deuda.acreedor,
-        concepto: getVal('ab-concepto'), valor: getNumero('ab-valor'),
-        metodo_pago: getVal('ab-pago'), efectivo: getNumero('ab-efectivo'),
-        transferencia: getNumero('ab-transfer'), local: getVal('ab-local')
+        fecha: fechaAbono, acreedor: deuda.acreedor,
+        concepto: getVal('ab-concepto'), valor: valorAbono,
+        metodo_pago: pagoAbono, efectivo: getNumero('ab-efectivo'),
+        transferencia: getNumero('ab-transfer'), local: localAbono
       });
+      // Registrar automáticamente en egresos_gerencia
+      await fbAdd('egresos_gerencia', {
+        fecha: fechaAbono,
+        tipo: 'OPERATIVO',
+        categoria: 'PAGO DEUDA',
+        concepto: `Abono a ${deuda.acreedor}${getVal('ab-concepto') ? ' - '+getVal('ab-concepto') : ''}`,
+        local: localAbono,
+        valor: valorAbono,
+        metodo_pago: pagoAbono,
+        efectivo: getNumero('ab-efectivo'),
+        transferencia: getNumero('ab-transfer')
+      });
+      // Actualizar saldo de la deuda
+      const nuevoSaldo = (parseFloat(deuda.saldo)||0) - valorAbono;
+      await actualizarSaldoDeuda(deuda.acreedor, nuevoSaldo);
+      await cargarDeudas();
       if(btn){ btn.textContent = 'Registrar ✓'; btn.disabled = false; }
-      mostrarToastVerde('✅ Abono registrado');
+      mostrarToastVerde('✅ Abono registrado y egreso generado');
       irA('control-deudas');
     } catch(e) { alert('❌ Error: '+e.message); if(btn){ btn.textContent='Registrar ✓'; btn.disabled=false; } }
     return;
