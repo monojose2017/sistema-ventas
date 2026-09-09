@@ -2587,6 +2587,45 @@ async function corregirEliminar(col, id) {
     }
 
     await fbDelete(col, id);
+
+    // Cascada según tipo de colección
+    if(col === 'abonos_deudas' && doc) {
+      // Eliminar egreso gerencia asociado
+      try {
+        const egDocs = await fbQuery('egresos_gerencia', 'categoria', '==', 'PAGO DEUDA');
+        const egreso = egDocs.find(e => e.id_abono === id ||
+          (Math.abs((parseFloat(e.valor)||0) - (parseFloat(doc.valor)||0)) < 1 &&
+           (e.fecha||'') === (doc.fecha||'')));
+        if(egreso) await fbDelete('egresos_gerencia', egreso.id);
+      } catch(e2) { console.error('Error eliminando egreso:', e2); }
+      // Restaurar saldo de la deuda
+      try {
+        const deudaDocs = await fbQuery('deudas', 'acreedor', '==', doc.acreedor);
+        const deuda = deudaDocs.find(d => d.estado !== 'PAGADA') || deudaDocs[0];
+        if(deuda) {
+          const saldoRestaurado = (parseFloat(deuda.saldo)||0) + (parseFloat(doc.valor)||0);
+          await fbUpdate('deudas', deuda.id, { saldo: saldoRestaurado, estado: 'ACTIVA' });
+        }
+      } catch(e2) { console.error('Error restaurando saldo:', e2); }
+    }
+
+    if(col === 'ventas_iphone' && doc?.imei) {
+      // Eliminar liquidación iPhone asociada
+      try {
+        const liqDocs = await fbQuery('liquidaciones', 'imei', '==', doc.imei.toString().trim());
+        for(const l of liqDocs) await fbDelete('liquidaciones', l.id);
+      } catch(e2) { console.error('Error eliminando liq iPhone:', e2); }
+    }
+
+    if(col === 'liquidaciones' && doc?.imei) {
+      // Limpiar utilidad y pago_financiera de la venta crédito
+      try {
+        const ventaDocs = await fbQuery('ventas_creditos', 'imei', '==', doc.imei.toString().trim());
+        const venta = ventaDocs[0];
+        if(venta) await fbUpdate('ventas_creditos', venta.id, { utilidad: 0, pago_financiera: 0 });
+      } catch(e2) { console.error('Error limpiando utilidad:', e2); }
+    }
+
     mostrarToastVerde('✅ Registro eliminado');
     corregirCargar();
   } catch(e) {
@@ -3752,7 +3791,7 @@ async function enviarForm(tipo) {
       const fechaAbono = getVal('ab-fecha')||fecha;
       const localAbono = getVal('ab-local')||'';
       const pagoAbono = getVal('ab-pago')||'';
-      await fbAdd('abonos_deudas', {
+      const abonoRef = await fbAdd('abonos_deudas', {
         fecha: fechaAbono, acreedor: deuda.acreedor,
         concepto: getVal('ab-concepto'), valor: valorAbono,
         metodo_pago: pagoAbono, efectivo: getNumero('ab-efectivo'),
@@ -3760,15 +3799,11 @@ async function enviarForm(tipo) {
       });
       // Registrar automáticamente en egresos_gerencia
       await fbAdd('egresos_gerencia', {
-        fecha: fechaAbono,
-        tipo: 'OPERATIVO',
-        categoria: 'PAGO DEUDA',
+        fecha: fechaAbono, tipo: 'OPERATIVO', categoria: 'PAGO DEUDA',
         concepto: `Abono a ${deuda.acreedor}${getVal('ab-concepto') ? ' - '+getVal('ab-concepto') : ''}`,
-        local: localAbono,
-        valor: valorAbono,
-        metodo_pago: pagoAbono,
-        efectivo: getNumero('ab-efectivo'),
-        transferencia: getNumero('ab-transfer')
+        local: localAbono, valor: valorAbono, metodo_pago: pagoAbono,
+        efectivo: getNumero('ab-efectivo'), transferencia: getNumero('ab-transfer'),
+        id_abono: abonoRef?.id || ''
       });
       // Actualizar saldo de la deuda usando el ID directamente
       const nuevoSaldo = (parseFloat(deuda.saldo)||0) - valorAbono;
