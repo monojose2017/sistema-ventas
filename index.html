@@ -4510,7 +4510,7 @@ let editAccProducto = null;
 function editarTelefono(imei) {
   const tel = findImei(imei);
   if(!tel) return;
-  editTelRowIndex = tel.rowIndex;
+  editTelRowIndex = tel.id || tel.rowIndex;
   document.getElementById('edit-tel-imei').value = tel.imei;
   // Llenar refs desde CONFIG
   const refSel = document.getElementById('edit-tel-ref');
@@ -6245,21 +6245,33 @@ async function ejecutarCambioImei() {
   try {
     // Marcar IMEI malo como EN GARANTIA
     await fbActualizarEstadoTel(imeiMalo, 'estado_especial', 'EN GARANTIA');
-    // Agregar nuevo IMEI al inventario
+    // Agregar nuevo IMEI al inventario como VENDIDO
     const obsNuevo=`CAMBIO DE IMEI — reemplaza: ${imeiMalo} | ${motivo}`;
     await fbAdd('inventario_telefono', {
       imei: imeiNuevo, referencia: cambioImeiFila.ref, costo: cambioImeiFila.costo,
       fecha_ingreso: hoy, proveedor: cambioImeiFila.proveedor||'',
       origen: obsNuevo, estado: 'VENDIDO', tipo_venta: 'CAMBIO IMEI',
       ubicacion: cambioImeiFila.ubicacion||'', precio_venta: cambioImeiFila.precio||0,
-      estado_especial: ''
+      estado_especial: 'VENDIDO'
     });
+    // Actualizar venta original con el nuevo IMEI
+    const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', imeiMalo.toString().trim());
+    if(ventasDocs.length > 0) {
+      await fbUpdate('ventas_creditos', ventasDocs[0].id, { imei: imeiNuevo.toString().trim() });
+    } else {
+      const ventasCDocs = await fbQuery('ventas_contado', 'imei', '==', imeiMalo.toString().trim());
+      if(ventasCDocs.length > 0) await fbUpdate('ventas_contado', ventasCDocs[0].id, { imei: imeiNuevo.toString().trim() });
+    }
+    // Actualizar memoria
+    if(window.IMEIS_TODOS_CON_ESTADO) {
+      window.IMEIS_TODOS_CON_ESTADO[imeiNuevo] = { ...cambioImeiFila, imei: imeiNuevo, estado: 'VENDIDO', estado_especial: 'VENDIDO' };
+    }
     mostrarToastVerde('✅ Cambio de IMEI registrado correctamente');
     ['ci-imei-malo','ci-imei-nuevo','ci-motivo','ci-obs'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('ci-info-malo').style.display='none';
     document.getElementById('ci-btn-wrap').style.display='none';
     cambioImeiFila=null;irA('garantia');
-  } catch(e){alert('❌ Error al registrar cambio. Verifica conexión.');}
+  } catch(e){alert('❌ Error al registrar cambio: '+e.message);}
 }
 
 
