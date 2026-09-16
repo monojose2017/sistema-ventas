@@ -2494,6 +2494,8 @@ function corregirEditar(idx) {
 
   // Campos editables según tipo
   const campos = [];
+  if(d.tipo !== undefined) campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'text'});
+  if(d.categoria !== undefined) campos.push({key:'categoria', label:'Categoría', val:d.categoria||'', type:'text'});
   if(d.fecha !== undefined) campos.push({key:'fecha', label:'Fecha', val:d.fecha||'', type:'date'});
   if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'text'});
   if(d.acreedor !== undefined) campos.push({key:'acreedor', label:'Acreedor', val:d.acreedor||'', type:'text'});
