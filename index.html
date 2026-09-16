@@ -8980,7 +8980,8 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
     const liqMap = {};
     liqDocs.forEach(d => { if(d.imei) liqMap[d.imei.trim()] = parseFloat(d.pago_financiera)||0; });
 
-    const LOCALES = window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA'];
+    const LOCALES_ALL = window.CONFIG_LISTAS?.locales || ['PALMAR DE VARELA','SABANALARGA','PUERTO COLOMBIA'];
+    const LOCALES = LOCALES_ALL.filter(l => l !== 'GENERAL');
     const datos = {};
     LOCALES.forEach(l => datos[l] = {
       utilCredito:0, utilContado:0, utilAccesorios:0, utilIphone:0,
