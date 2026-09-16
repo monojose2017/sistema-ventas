@@ -7049,8 +7049,12 @@ function renderResumenIphone() {
 }
 
 async function generarReporteUtilIphone(formato) {
-  const completas = iphoneVentas.filter(v => v.estado === 'COMPLETA');
-  if(completas.length === 0) { alert('No hay ventas completas'); return; }
+  const desde = document.getElementById('iphone-res-desde')?.value || '';
+  const hasta = document.getElementById('iphone-res-hasta')?.value || '';
+  let completas = iphoneVentas.filter(v => v.estado === 'COMPLETA');
+  if(desde) completas = completas.filter(v => (v.fecha||'') >= desde);
+  if(hasta) completas = completas.filter(v => (v.fecha||'') <= hasta);
+  if(completas.length === 0) { alert('No hay ventas completas en ese período'); return; }
 
   const filas = completas.map(v => [
     v.fecha, v.local, v.ref, v.financiera, v.imei, v.nombre,
