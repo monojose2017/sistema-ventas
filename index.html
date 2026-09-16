@@ -3807,8 +3807,12 @@ async function enviarForm(tipo) {
         transferencia: getNumero('ab-transfer'), local: localAbono
       });
       // Registrar automáticamente en egresos_gerencia
+      // Determinar tipo de egreso según propósito de la deuda
+      const esInventario = (deuda.proposito||'').toUpperCase() === 'INVENTARIO';
+      const tipoEgreso = esInventario ? 'INVERSION' : 'OPERATIVO';
+      const catEgreso = esInventario ? 'COMPRA TELEFONOS' : 'PAGO DEUDA';
       await fbAdd('egresos_gerencia', {
-        fecha: fechaAbono, tipo: 'OPERATIVO', categoria: 'PAGO DEUDA',
+        fecha: fechaAbono, tipo: tipoEgreso, categoria: catEgreso,
         concepto: `Abono a ${deuda.acreedor}${getVal('ab-concepto') ? ' - '+getVal('ab-concepto') : ''}`,
         local: localAbono, valor: valorAbono, metodo_pago: pagoAbono,
         efectivo: getNumero('ab-efectivo'), transferencia: getNumero('ab-transfer'),
@@ -5409,7 +5413,7 @@ async function cargarDeudas() {
       deudasActivas.push({
         id: d.id, acreedor: d.acreedor||'', concepto: d.concepto||'',
         saldo: parseFloat(d.saldo||d.valor)||0, vence, alerta, diasRestantes,
-        local: d.local||''
+        local: d.local||'', proposito: d.proposito||'OPERATIVA'
       });
     });
     renderDeudas();
@@ -9058,7 +9062,6 @@ async function renderReportes({ creditos, contado, accesorios, gastos, egresos, 
       if((d.tipo||'').toUpperCase() === 'INVERSION') return;
       const valor = parseFloat(d.valor)||0;
       const local = d.local?.trim()||'';
-      // GENERAL o sin local → va al total general, no a un local específico
       if(local && local !== 'GENERAL' && datos[local]) {
         datos[local].egresosOperativos += valor;
       } else {
