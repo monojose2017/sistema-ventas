@@ -2494,8 +2494,8 @@ function corregirEditar(idx) {
 
   // Campos editables según tipo
   const campos = [];
-  if(d.tipo !== undefined) campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'text'});
-  if(d.categoria !== undefined) campos.push({key:'categoria', label:'Categoría', val:d.categoria||'', type:'text'});
+  if(d.tipo !== undefined) campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'select', options:['OPERATIVO','INVERSION','PAGO DEUDA']});
+  if(d.categoria !== undefined) campos.push({key:'categoria', label:'Categoría', val:d.categoria||'', type:'select', options:['COMPRA TELEFONOS','COMPRA ACCESORIOS','MOBILIARIO','EQUIPOS DE COMPUTO','PUBLICIDAD','ARRIENDO','SERVICIOS','NOMINA','PAGO DEUDA','OTROS']});
   if(d.fecha !== undefined) campos.push({key:'fecha', label:'Fecha', val:d.fecha||'', type:'date'});
   if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'text'});
   if(d.acreedor !== undefined) campos.push({key:'acreedor', label:'Acreedor', val:d.acreedor||'', type:'text'});
@@ -2522,8 +2522,14 @@ function corregirEditar(idx) {
       ${campos.map(c => `
         <div style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">${c.label}</label>
+          ${c.type === 'select' ? `
+            <div class="select-wrap">
+              <select id="corr-edit-${c.key}" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:14px;">
+                ${(c.options||[]).map(o => `<option value="${o}" ${o===c.val?'selected':''}>${o}</option>`).join('')}
+              </select>
+            </div>` : `
           <input id="corr-edit-${c.key}" type="${c.type}" value="${c.val}" 
-            style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:14px;">
+            style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;font-size:14px;">`}
         </div>
       `).join('')}
       <div style="display:flex;gap:10px;margin-top:16px;">
