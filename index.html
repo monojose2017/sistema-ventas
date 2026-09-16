@@ -7126,7 +7126,7 @@ async function cargarVentasIphone() {
     iphoneVentas = docs.map((d, i) => ({
       idx: i, id: d.id,
       fecha: d.fecha||'', local: d.local||'', ref: d.referencia||'', financiera: d.financiera||'',
-      imei: d.imei||'', cedula: d.cedula||'', nombre: d.nombre||'',
+      imei: d.imei||'', proveedor: d.proveedor||'', cedula: d.cedula||'', nombre: d.nombre||'',
       cuotaInicial: parseFloat(d.cuota_inicial)||0, metodoPago: d.metodo_pago||'',
       efectivo: parseFloat(d.efectivo)||0, transfer: parseFloat(d.transferencia)||0,
       vs: parseFloat(d.vs)||0, cuotaSistema: parseFloat(d.cuota_sistema)||0,
@@ -7463,6 +7463,7 @@ async function cargarLiquidaciones() {
           imei:key, ref:d.referencia, tipo:d.tipo_venta, 
           porc:d.porcentaje, costo:d.costo, fecha:d.fecha, 
           local: venta?.local || d.local || '',
+          proveedor: venta?.proveedor || d.proveedor || '',
           cuotaFinal: parseFloat(venta?.cuota_neta)||parseFloat(venta?.cuota)||0,
           cuotaSug: parseFloat(venta?.cuota)||0,
           pagoFinanciera:d.pago_financiera, obs:d.observacion, 
