@@ -5936,12 +5936,12 @@ async function cargarMisRegistros() {
     document.getElementById('mr-contenido').style.display = 'none';
     return;
   }
-  // Si los datos ya están en memoria, solo renderizar
+  // Siempre recargar si no hay datos
   if(MR_DATOS) {
     renderMisRegistros(local, fecha);
     return;
   }
-  // Si no, cargar todo
+  MR_CARGANDO = false; // Resetear por si quedó bloqueado
   await iniciarMisRegistros();
 }
 
