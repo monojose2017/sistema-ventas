@@ -2494,35 +2494,50 @@ function corregirEditar(idx) {
 
   // Campos editables según tipo
   const campos = [];
-  const esEgreso = window._corrTipo === 'egresos_gerencia';
-  const esIngreso = window._corrTipo === 'ingresos_gerencia';
+  const col = window._corrTipo || '';
+  const esEgreso = col === 'egresos_gerencia';
+  const esIngreso = col === 'ingresos_gerencia';
+  const esCredito = col === 'ventas_creditos';
+  const esGasto = col === 'gastos_diarios';
+  const LOCALES_OPC = window.CONFIG_LISTAS?.locales || [];
+  const LOCALES_CON_GENERAL = ['GENERAL', ...LOCALES_OPC];
+  const RESPONSABLES = window.CONFIG_LISTAS?.responsables || [];
+  const METODOS_PAGO = ['EFECTIVO','TRANSFERENCIA','MIXTO'];
+  const FINANCIERAS = ['OFICINA','RECOMPRA','ALO_CREDIT','ET_OFICINA','ET_CLARO','PAYJOY','ADDI'];
+  const ESTADOS_TEL = ['DISPONIBLE','VENDIDO','EN GARANTIA','PRESTADO','ANULADO'];
+
   if(d.tipo !== undefined) {
     const opcionesTipo = esEgreso 
       ? ['OPERATIVO','INVERSION','PAGO DEUDA']
       : esIngreso
       ? ['PAGO DE PROVEEDOR','PRESTAMO RECIBIDO','INGRESO FINANCIERA','OTROS']
+      : esCredito
+      ? FINANCIERAS
       : [];
     if(opcionesTipo.length) {
-      campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'select', options:opcionesTipo});
+      campos.push({key:'tipo', label:'Tipo / Financiera', val:d.tipo||'', type:'select', options:opcionesTipo});
     } else {
       campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'text'});
     }
   }
   if(d.categoria !== undefined) campos.push({key:'categoria', label:'Categoría', val:d.categoria||'', type:'select', options:['COMPRA TELEFONOS','COMPRA ACCESORIOS','MOBILIARIO','EQUIPOS DE COMPUTO','PUBLICIDAD','ARRIENDO','SERVICIOS','NOMINA','PAGO DEUDA','OTROS']});
   if(d.fecha !== undefined) campos.push({key:'fecha', label:'Fecha', val:d.fecha||'', type:'date'});
-  if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'text'});
+  if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'select', options:esEgreso||esIngreso||esGasto ? LOCALES_CON_GENERAL : LOCALES_OPC});
+  if(d.ubicacion !== undefined) campos.push({key:'ubicacion', label:'Ubicación / Local', val:d.ubicacion||'', type:'select', options:LOCALES_OPC});
   if(d.acreedor !== undefined) campos.push({key:'acreedor', label:'Acreedor', val:d.acreedor||'', type:'text'});
   if(d.concepto !== undefined) campos.push({key:'concepto', label:'Concepto', val:d.concepto||'', type:'text'});
   if(d.descripcion !== undefined) campos.push({key:'descripcion', label:'Descripción', val:d.descripcion||'', type:'text'});
   if(d.monto !== undefined) campos.push({key:'monto', label:'Monto original', val:d.monto||0, type:'number'});
   if(d.saldo !== undefined) campos.push({key:'saldo', label:'Saldo pendiente', val:d.saldo||0, type:'number'});
-  if(d.estado !== undefined && window._corrTipo === 'deudas') campos.push({key:'estado', label:'Estado', val:d.estado||'', type:'text'});
+  if(d.estado !== undefined && col === 'deudas') campos.push({key:'estado', label:'Estado', val:d.estado||'', type:'select', options:['ACTIVA','PAGADA']});
+  if(d.estado !== undefined && col === 'inventario_telefono') campos.push({key:'estado', label:'Estado', val:d.estado||'', type:'select', options:ESTADOS_TEL});
+  if(d.estado_especial !== undefined) campos.push({key:'estado_especial', label:'Estado especial', val:d.estado_especial||'', type:'select', options:['','DISPONIBLE','VENDIDO','EN GARANTIA','PRESTADO','REPUESTO']});
   if(d.valor !== undefined) campos.push({key:'valor', label:'Valor', val:d.valor||0, type:'number'});
   if(d.cuota !== undefined) campos.push({key:'cuota', label:'Cuota', val:d.cuota||0, type:'number'});
   if(d.cuota_neta !== undefined) campos.push({key:'cuota_neta', label:'Cuota neta', val:d.cuota_neta||0, type:'number'});
   if(d.descuento !== undefined) campos.push({key:'descuento', label:'Descuento', val:d.descuento||0, type:'number'});
-  if(d.metodo_pago !== undefined) campos.push({key:'metodo_pago', label:'Método pago', val:d.metodo_pago||'', type:'text'});
-  if(d.responsable !== undefined) campos.push({key:'responsable', label:'Responsable', val:d.responsable||'', type:'text'});
+  if(d.metodo_pago !== undefined) campos.push({key:'metodo_pago', label:'Método pago', val:d.metodo_pago||'', type:'select', options:METODOS_PAGO});
+  if(d.responsable !== undefined) campos.push({key:'responsable', label:'Responsable', val:d.responsable||'', type:'select', options:RESPONSABLES});
   if(d.precio !== undefined) campos.push({key:'precio', label:'Precio', val:d.precio||0, type:'number'});
   if(d.total !== undefined) campos.push({key:'total', label:'Total', val:d.total||0, type:'number'});
 
@@ -2558,15 +2573,38 @@ function corregirEditar(idx) {
 async function corregirGuardar(tipo, id, idx) {
   const d = window._corrDocs[idx];
   const updates = {};
-  // Leer todos los campos del modal
   document.querySelectorAll('[id^="corr-edit-"]').forEach(el => {
     const key = el.id.replace('corr-edit-','');
     updates[key] = el.type === 'number' ? parseFloat(el.value)||0 : el.value;
   });
   try {
     await fbUpdate(tipo, id, updates);
+
+    // Si es venta crédito y cambió el tipo — revisar si hay que eliminar reposición
+    if(tipo === 'ventas_creditos' && updates.tipo && d.tipo !== updates.tipo) {
+      const FINANCIERAS_OTRAS = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI'];
+      const tipoAnteriorEraOtro = FINANCIERAS_OTRAS.includes(d.tipo);
+      const tipoNuevoEsOtro = FINANCIERAS_OTRAS.includes(updates.tipo);
+      // Si antes requería reposición y ahora no
+      if(tipoAnteriorEraOtro && !tipoNuevoEsOtro && d.imei) {
+        try {
+          const repDocs = await fbQuery('reposiciones', 'imei_vendido_mal', '==', d.imei.toString().trim());
+          const repPendiente = repDocs.find(r => r.estado === 'PENDIENTE');
+          if(repPendiente) {
+            await fbDelete('reposiciones', repPendiente.id);
+            mostrarToastVerde('✅ Registro actualizado y reposición eliminada');
+          } else {
+            mostrarToastVerde('✅ Registro actualizado');
+          }
+        } catch(e2) { mostrarToastVerde('✅ Registro actualizado'); }
+      } else {
+        mostrarToastVerde('✅ Registro actualizado');
+      }
+    } else {
+      mostrarToastVerde('✅ Registro actualizado');
+    }
+
     document.getElementById('modal-corregir-editar')?.remove();
-    mostrarToastVerde('✅ Registro actualizado');
     corregirCargar();
   } catch(e) {
     alert('❌ Error al guardar: ' + e.message);
