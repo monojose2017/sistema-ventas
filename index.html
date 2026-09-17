@@ -7842,8 +7842,9 @@ async function guardarLiquidacion() {
 
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     mostrarToastVerde('✅ Liquidación guardada correctamente');
+    window._liqCacheTs = null; // Invalidar caché
     irA('liquidaciones');
-    await cargarLiquidaciones();
+    try { await cargarLiquidaciones(); } catch(e2) { console.error('Error recargando:', e2); }
   } catch(e) {
     if(btn) { btn.textContent = 'Guardar Liquidación ✓'; btn.disabled = false; }
     alert('❌ Error al guardar. Verifica conexión.');
