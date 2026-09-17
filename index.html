@@ -2494,7 +2494,20 @@ function corregirEditar(idx) {
 
   // Campos editables según tipo
   const campos = [];
-  if(d.tipo !== undefined) campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'select', options:['OPERATIVO','INVERSION','PAGO DEUDA']});
+  const esEgreso = window._corrTipo === 'egresos_gerencia';
+  const esIngreso = window._corrTipo === 'ingresos_gerencia';
+  if(d.tipo !== undefined) {
+    const opcionesTipo = esEgreso 
+      ? ['OPERATIVO','INVERSION','PAGO DEUDA']
+      : esIngreso
+      ? ['PAGO DE PROVEEDOR','PRESTAMO RECIBIDO','INGRESO FINANCIERA','OTROS']
+      : [];
+    if(opcionesTipo.length) {
+      campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'select', options:opcionesTipo});
+    } else {
+      campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'text'});
+    }
+  }
   if(d.categoria !== undefined) campos.push({key:'categoria', label:'Categoría', val:d.categoria||'', type:'select', options:['COMPRA TELEFONOS','COMPRA ACCESORIOS','MOBILIARIO','EQUIPOS DE COMPUTO','PUBLICIDAD','ARRIENDO','SERVICIOS','NOMINA','PAGO DEUDA','OTROS']});
   if(d.fecha !== undefined) campos.push({key:'fecha', label:'Fecha', val:d.fecha||'', type:'date'});
   if(d.local !== undefined) campos.push({key:'local', label:'Local', val:d.local||'', type:'text'});
