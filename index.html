@@ -7071,8 +7071,11 @@ function renderResumenIphone() {
   if(desde) completas = completas.filter(v => (v.fecha||'') >= desde);
   if(hasta) completas = completas.filter(v => (v.fecha||'') <= hasta);
 
+  // Siempre mostrar el div con el filtro
+  document.getElementById('iphone-resumen-util').style.display = 'block';
+
   if(!completas.length) {
-    document.getElementById('iphone-resumen-util').style.display = 'none';
+    document.getElementById('iphone-resumen-contenido').innerHTML = '<div style="text-align:center;color:#64748b;padding:12px;">Sin ventas completas en ese período</div>';
     return;
   }
 
