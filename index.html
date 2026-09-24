@@ -281,6 +281,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div class="divider"></div>
     <p class="sec-titulo">Control</p>
+    <button class="btn-menu" onclick="recalcularUtilidadesEtClaro()"><div class="btn-icon" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;font-size:20px;">🔧</div><div class="btn-info"><div class="btn-titulo">Recalcular ET CLARO</div><div class="btn-sub">Corregir utilidades con costo real</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
@@ -7858,9 +7859,9 @@ async function guardarLiquidacion() {
           const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
           if(venta) {
             const cuotaCliente = parseFloat(venta.cuota_neta)||0;
-            const costoReal = parseFloat(venta.costo)||0;
+            const costoReal = parseFloat(venta.costo)||parseFloat(v.costo)||0;
             const utilidad = cuotaCliente + pagoFinanciera - costoReal;
-            await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(utilidad), pago_financiera: pagoFinanciera });
+            await fbUpdate('ventas_creditos', venta.id, { utilidad: Math.round(utilidad), pago_financiera: pagoFinanciera, costo: costoReal });
           }
         } catch(e) { console.error('Error actualizando utilidad ET_CLARO:', e); }
       }
