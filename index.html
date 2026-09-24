@@ -2533,6 +2533,7 @@ function corregirEditar(idx) {
   if(d.estado !== undefined && col === 'inventario_telefono') campos.push({key:'estado', label:'Estado', val:d.estado||'', type:'select', options:ESTADOS_TEL});
   if(d.estado_especial !== undefined) campos.push({key:'estado_especial', label:'Estado especial', val:d.estado_especial||'', type:'select', options:['','DISPONIBLE','VENDIDO','EN GARANTIA','PRESTADO','REPUESTO']});
   if(d.valor !== undefined) campos.push({key:'valor', label:'Valor', val:d.valor||0, type:'number'});
+  if(d.porcentaje !== undefined) campos.push({key:'porcentaje', label:'Porcentaje (ej: 0.15 = 15%)', val:d.porcentaje||'', type:'text'});
   if(d.cuota !== undefined) campos.push({key:'cuota', label:'Cuota', val:d.cuota||0, type:'number'});
   if(d.cuota_neta !== undefined) campos.push({key:'cuota_neta', label:'Cuota neta', val:d.cuota_neta||0, type:'number'});
   if(d.descuento !== undefined) campos.push({key:'descuento', label:'Descuento', val:d.descuento||0, type:'number'});
