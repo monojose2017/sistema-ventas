@@ -2536,6 +2536,8 @@ function corregirEditar(idx) {
   if(d.porcentaje !== undefined || col === 'ventas_creditos') campos.push({key:'porcentaje', label:'Porcentaje (ej: 0.15 = 15%)', val:d.porcentaje||'', type:'text'});
   if(d.cuota !== undefined) campos.push({key:'cuota', label:'Cuota', val:d.cuota||0, type:'number'});
   if(d.cuota_neta !== undefined) campos.push({key:'cuota_neta', label:'Cuota neta', val:d.cuota_neta||0, type:'number'});
+  if(d.cuota_real_oficina !== undefined || col === 'ventas_creditos') campos.push({key:'cuota_real_oficina', label:'Cuota real oficina', val:d.cuota_real_oficina||0, type:'number'});
+  if(d.utilidad !== undefined || col === 'ventas_creditos') campos.push({key:'utilidad', label:'Utilidad', val:d.utilidad||0, type:'number'});
   if(d.descuento !== undefined) campos.push({key:'descuento', label:'Descuento', val:d.descuento||0, type:'number'});
   if(d.metodo_pago !== undefined) campos.push({key:'metodo_pago', label:'Método pago', val:d.metodo_pago||'', type:'select', options:METODOS_PAGO});
   if(d.responsable !== undefined) campos.push({key:'responsable', label:'Responsable', val:d.responsable||'', type:'select', options:RESPONSABLES});
@@ -3102,9 +3104,24 @@ async function cargarReposiciones() {
         </div>`;
     };
 
+    // Calcular total estimado pendiente
+    const totalEstimado = pendientes
+      .filter(d => d.tipo !== 'mio_en_oficina')
+      .reduce((s, d) => s + (parseFloat(d.costo_estimado)||0), 0);
+    const sinCosto = pendientes.filter(d => d.tipo !== 'mio_en_oficina' && !d.costo_estimado).length;
+
     lista.innerHTML = `
       ${pendientes.length ? `<div style="font-weight:800;font-size:13px;color:#b45309;margin-bottom:8px;">⏳ Pendientes (${pendientes.length})</div>${pendientes.map(renderItem).join('')}` : ''}
-      ${completadas.length ? `<div style="font-weight:800;font-size:13px;color:#16a34a;margin:12px 0 8px;">✅ Completadas (${completadas.length})</div>${completadas.map(renderItem).join('')}` : ''}`;
+      ${completadas.length ? `<div style="font-weight:800;font-size:13px;color:#16a34a;margin:12px 0 8px;">✅ Completadas (${completadas.length})</div>${completadas.map(renderItem).join('')}` : ''}
+      ${pendientes.length ? `
+        <div style="background:linear-gradient(135deg,#1a3c6e,#0369a1);border-radius:12px;padding:14px;margin-top:8px;color:white;">
+          <div style="font-weight:800;font-size:13px;margin-bottom:8px;">💰 TOTAL A REPONER</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="opacity:.8;">Costo estimado total</span>
+            <span style="font-weight:900;font-size:16px;">${totalEstimado ? '$'+Math.round(totalEstimado).toLocaleString('es-CO') : 'Sin estimar'}</span>
+          </div>
+          ${sinCosto ? `<div style="font-size:11px;color:#fbbf24;margin-top:6px;">⚠️ ${sinCosto} reposición(es) sin costo estimado</div>` : ''}
+        </div>` : ''}`;
   } catch(e) {
     document.getElementById('rep-loading').style.display = 'none';
     lista.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
