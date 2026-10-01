@@ -2591,15 +2591,27 @@ async function corregirGuardar(tipo, id, idx) {
       // Si antes requería reposición y ahora no
       if(tipoAnteriorEraOtro && !tipoNuevoEsOtro && d.imei) {
         try {
-          const repDocs = await fbQuery('reposiciones', 'imei_vendido_mal', '==', d.imei.toString().trim());
+          const imeiStr = d.imei.toString().trim();
+          // Buscar por imei_vendido_mal
+          let repDocs = await fbQuery('reposiciones', 'imei_vendido_mal', '==', imeiStr);
+          // Si no encuentra, buscar también sin espacios
+          if(!repDocs.length) repDocs = await fbQuery('reposiciones', 'imei_vendido_mal', '==', imeiStr.replace(/\s/g,''));
           const repPendiente = repDocs.find(r => r.estado === 'PENDIENTE');
           if(repPendiente) {
             await fbDelete('reposiciones', repPendiente.id);
             mostrarToastVerde('✅ Registro actualizado y reposición eliminada');
           } else {
-            mostrarToastVerde('✅ Registro actualizado');
+            // Buscar todas las reposiciones pendientes de esa referencia
+            const repRef = await fbQuery('reposiciones', 'referencia', '==', d.referencia||'');
+            const repRef2 = repRef.find(r => r.estado === 'PENDIENTE' && r.imei_vendido_mal?.toString().trim() === imeiStr);
+            if(repRef2) {
+              await fbDelete('reposiciones', repRef2.id);
+              mostrarToastVerde('✅ Registro actualizado y reposición eliminada');
+            } else {
+              mostrarToastVerde('✅ Registro actualizado');
+            }
           }
-        } catch(e2) { mostrarToastVerde('✅ Registro actualizado'); }
+        } catch(e2) { console.error('Error eliminando reposición:', e2); mostrarToastVerde('✅ Registro actualizado'); }
       } else {
         mostrarToastVerde('✅ Registro actualizado');
       }
