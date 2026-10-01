@@ -2515,7 +2515,7 @@ function corregirEditar(idx) {
       ? FINANCIERAS
       : [];
     if(opcionesTipo.length) {
-      campos.push({key:'tipo', label:'Tipo / Financiera', val:d.tipo||'', type:'select', options:opcionesTipo});
+      campos.push({key: esCredito ? 'tipo_venta' : 'tipo', label:'Tipo / Financiera', val: esCredito ? (d.tipo_venta||d.tipo||'') : (d.tipo||''), type:'select', options:opcionesTipo});
     } else {
       campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'text'});
     }
@@ -2584,10 +2584,12 @@ async function corregirGuardar(tipo, id, idx) {
     await fbUpdate(tipo, id, updates);
 
     // Si es venta crédito y cambió el tipo — revisar si hay que eliminar reposición
-    if(tipo === 'ventas_creditos' && updates.tipo && d.tipo !== updates.tipo) {
+    if(tipo === 'ventas_creditos' && (updates.tipo || updates.tipo_venta) && (d.tipo !== updates.tipo || d.tipo_venta !== updates.tipo_venta)) {
       const FINANCIERAS_OTRAS = ['ET_CLARO','ET_OFICINA','PAYJOY','ADDI'];
-      const tipoAnteriorEraOtro = FINANCIERAS_OTRAS.includes(d.tipo);
-      const tipoNuevoEsOtro = FINANCIERAS_OTRAS.includes(updates.tipo);
+      const tipoAnterior = d.tipo_venta || d.tipo || '';
+      const tipoNuevo = updates.tipo_venta || updates.tipo || '';
+      const tipoAnteriorEraOtro = FINANCIERAS_OTRAS.includes(tipoAnterior);
+      const tipoNuevoEsOtro = FINANCIERAS_OTRAS.includes(tipoNuevo);
       // Si antes requería reposición y ahora no
       if(tipoAnteriorEraOtro && !tipoNuevoEsOtro && d.imei) {
         try {
