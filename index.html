@@ -281,7 +281,6 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div class="divider"></div>
     <p class="sec-titulo">Control</p>
-    <button class="btn-menu" onclick="recalcularUtilidadesEtClaro()"><div class="btn-icon" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white;font-size:20px;">🔧</div><div class="btn-info"><div class="btn-titulo">Recalcular ET CLARO</div><div class="btn-sub">Corregir utilidades con costo real</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="irA('control-deudas')"><div class="btn-icon naranja">🏦</div><div class="btn-info"><div class="btn-titulo">Control de Deudas</div><div class="btn-sub">Registrar · Abonar · Ver saldos</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarLiquidaciones();irA('liquidaciones')"><div class="btn-icon naranja">💱</div><div class="btn-info"><div class="btn-titulo">Liquidaciones</div><div class="btn-sub">ET Claro · PAYJOY · ADDI · ALO CREDIT</div></div><span class="btn-arrow">›</span></button>
     <button class="btn-menu" onclick="cargarVentasIphone();irA('gerencia-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">iPhone</div><div class="btn-sub">Completar ventas · Calcular utilidades</div></div><span class="btn-arrow">›</span></button>
@@ -3070,6 +3069,7 @@ async function cargarReposiciones() {
       const color = esMio ? '#b45309' : '#0369a1';
       const bg = esMio ? '#fffbeb' : '#eff6ff';
       const label = esMio ? '📤 Mío en Oficina' : '📥 Oficina en Otro';
+      const costoEst = d.costo_estimado ? '$'+parseFloat(d.costo_estimado).toLocaleString('es-CO') : '';
       return `
         <div style="background:${bg};border-radius:12px;padding:14px;margin-bottom:10px;border-left:4px solid ${color};">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -3082,6 +3082,17 @@ async function cargarReposiciones() {
               </div>
               ${d.imei_reposicion ? `<div style="font-size:12px;margin-top:4px;"><span style="background:white;border-radius:6px;padding:2px 6px;font-weight:700;">IMEI reposición: ${d.imei_reposicion}</span></div>` : '<div style="font-size:11px;color:#dc2626;margin-top:4px;font-weight:700;">⚠️ Sin IMEI de reposición aún</div>'}
               ${d.observacion ? `<div style="font-size:12px;color:#64748b;font-style:italic;margin-top:4px;">${d.observacion}</div>` : ''}
+              ${!esMio && d.estado === 'PENDIENTE' ? `
+                <div style="margin-top:8px;display:flex;align-items:center;gap:6px;">
+                  <span style="font-size:11px;color:#64748b;font-weight:700;">💰 Costo estimado:</span>
+                  <input type="text" id="costo-est-${d.id}" value="${costoEst}" placeholder="$0" 
+                    style="flex:1;padding:5px 8px;border:2px solid #e2e8f0;border-radius:6px;font-size:12px;"
+                    oninput="formatMoney(this)">
+                  <button onclick="guardarCostoEstimado('${d.id}','${d.imei_vendido_mal}')" 
+                    style="background:#0369a1;color:white;border:none;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;">💾</button>
+                </div>
+                ${d.costo_estimado ? `<div style="font-size:11px;color:#0369a1;margin-top:4px;font-weight:700;">✅ Costo estimado guardado: ${costoEst}</div>` : '<div style="font-size:11px;color:#dc2626;margin-top:4px;">⚠️ Sin costo estimado — utilidad puede estar inflada</div>'}
+              ` : ''}
             </div>
             <div style="display:flex;flex-direction:column;gap:6px;">
               ${!d.imei_reposicion ? `<button onclick="agregarImeiReposicion('${d.id}')" style="background:#1d4ed8;color:white;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:11px;font-weight:700;">➕ IMEI</button>` : ''}
@@ -3098,6 +3109,28 @@ async function cargarReposiciones() {
     document.getElementById('rep-loading').style.display = 'none';
     lista.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
+}
+
+async function guardarCostoEstimado(repId, imeiVendido) {
+  const input = document.getElementById('costo-est-'+repId);
+  if(!input) return;
+  const costo = parseInt((input.value||'').replace(/[^0-9]/g,''))||0;
+  if(!costo) { alert('⚠️ Ingresa un costo válido'); return; }
+  try {
+    // Guardar costo estimado en reposición
+    await fbUpdate('reposiciones', repId, { costo_estimado: costo });
+    // Recalcular utilidad de la venta original con este costo
+    const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', imeiVendido.toString().trim());
+    const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
+    if(venta) {
+      const cuotaNeta = parseFloat(venta.cuota_neta)||0;
+      const pagoFin = parseFloat(venta.pago_financiera)||0;
+      const nuevaUtil = cuotaNeta + pagoFin - costo;
+      await fbUpdate('ventas_creditos', venta.id, { costo, utilidad: Math.round(nuevaUtil) });
+    }
+    mostrarToastVerde('✅ Costo estimado guardado y utilidad recalculada');
+    cargarReposiciones();
+  } catch(e) { alert('❌ Error: ' + e.message); }
 }
 
 async function agregarImeiReposicion(id) {
