@@ -1912,7 +1912,8 @@ async function cargarTodo() {
         imei, ref: d.referencia||'', costo: parseFloat(d.costo)||0,
         estado, precio: parseFloat(d.precio_venta)||0,
         ubicacion: d.ubicacion||'', tipo_venta: d.tipo_venta||'',
-        proveedor: d.proveedor||'', id: d.id
+        proveedor: d.proveedor||'', id: d.id,
+        fecha_ingreso: d.fecha_ingreso||''
       };
       window.IMEIS_TODOS_CON_ESTADO[imei] = obj;
       if(estado === 'DISPONIBLE') {
@@ -2506,8 +2507,8 @@ function corregirEditar(idx) {
   const FINANCIERAS = ['OFICINA','RECOMPRA','ALO_CREDIT','ET_OFICINA','ET_CLARO','PAYJOY','ADDI'];
   const ESTADOS_TEL = ['DISPONIBLE','VENDIDO','EN GARANTIA','PRESTADO','ANULADO'];
 
-  if(d.tipo !== undefined) {
-    const opcionesTipo = esEgreso 
+  if(d.tipo !== undefined || esCredito) {
+    const opcionesTipo = esEgreso
       ? ['OPERATIVO','INVERSION','PAGO DEUDA']
       : esIngreso
       ? ['PAGO DE PROVEEDOR','PRESTAMO RECIBIDO','INGRESO FINANCIERA','OTROS']
@@ -2516,7 +2517,7 @@ function corregirEditar(idx) {
       : [];
     if(opcionesTipo.length) {
       campos.push({key: esCredito ? 'tipo_venta' : 'tipo', label:'Tipo / Financiera', val: esCredito ? (d.tipo_venta||d.tipo||'') : (d.tipo||''), type:'select', options:opcionesTipo});
-    } else {
+    } else if(d.tipo !== undefined) {
       campos.push({key:'tipo', label:'Tipo', val:d.tipo||'', type:'text'});
     }
   }
@@ -4970,6 +4971,7 @@ function renderInventario() {
             <div style="font-size:12px;color:#64748b;margin:2px 0;">IMEI: ${i.imei}</div>
             ${i.ubicacion ? `<div style="font-size:12px;color:#64748b;">📍 ${i.ubicacion}</div>` : ''}
             ${i.proveedor ? `<div style="font-size:12px;color:#64748b;">🏢 ${i.proveedor}</div>` : ''}
+            ${i.fecha_ingreso ? `<div style="font-size:12px;color:#64748b;">📅 Ingreso: <b>${i.fecha_ingreso}</b></div>` : ''}
             <div style="display:flex;gap:16px;margin-top:6px;font-size:13px;flex-wrap:wrap;">
               <span>💰 Costo: <b>$${(i.costo||0).toLocaleString('es-CO')}</b></span>
               <span>🏷️ Venta: <b style="color:${i.precio>0?'#16a34a':'#dc2626'};">${i.precio>0?'$'+i.precio.toLocaleString('es-CO'):'Sin precio'}</b></span>
