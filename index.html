@@ -890,9 +890,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <!-- Tabs -->
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button onclick="setTabIphone('pendientes')" id="tab-iphone-pend" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Crédito Pend.</button>
+      <button onclick="setTabIphone('pendientes')" id="tab-iphone-pend" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pend.</button>
       <button onclick="setTabIphone('completas')" id="tab-iphone-comp" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:white;color:#1a1a2e;font-weight:700;cursor:pointer;font-size:13px;">✅ Completas</button>
       <button onclick="setTabIphone('contado')" id="tab-iphone-cont" style="flex:1;padding:10px;border-radius:10px;border:2px solid #15803d;background:white;color:#15803d;font-weight:700;cursor:pointer;font-size:13px;">💵 Contado</button>
+      <button onclick="setTabIphone('mes')" id="tab-iphone-mes" style="flex:1;padding:10px;border-radius:10px;border:2px solid #be123c;background:white;color:#be123c;font-weight:700;cursor:pointer;font-size:13px;">📅 Por Mes</button>
     </div>
     <div id="iphone-lista"></div>
 
@@ -977,10 +978,11 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 <div class="screen" id="screen-liquidaciones">
   <div class="form-header" style="background:linear-gradient(135deg,#b45309,#d97706)"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">💱 Liquidaciones</div><div class="form-header-sub">Completa el valor que paga la financiera</div></div></div>
   <div class="form-body">
-    <!-- Tabs pendientes / completadas -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button id="liq-tab-pend" onclick="tabLiquidaciones('pendientes')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:#d97706;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pendientes</button>
-      <button id="liq-tab-comp" onclick="tabLiquidaciones('completadas')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:13px;">✅ Completadas</button>
+    <!-- Tabs pendientes / completadas / por mes -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button id="liq-tab-pend" onclick="tabLiquidaciones('pendientes')" style="flex:1;min-width:40%;padding:10px;border-radius:10px;border:2px solid #d97706;background:#d97706;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pendientes</button>
+      <button id="liq-tab-comp" onclick="tabLiquidaciones('completadas')" style="flex:1;min-width:40%;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:13px;">✅ Completadas</button>
+      <button id="liq-tab-mes" onclick="tabLiquidaciones('mes')" style="flex:1;min-width:40%;padding:10px;border-radius:10px;border:2px solid #d97706;background:white;color:#d97706;font-weight:700;cursor:pointer;font-size:13px;">📅 Por Mes</button>
     </div>
     <div id="liq-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;">⏳ Cargando ventas...</div>
     <div id="liq-lista"></div>
@@ -1135,10 +1137,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div id="rep-mensual-contenido"></div>
       </div>
       <div id="men-bloque-actividad" style="display:none;">
-        <!-- Sub-tabs crédito / iPhone -->
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-          <button id="men-act-tab-cred" onclick="menActTab('cred')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1d4ed8;background:#1d4ed8;color:white;font-weight:700;font-size:12px;cursor:pointer;">📱 Créditos</button>
-          <button id="men-act-tab-iph" onclick="menActTab('iph')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #4338ca;background:white;color:#4338ca;font-weight:700;font-size:12px;cursor:pointer;">🍎 iPhone</button>
+        <!-- Leyenda combinada -->
+        <div style="display:flex;gap:8px;margin-bottom:10px;font-size:11px;flex-wrap:wrap;">
+          <span style="background:#dbeafe;color:#1d4ed8;border-radius:6px;padding:3px 8px;font-weight:700;">📱 Fila superior = Créditos</span>
+          <span style="background:#ede9fe;color:#4338ca;border-radius:6px;padding:3px 8px;font-weight:700;">🍎 Fila inferior = iPhone</span>
         </div>
         <!-- Filtros actividad -->
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
@@ -2530,17 +2532,36 @@ function corregirEditar(idx) {
   // Campos editables según tipo
   const campos = [];
   const col = window._corrTipo || '';
-  const esEgreso = col === 'egresos_gerencia';
-  const esIngreso = col === 'ingresos_gerencia';
-  const esCredito = col === 'ventas_creditos';
-  const esGasto = col === 'gastos_diarios';
+  const esEgreso   = col === 'egresos_gerencia';
+  const esIngreso  = col === 'ingresos_gerencia';
+  const esCredito  = col === 'ventas_creditos';
+  const esGasto    = col === 'gastos_diarios';
+  const esIphone   = col === 'ventas_iphone';
   const LOCALES_OPC = window.CONFIG_LISTAS?.locales || [];
   const LOCALES_CON_GENERAL = ['GENERAL', ...LOCALES_OPC];
   const RESPONSABLES = window.CONFIG_LISTAS?.responsables || [];
   const METODOS_PAGO = ['EFECTIVO','TRANSFERENCIA','MIXTO'];
   const FINANCIERAS = ['OFICINA','RECOMPRA','ALO_CREDIT','ET_OFICINA','ET_CLARO','PAYJOY','ADDI'];
+  const FINANCIERAS_IPHONE = ['CONTADO','MOVISIM','COMTEL','ALO_CREDIT','E_CREDIT','PAYJOY','ADDI','OTRO'];
   const ESTADOS_TEL = ['DISPONIBLE','VENDIDO','EN GARANTIA','PRESTADO','ANULADO'];
+  const ESTADOS_IPHONE = ['PENDIENTE','COMPLETA','ANULADO'];
 
+  // ── ventas_iphone: solo campos que se necesitan corregir ──
+  if(esIphone) {
+    campos.push({key:'fecha',         label:'Fecha',          val:d.fecha||'',           type:'date'});
+    campos.push({key:'local',         label:'Local',          val:d.local||'',           type:'select', options:LOCALES_OPC});
+    campos.push({key:'referencia',    label:'Referencia',     val:d.referencia||'',      type:'text'});
+    campos.push({key:'financiera',    label:'Financiera',     val:d.financiera||'',      type:'select', options:FINANCIERAS_IPHONE});
+    campos.push({key:'imei',          label:'IMEI',           val:d.imei||'',            type:'text'});
+    campos.push({key:'cuota_inicial', label:'Cuota inicial',  val:d.cuota_inicial||0,    type:'number'});
+    campos.push({key:'cedula',        label:'Cédula cliente', val:d.cedula||'',          type:'text'});
+    campos.push({key:'nombre',        label:'Nombre cliente', val:d.nombre||'',          type:'text'});
+    campos.push({key:'costo',         label:'Costo',          val:d.costo||0,            type:'number'});
+    campos.push({key:'estado',        label:'Estado',         val:d.estado||'PENDIENTE', type:'select', options:ESTADOS_IPHONE});
+    campos.push({key:'liquidado',     label:'Liquidado',      val:d.liquidado||'NO',     type:'select', options:['NO','SI']});
+    campos.push({key:'pago_financiera',label:'Pago financiera',val:d.pago_financiera||0, type:'number'});
+  } else {
+  // ── otros tipos ──
   if(d.tipo !== undefined || esCredito) {
     const opcionesTipo = esEgreso
       ? ['OPERATIVO','INVERSION','PAGO DEUDA']
@@ -2578,6 +2599,7 @@ function corregirEditar(idx) {
   if(d.responsable !== undefined) campos.push({key:'responsable', label:'Responsable', val:d.responsable||'', type:'select', options:RESPONSABLES});
   if(d.precio !== undefined) campos.push({key:'precio', label:'Precio', val:d.precio||0, type:'number'});
   if(d.total !== undefined) campos.push({key:'total', label:'Total', val:d.total||0, type:'number'});
+  } // fin else (no es iPhone)
 
   const modal = document.createElement('div');
   modal.id = 'modal-corregir-editar';
@@ -7308,15 +7330,18 @@ async function generarReporteUtilIphone(formato) {
 
 function setTabIphone(tab) {
   iphoneTabActual = tab;
-  ['pendientes','completas','contado'].forEach(t => {
-    const ids = { pendientes:'tab-iphone-pend', completas:'tab-iphone-comp', contado:'tab-iphone-cont' };
-    const colors = { pendientes:'#1a1a2e', completas:'#1a1a2e', contado:'#15803d' };
+  ['pendientes','completas','contado','mes'].forEach(t => {
+    const ids = { pendientes:'tab-iphone-pend', completas:'tab-iphone-comp', contado:'tab-iphone-cont', mes:'tab-iphone-mes' };
+    const colors = { pendientes:'#1a1a2e', completas:'#1a1a2e', contado:'#15803d', mes:'#be123c' };
     const btn = document.getElementById(ids[t]);
     if(!btn) return;
     btn.style.background = t === tab ? colors[t] : 'white';
     btn.style.color = t === tab ? 'white' : colors[t];
     btn.style.borderColor = colors[t];
   });
+  // Ocultar/mostrar resumen de utilidades según pestaña
+  const resumen = document.getElementById('iphone-resumen-util');
+  if(resumen) resumen.style.display = (tab === 'completas' || tab === 'mes') ? '' : 'none';
   renderListaIphone();
 }
 
@@ -7351,6 +7376,77 @@ function renderListaIphone() {
   const lista = document.getElementById('iphone-lista');
   if(!lista) return;
   const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+
+  // === PESTAÑA POR MES ===
+  if(iphoneTabActual === 'mes') {
+    const completadas = iphoneVentas.filter(v => v.estado === 'COMPLETA' && v.liquidado === 'SI');
+    if(completadas.length === 0) {
+      lista.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;">No hay liquidaciones completas de iPhone</div>';
+      return;
+    }
+    // Agrupar por mes
+    const porMes = {};
+    completadas.forEach(v => {
+      const mes = v.fecha ? v.fecha.substring(0,7) : 'Sin fecha';
+      if(!porMes[mes]) porMes[mes] = {};
+      const fin = v.financiera || 'SIN FINANCIERA';
+      if(!porMes[mes][fin]) porMes[mes][fin] = { ventas: [], totalUtil: 0, totalPago: 0 };
+      porMes[mes][fin].ventas.push(v);
+      porMes[mes][fin].totalUtil += v.utilNeta;
+      porMes[mes][fin].totalPago += v.pagoFinanciera;
+    });
+    const meses = Object.keys(porMes).sort().reverse();
+    const MESES_ES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    lista.innerHTML = meses.map(mes => {
+      const [anio, numMes] = mes.split('-');
+      const label = mes !== 'Sin fecha' ? `${MESES_ES[parseInt(numMes)]} ${anio}` : 'Sin fecha';
+      const financieras = Object.keys(porMes[mes]).sort();
+      const totalMesUtil = financieras.reduce((s,f) => s + porMes[mes][f].totalUtil, 0);
+      const totalMesPago = financieras.reduce((s,f) => s + porMes[mes][f].totalPago, 0);
+      const totalMesVentas = financieras.reduce((s,f) => s + porMes[mes][f].ventas.length, 0);
+      return `
+        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #fce7f3;">
+            <div style="font-size:15px;font-weight:800;color:#be123c;">📅 ${label}</div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:#64748b;">${totalMesVentas} ventas</div>
+              <div style="font-size:13px;font-weight:700;color:#16a34a;">${fmt(totalMesUtil)}</div>
+            </div>
+          </div>
+          ${financieras.map(fin => {
+            const g = porMes[mes][fin];
+            return `
+              <div style="margin-bottom:8px;padding:8px;background:#fdf2f8;border-radius:8px;border-left:3px solid #be123c;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:13px;font-weight:700;color:#be123c;">🍎 ${fin}</div>
+                  <div style="font-size:12px;color:#64748b;">${g.ventas.length} venta${g.ventas.length!==1?'s':''}</div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:12px;">
+                  <span>Pago financiera: <b>${fmt(g.totalPago)}</b></span>
+                  <span>Utilidad neta: <b style="color:#16a34a;">${fmt(g.totalUtil)}</b></span>
+                </div>
+                <details style="margin-top:6px;">
+                  <summary style="font-size:11px;color:#64748b;cursor:pointer;">Ver ${g.ventas.length} venta${g.ventas.length!==1?'s':''}</summary>
+                  ${g.ventas.map(v => `
+                    <div style="margin-top:4px;padding:6px;background:white;border-radius:6px;font-size:11px;">
+                      <b>${v.ref||'Sin ref'}</b> · ${v.fecha} · ${v.local}
+                      <span style="float:right;color:#16a34a;font-weight:700;">${fmt(v.utilNeta)}</span>
+                    </div>
+                  `).join('')}
+                </details>
+              </div>
+            `;
+          }).join('')}
+          <div style="text-align:right;padding-top:6px;font-size:12px;color:#64748b;">
+            Total pago financieras: <b>${fmt(totalMesPago)}</b> · Util total: <b style="color:#16a34a;">${fmt(totalMesUtil)}</b>
+          </div>
+        </div>
+      `;
+    }).join('');
+    return;
+  }
+
+  // === PESTAÑAS NORMALES ===
   const filtradas = iphoneVentas.filter(v => {
     if(iphoneTabActual === 'pendientes') return v.estado === 'PENDIENTE' && v.financiera !== 'CONTADO';
     if(iphoneTabActual === 'completas') return v.estado === 'COMPLETA' && v.financiera !== 'CONTADO';
@@ -7698,10 +7794,13 @@ async function cargarLiquidaciones() {
 
 function tabLiquidaciones(tab) {
   liqTabActual = tab;
-  document.getElementById('liq-tab-pend').style.background = tab==='pendientes' ? '#d97706' : 'white';
-  document.getElementById('liq-tab-pend').style.color = tab==='pendientes' ? 'white' : '#d97706';
-  document.getElementById('liq-tab-comp').style.background = tab==='completadas' ? '#d97706' : 'white';
-  document.getElementById('liq-tab-comp').style.color = tab==='completadas' ? 'white' : '#d97706';
+  ['pendientes','completadas','mes'].forEach(t => {
+    const btn = document.getElementById('liq-tab-'+t.substring(0,4));
+    if(!btn) return;
+    const activo = t === tab;
+    btn.style.background = activo ? '#d97706' : 'white';
+    btn.style.color      = activo ? 'white'   : '#d97706';
+  });
   renderLiquidaciones();
 }
 
@@ -7743,7 +7842,6 @@ function renderLiquidaciones() {
       return;
     }
     lista.innerHTML = liqCompletadas.map((v,i) => {
-      // Convertir fecha si viene como número de Excel
       let fechaStr = v.fecha || '';
       if(typeof v.fecha === 'number') {
         const d = new Date(Math.round((v.fecha - 25569) * 86400 * 1000));
@@ -7766,6 +7864,61 @@ function renderLiquidaciones() {
         </div>
       </div>
     `}).join('');
+  } else {
+    // POR MES — agrupar completadas por mes
+    if(!liqCompletadas.length) {
+      lista.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:700;">No hay liquidaciones completadas aún</div>';
+      return;
+    }
+    const colorTipo2 = {ET_CLARO:'#0369a1',PAYJOY:'#5b21b6',ADDI:'#16a34a',ET_OFICINA:'#d97706',ALO_CREDIT:'#b45309'};
+    const nombreMesLiq = m => {
+      const [y,mo] = m.split('-');
+      const n = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      return `${n[parseInt(mo)]} ${y}`;
+    };
+    // Agrupar por mes
+    const porMes = {};
+    liqCompletadas.forEach(v => {
+      let fecha = v.fecha || v.fechaAct || '';
+      if(typeof fecha === 'number') {
+        const d = new Date(Math.round((fecha - 25569)*86400*1000));
+        d.setMinutes(d.getMinutes()+d.getTimezoneOffset());
+        fecha = d.toISOString().substring(0,10);
+      }
+      const mes = (fecha||'').substring(0,7) || 'Sin fecha';
+      if(!porMes[mes]) porMes[mes] = [];
+      porMes[mes].push(v);
+    });
+    const mesesOrden = Object.keys(porMes).sort().reverse();
+    let html = '';
+    mesesOrden.forEach(mes => {
+      const items = porMes[mes];
+      // Agrupar por financiera dentro del mes
+      const porFin = {};
+      items.forEach(v => {
+        const fin = v.tipo || 'OTRA';
+        if(!porFin[fin]) porFin[fin] = {count:0, total:0};
+        porFin[fin].count++;
+        porFin[fin].total += parseFloat(v.pagoFinanciera)||0;
+      });
+      const totalMes = items.reduce((s,v) => s+(parseFloat(v.pagoFinanciera)||0), 0);
+      html += `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-weight:800;font-size:15px;color:#b45309;">📅 ${mes==='Sin fecha'?'Sin fecha':nombreMesLiq(mes)}</div>
+          <div style="font-size:13px;font-weight:700;color:#16a34a;">${items.length} liq · $${Math.round(totalMes).toLocaleString('es-CO')}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${Object.entries(porFin).sort((a,b)=>b[1].count-a[1].count).map(([fin,info]) => `
+            <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;flex:1;min-width:120px;">
+              <div style="font-size:11px;font-weight:800;color:${colorTipo2[fin]||'#b45309'};">${fin.replace('_',' ')}</div>
+              <div style="font-size:16px;font-weight:800;color:#1e293b;">${info.count}</div>
+              <div style="font-size:11px;color:#64748b;">$${Math.round(info.total).toLocaleString('es-CO')}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    });
+    lista.innerHTML = html;
   }
 }
 
@@ -9617,15 +9770,8 @@ async function buscarPorImei() {
   }
 }
 
-let _menActTipoActual = 'cred';
-function menActTab(tipo) {
-  _menActTipoActual = tipo;
-  document.getElementById('men-act-tab-cred').style.background = tipo==='cred' ? '#1d4ed8' : 'white';
-  document.getElementById('men-act-tab-cred').style.color      = tipo==='cred' ? 'white'   : '#1d4ed8';
-  document.getElementById('men-act-tab-iph').style.background  = tipo==='iph'  ? '#4338ca' : 'white';
-  document.getElementById('men-act-tab-iph').style.color       = tipo==='iph'  ? 'white'   : '#4338ca';
-  cargarActividadLocal();
-}
+// menActTab se mantiene por compatibilidad pero ya no se usa con botones
+function menActTab(tipo) { cargarActividadLocal(); }
 
 function menTab(tab) {
   document.getElementById('men-bloque-resumen').style.display  = tab==='resumen'   ? 'block' : 'none';
@@ -9646,27 +9792,28 @@ async function cargarActividadLocal() {
   contenido.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">⏳ Cargando...</div>';
 
   try {
-    const esIphone = _menActTipoActual === 'iph';
-    const coleccion = esIphone ? 'ventas_iphone' : 'ventas_creditos';
-    const registros = await fbGetAll(coleccion);
-    const colorPrincipal = esIphone ? '#4338ca' : '#1d4ed8';
+    // Cargar ambas colecciones en paralelo
+    const [regCreditos, regIphone] = await Promise.all([
+      fbGetAll('ventas_creditos'),
+      fbGetAll('ventas_iphone')
+    ]);
 
-    // Poblar selector de mes
+    // Poblar selector de mes (unión de ambas colecciones)
     selMes.innerHTML = '';
     const mesesSet = new Set();
-    registros.forEach(d => { if(d.fecha) mesesSet.add(d.fecha.substring(0,7)); });
+    [...regCreditos, ...regIphone].forEach(d => { if(d.fecha) mesesSet.add(d.fecha.substring(0,7)); });
+    const MESES_ES = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     [...mesesSet].sort().reverse().forEach(m => {
       const [y,mo] = m.split('-');
-      const nombres = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
       const opt = document.createElement('option');
-      opt.value = m; opt.textContent = `${nombres[parseInt(mo)]} ${y}`;
+      opt.value = m; opt.textContent = `${MESES_ES[parseInt(mo)]} ${y}`;
       selMes.appendChild(opt);
     });
 
-    // Poblar selector de local
+    // Poblar selector de local (unión)
     selLocal.innerHTML = '<option value="">Todos los locales</option>';
     const localesSet = new Set();
-    registros.forEach(d => { if(d.local) localesSet.add(d.local); });
+    [...regCreditos, ...regIphone].forEach(d => { if(d.local) localesSet.add(d.local); });
     [...localesSet].sort().forEach(l => {
       const opt = document.createElement('option');
       opt.value = l; opt.textContent = l;
@@ -9677,76 +9824,110 @@ async function cargarActividadLocal() {
     const localFiltro = selLocal.value;
     if(!mesActual) { contenido.innerHTML = ''; return; }
 
-    // Filtrar registros del mes
-    const registrosMes = registros.filter(d => d.fecha && d.fecha.startsWith(mesActual));
+    // Filtrar por mes
+    const credMes = regCreditos.filter(d => d.fecha && d.fecha.startsWith(mesActual));
+    const iphMes  = regIphone.filter(d => d.fecha && d.fecha.startsWith(mesActual));
 
-    // Determinar locales a mostrar
-    const locales = localFiltro
+    // Determinar locales a mostrar (unión de ambas)
+    const localesCred = new Set(credMes.map(d => d.local).filter(Boolean));
+    const localesIph  = new Set(iphMes.map(d => d.local).filter(Boolean));
+    const todosLocales = localFiltro
       ? [localFiltro]
-      : [...new Set(registrosMes.map(d => d.local).filter(Boolean))].sort();
+      : [...new Set([...localesCred, ...localesIph])].sort();
 
     // Calcular días del mes
     const [y, mo] = mesActual.split('-').map(Number);
     const diasEnMes = new Date(y, mo, 0).getDate();
     const hoy = new Date().toISOString().substring(0,10);
 
-    // Agrupar por local → fecha → count
-    const conteo = {};
-    registrosMes.forEach(d => {
+    // Agrupar por local → fecha → count  para cada colección
+    const conteoCred = {};
+    credMes.forEach(d => {
       if(!d.local || !d.fecha) return;
-      if(!conteo[d.local]) conteo[d.local] = {};
-      conteo[d.local][d.fecha] = (conteo[d.local][d.fecha]||0) + 1;
+      if(!conteoCred[d.local]) conteoCred[d.local] = {};
+      conteoCred[d.local][d.fecha] = (conteoCred[d.local][d.fecha]||0) + 1;
+    });
+    const conteoIph = {};
+    iphMes.forEach(d => {
+      if(!d.local || !d.fecha) return;
+      if(!conteoIph[d.local]) conteoIph[d.local] = {};
+      conteoIph[d.local][d.fecha] = (conteoIph[d.local][d.fecha]||0) + 1;
     });
 
+    // Helper para color de una celda
+    const celdaColor = (cnt, tipo) => {
+      if(tipo === 'cred') {
+        if(cnt === 0) return { bg:'#fee2e2', color:'#dc2626' };
+        if(cnt >= 3)  return { bg:'#dcfce7', color:'#15803d' };
+        if(cnt >= 2)  return { bg:'#bfdbfe', color:'#1d4ed8' };
+        return { bg:'#dbeafe', color:'#1d4ed8' };
+      } else {
+        if(cnt === 0) return { bg:'#f3f4f6', color:'#9ca3af' };
+        if(cnt >= 3)  return { bg:'#ddd6fe', color:'#4338ca' };
+        if(cnt >= 2)  return { bg:'#e9d5ff', color:'#7c3aed' };
+        return { bg:'#ede9fe', color:'#4338ca' };
+      }
+    };
+
     let html = '';
-    locales.forEach(local => {
-      const datos = conteo[local] || {};
-      let diasSinVenta = 0;
-      let diasConVenta = 0;
-      let totalVentas = 0;
+    todosLocales.forEach(local => {
+      const datosCred = conteoCred[local] || {};
+      const datosIph  = conteoIph[local]  || {};
+
+      let diasSinAmbos = 0, diasConCred = 0, diasConIph = 0;
+      let totalCred = 0, totalIph = 0;
       let secuencia = '';
 
       for(let dia = 1; dia <= diasEnMes; dia++) {
         const fechaDia = `${mesActual}-${String(dia).padStart(2,'0')}`;
-        if(fechaDia > hoy) break; // No mostrar días futuros
-        const cnt = datos[fechaDia] || 0;
-        totalVentas += cnt;
-        if(cnt === 0) { diasSinVenta++; }
-        else { diasConVenta++; }
+        if(fechaDia > hoy) break;
+        const cCred = datosCred[fechaDia] || 0;
+        const cIph  = datosIph[fechaDia]  || 0;
+        totalCred += cCred;
+        totalIph  += cIph;
+        if(cCred === 0 && cIph === 0) diasSinAmbos++;
+        if(cCred > 0) diasConCred++;
+        if(cIph  > 0) diasConIph++;
 
-        const color = cnt === 0 ? '#dc2626' : cnt >= 3 ? '#15803d' : cnt >= 2 ? '#0891b2' : '#16a34a';
-        const bg    = cnt === 0 ? '#fee2e2' : cnt >= 3 ? '#dcfce7' : cnt >= 2 ? '#e0f2fe' : '#f0fdf4';
-        secuencia += `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:2px;min-width:32px;">
-          <div style="background:${bg};color:${color};border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">${cnt}</div>
-          <div style="font-size:9px;color:#94a3b8;margin-top:1px;">${dia}</div>
-        </div>`;
+        const colC = celdaColor(cCred, 'cred');
+        const colI = celdaColor(cIph,  'iph');
+        secuencia += `
+          <div style="display:inline-flex;flex-direction:column;align-items:center;margin:2px;min-width:32px;">
+            <div title="📱 Créditos: ${cCred}" style="background:${colC.bg};color:${colC.color};border-radius:5px 5px 1px 1px;width:30px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;">${cCred}</div>
+            <div title="🍎 iPhone: ${cIph}" style="background:${colI.bg};color:${colI.color};border-radius:1px 1px 5px 5px;width:30px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;">${cIph}</div>
+            <div style="font-size:9px;color:#94a3b8;margin-top:1px;">${dia}</div>
+          </div>`;
       }
 
-      const pctSin = diasConVenta+diasSinVenta > 0 ? Math.round(diasSinVenta/(diasConVenta+diasSinVenta)*100) : 0;
-      const alertColor = pctSin >= 50 ? '#dc2626' : pctSin >= 30 ? '#d97706' : '#15803d';
-      const labelVenta = esIphone ? 'iPhone' : 'créditos';
+      const diasVistosTotal = diasConCred + (diasSinAmbos > 0 ? diasSinAmbos : 0);
+      const diasVistos = Object.keys({...datosCred,...datosIph}).filter(f => f.startsWith(mesActual) && f <= hoy).length + diasSinAmbos;
+      // días transcurridos
+      let diasTranscurridos = 0;
+      for(let d=1;d<=diasEnMes;d++){const f=`${mesActual}-${String(d).padStart(2,'0')}`;if(f<=hoy)diasTranscurridos++;}
+      const pctSinCred = diasTranscurridos > 0 ? Math.round((diasTranscurridos - diasConCred) / diasTranscurridos * 100) : 0;
+      const alertColor = pctSinCred >= 50 ? '#dc2626' : pctSinCred >= 30 ? '#d97706' : '#15803d';
 
-      html += `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-weight:800;font-size:15px;color:#1e293b;">📍 ${local}</div>
-          <div style="font-size:12px;font-weight:700;color:${alertColor};">${diasSinVenta} días sin vender (${pctSin}%)</div>
-        </div>
-        <div style="display:flex;gap:12px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;">
-          <span>✅ Días activos: <b style="color:#15803d;">${diasConVenta}</b></span>
-          <span>🔴 Días en cero: <b style="color:#dc2626;">${diasSinVenta}</b></span>
-          <span style="color:${colorPrincipal};">📱 Total ${labelVenta}: <b>${totalVentas}</b></span>
-          <span>📊 Promedio/día activo: <b>${diasConVenta>0?(totalVentas/diasConVenta).toFixed(1):0}</b></span>
-        </div>
-        <div style="overflow-x:auto;padding:4px 0;">
-          <div style="display:flex;flex-wrap:wrap;gap:0;">${secuencia}</div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;flex-wrap:wrap;">
-          <span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 6px;font-weight:700;">0 = Sin venta</span>
-          <span style="background:#f0fdf4;color:#16a34a;border-radius:4px;padding:2px 6px;font-weight:700;">1 = 1 venta</span>
-          <span style="background:#e0f2fe;color:#0891b2;border-radius:4px;padding:2px 6px;font-weight:700;">2 = 2 ventas</span>
-          <span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 6px;font-weight:700;">3+ = Excelente</span>
-        </div>
-      </div>`;
+      html += `
+        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-weight:800;font-size:15px;color:#1e293b;">📍 ${local}</div>
+            <div style="font-size:12px;font-weight:700;color:${alertColor};">${diasTranscurridos - diasConCred} días sin crédito (${pctSinCred}%)</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;">
+            <span style="color:#1d4ed8;">📱 Créditos: <b>${totalCred}</b> (${diasConCred} días)</span>
+            <span style="color:#4338ca;">🍎 iPhone: <b>${totalIph}</b> (${diasConIph} días)</span>
+            <span>📊 Prom cred/día activo: <b>${diasConCred>0?(totalCred/diasConCred).toFixed(1):0}</b></span>
+          </div>
+          <div style="overflow-x:auto;padding:4px 0;">
+            <div style="display:flex;flex-wrap:wrap;gap:0;">${secuencia}</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px;font-size:10px;flex-wrap:wrap;">
+            <span style="background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 6px;font-weight:700;">📱 Fila superior = Créditos</span>
+            <span style="background:#ede9fe;color:#4338ca;border-radius:4px;padding:2px 6px;font-weight:700;">🍎 Fila inferior = iPhone</span>
+            <span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 6px;font-weight:700;">Rojo = 0 créditos</span>
+            <span style="background:#f3f4f6;color:#9ca3af;border-radius:4px;padding:2px 6px;font-weight:700;">Gris = 0 iPhone</span>
+          </div>
+        </div>`;
     });
 
     contenido.innerHTML = html || '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos para este mes</div>';
