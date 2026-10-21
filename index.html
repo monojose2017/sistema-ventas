@@ -3185,14 +3185,33 @@ async function guardarCostoEstimado(repId, imeiVendido) {
   try {
     // Guardar costo estimado en reposición
     await fbUpdate('reposiciones', repId, { costo_estimado: costo });
-    // Recalcular utilidad de la venta original con este costo
-    const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', imeiVendido.toString().trim());
-    const venta = ventasDocs.find(d => d.estado !== 'ANULADO');
-    if(venta) {
-      const cuotaNeta = parseFloat(venta.cuota_neta)||0;
-      const pagoFin = parseFloat(venta.pago_financiera)||0;
-      const nuevaUtil = cuotaNeta + pagoFin - costo;
-      await fbUpdate('ventas_creditos', venta.id, { costo, utilidad: Math.round(nuevaUtil) });
+    // Recalcular utilidad — buscar en crédito primero, luego contado
+    const imeiStr = imeiVendido.toString().trim();
+    let ventaCol = null, ventaDoc = null;
+
+    const creditosDocs = await fbQuery('ventas_creditos', 'imei', '==', imeiStr);
+    const creditoVenta = creditosDocs.find(d => d.estado !== 'ANULADO');
+    if(creditoVenta) {
+      ventaCol = 'ventas_creditos';
+      ventaDoc = creditoVenta;
+    } else {
+      const contadoDocs = await fbQuery('ventas_contado', 'imei', '==', imeiStr);
+      const contadoVenta = contadoDocs.find(d => d.estado !== 'ANULADO');
+      if(contadoVenta) { ventaCol = 'ventas_contado'; ventaDoc = contadoVenta; }
+    }
+
+    if(ventaDoc) {
+      let nuevaUtil = 0;
+      if(ventaCol === 'ventas_creditos') {
+        const cuotaNeta = parseFloat(ventaDoc.cuota_neta)||0;
+        const pagoFin   = parseFloat(ventaDoc.pago_financiera)||0;
+        nuevaUtil = cuotaNeta + pagoFin - costo;
+      } else {
+        // Contado: utilidad = precio - costo
+        const precio = parseFloat(ventaDoc.precio)||0;
+        nuevaUtil = precio - costo;
+      }
+      await fbUpdate(ventaCol, ventaDoc.id, { costo, utilidad: Math.round(nuevaUtil) });
     }
     mostrarToastVerde('✅ Costo estimado guardado y utilidad recalculada');
     cargarReposiciones();
@@ -3226,14 +3245,25 @@ async function completarReposicion(id) {
       const costoReal = parseFloat(telRep?.costo) || 0;
 
       if(costoReal > 0 && (rep.imei_vendido_mal || rep.imei_vendido)) {
-        const imeiVendido = (rep.imei_vendido_mal || rep.imei_vendido).toString();
-        const ventasDocs = await fbQuery('ventas_creditos', 'imei', '==', imeiVendido);
-        if(ventasDocs.length > 0) {
-          const venta = ventasDocs[0];
-          const cuotaNeta = parseFloat(venta.cuota_neta)||0;
-          const cuotaReal = parseFloat(venta.cuota_real_oficina)||0;
-          const nuevaUtil = cuotaNeta - cuotaReal + 80000 - costoReal;
-          await fbUpdate('ventas_creditos', venta.id, { costo: costoReal, utilidad: nuevaUtil });
+        const imeiVendido = (rep.imei_vendido_mal || rep.imei_vendido).toString().trim();
+        // Buscar en créditos primero, luego contado
+        let ventaCol2 = null, ventaDoc2 = null;
+        const cred2 = await fbQuery('ventas_creditos', 'imei', '==', imeiVendido);
+        if(cred2.length > 0) { ventaCol2 = 'ventas_creditos'; ventaDoc2 = cred2[0]; }
+        else {
+          const cont2 = await fbQuery('ventas_contado', 'imei', '==', imeiVendido);
+          if(cont2.length > 0) { ventaCol2 = 'ventas_contado'; ventaDoc2 = cont2[0]; }
+        }
+        if(ventaDoc2) {
+          let nuevaUtil2 = 0;
+          if(ventaCol2 === 'ventas_creditos') {
+            const cuotaNeta = parseFloat(ventaDoc2.cuota_neta)||0;
+            const cuotaReal = parseFloat(ventaDoc2.cuota_real_oficina)||0;
+            nuevaUtil2 = cuotaNeta - cuotaReal + 80000 - costoReal;
+          } else {
+            nuevaUtil2 = (parseFloat(ventaDoc2.precio)||0) - costoReal;
+          }
+          await fbUpdate(ventaCol2, ventaDoc2.id, { costo: costoReal, utilidad: Math.round(nuevaUtil2) });
           mostrarToastVerde(`✅ Reposición completada. Costo $${costoReal.toLocaleString('es-CO')} actualizado en la venta.`);
         }
       }
