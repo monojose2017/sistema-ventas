@@ -7836,7 +7836,7 @@ function renderLiquidaciones() {
         </div>
       </div>
     `}).join('');
-  } else {
+  } else if(liqTabActual === 'completadas') {
     if(!liqCompletadas.length) {
       lista.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:700;">No hay liquidaciones completadas aún</div>';
       return;
@@ -7864,7 +7864,7 @@ function renderLiquidaciones() {
         </div>
       </div>
     `}).join('');
-  } else {
+  } else if(liqTabActual === 'mes') {
     // POR MES — agrupar completadas por mes
     if(!liqCompletadas.length) {
       lista.innerHTML = '<div style="text-align:center;padding:30px;color:#64748b;font-weight:700;">No hay liquidaciones completadas aún</div>';
