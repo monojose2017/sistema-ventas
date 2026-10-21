@@ -1125,8 +1125,30 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <!-- MENSUAL -->
     <div id="rep-bloque-mensual" style="display:none;">
-      <div id="rep-mensual-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Cargando datos...</div>
-      <div id="rep-mensual-contenido"></div>
+      <!-- Tabs internos -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button id="men-tab-resumen" onclick="menTab('resumen')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #be123c;background:#be123c;color:white;font-weight:800;font-size:13px;cursor:pointer;">📊 Resumen</button>
+        <button id="men-tab-actividad" onclick="menTab('actividad')" style="flex:1;padding:10px;border-radius:10px;border:2px solid #be123c;background:white;color:#be123c;font-weight:800;font-size:13px;cursor:pointer;">📍 Actividad</button>
+      </div>
+      <div id="men-bloque-resumen">
+        <div id="rep-mensual-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Cargando datos...</div>
+        <div id="rep-mensual-contenido"></div>
+      </div>
+      <div id="men-bloque-actividad" style="display:none;">
+        <!-- Filtros actividad -->
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+          <div class="select-wrap" style="flex:1;min-width:120px;">
+            <select id="men-act-mes" onchange="cargarActividadLocal()" style="padding:10px;border-radius:10px;border:1px solid #e2e8f0;font-size:13px;width:100%;">
+            </select>
+          </div>
+          <div class="select-wrap" style="flex:1;min-width:120px;">
+            <select id="men-act-local" onchange="cargarActividadLocal()" style="padding:10px;border-radius:10px;border:1px solid #e2e8f0;font-size:13px;width:100%;">
+              <option value="">Todos los locales</option>
+            </select>
+          </div>
+        </div>
+        <div id="men-act-contenido"></div>
+      </div>
     </div>
 
     <!-- PROYECCION -->
@@ -9557,6 +9579,132 @@ async function buscarPorImei() {
   } catch(e) {
     document.getElementById('loc-loading').style.display = 'none';
     document.getElementById('loc-resultado').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
+  }
+}
+
+function menTab(tab) {
+  document.getElementById('men-bloque-resumen').style.display  = tab==='resumen'   ? 'block' : 'none';
+  document.getElementById('men-bloque-actividad').style.display = tab==='actividad' ? 'block' : 'none';
+  document.getElementById('men-tab-resumen').style.background   = tab==='resumen'   ? '#be123c' : 'white';
+  document.getElementById('men-tab-resumen').style.color        = tab==='resumen'   ? 'white'   : '#be123c';
+  document.getElementById('men-tab-actividad').style.background = tab==='actividad' ? '#be123c' : 'white';
+  document.getElementById('men-tab-actividad').style.color      = tab==='actividad' ? 'white'   : '#be123c';
+  if(tab==='actividad') cargarActividadLocal();
+}
+
+async function cargarActividadLocal() {
+  const contenido = document.getElementById('men-act-contenido');
+  const selMes   = document.getElementById('men-act-mes');
+  const selLocal = document.getElementById('men-act-local');
+  if(!selMes || !contenido) return;
+
+  contenido.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">⏳ Cargando...</div>';
+
+  try {
+    const creditos = await fbGetAll('ventas_creditos');
+
+    // Poblar selector de mes si está vacío
+    if(selMes.options.length === 0) {
+      const mesesSet = new Set();
+      creditos.forEach(d => { if(d.fecha) mesesSet.add(d.fecha.substring(0,7)); });
+      [...mesesSet].sort().reverse().forEach(m => {
+        const [y,mo] = m.split('-');
+        const nombres = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const opt = document.createElement('option');
+        opt.value = m; opt.textContent = `${nombres[parseInt(mo)]} ${y}`;
+        selMes.appendChild(opt);
+      });
+    }
+
+    // Poblar selector de local si está vacío
+    if(selLocal.options.length <= 1) {
+      const localesSet = new Set();
+      creditos.forEach(d => { if(d.local) localesSet.add(d.local); });
+      [...localesSet].sort().forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l; opt.textContent = l;
+        selLocal.appendChild(opt);
+      });
+    }
+
+    const mesActual = selMes.value;
+    const localFiltro = selLocal.value;
+    if(!mesActual) { contenido.innerHTML = ''; return; }
+
+    // Filtrar créditos del mes
+    const creditosMes = creditos.filter(d => d.fecha && d.fecha.startsWith(mesActual));
+
+    // Determinar locales a mostrar
+    const locales = localFiltro
+      ? [localFiltro]
+      : [...new Set(creditosMes.map(d => d.local).filter(Boolean))].sort();
+
+    // Calcular días del mes
+    const [y, mo] = mesActual.split('-').map(Number);
+    const diasEnMes = new Date(y, mo, 0).getDate();
+    const hoy = new Date().toISOString().substring(0,10);
+
+    // Agrupar por local → fecha → count
+    const conteo = {}; // conteo[local][fecha] = count
+    creditosMes.forEach(d => {
+      if(!d.local || !d.fecha) return;
+      if(!conteo[d.local]) conteo[d.local] = {};
+      conteo[d.local][d.fecha] = (conteo[d.local][d.fecha]||0) + 1;
+    });
+
+    let html = '';
+    locales.forEach(local => {
+      const datos = conteo[local] || {};
+      let diasSinVenta = 0;
+      let diasConVenta = 0;
+      let totalVentas = 0;
+      let secuencia = '';
+
+      for(let dia = 1; dia <= diasEnMes; dia++) {
+        const fechaDia = `${mesActual}-${String(dia).padStart(2,'0')}`;
+        if(fechaDia > hoy) break; // No mostrar días futuros
+        const cnt = datos[fechaDia] || 0;
+        totalVentas += cnt;
+        if(cnt === 0) { diasSinVenta++; }
+        else { diasConVenta++; }
+
+        const color = cnt === 0 ? '#dc2626' : cnt >= 3 ? '#15803d' : cnt >= 2 ? '#0891b2' : '#16a34a';
+        const bg    = cnt === 0 ? '#fee2e2' : cnt >= 3 ? '#dcfce7' : cnt >= 2 ? '#e0f2fe' : '#f0fdf4';
+        secuencia += `<div style="display:inline-flex;flex-direction:column;align-items:center;margin:2px;min-width:32px;">
+          <div style="background:${bg};color:${color};border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;">${cnt}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:1px;">${dia}</div>
+        </div>`;
+      }
+
+      const pctSin = diasConVenta+diasSinVenta > 0 ? Math.round(diasSinVenta/(diasConVenta+diasSinVenta)*100) : 0;
+      const alertColor = pctSin >= 50 ? '#dc2626' : pctSin >= 30 ? '#d97706' : '#15803d';
+
+      html += `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:800;font-size:15px;color:#1e293b;">📍 ${local}</div>
+          <div style="font-size:12px;font-weight:700;color:${alertColor};">${diasSinVenta} días sin vender (${pctSin}%)</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;">
+          <span>✅ Días activos: <b style="color:#15803d;">${diasConVenta}</b></span>
+          <span>🔴 Días en cero: <b style="color:#dc2626;">${diasSinVenta}</b></span>
+          <span>📱 Total créditos: <b>${totalVentas}</b></span>
+          <span>📊 Promedio/día activo: <b>${diasConVenta>0?(totalVentas/diasConVenta).toFixed(1):0}</b></span>
+        </div>
+        <div style="overflow-x:auto;padding:4px 0;">
+          <div style="display:flex;flex-wrap:wrap;gap:0;">${secuencia}</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;flex-wrap:wrap;">
+          <span style="background:#fee2e2;color:#dc2626;border-radius:4px;padding:2px 6px;font-weight:700;">0 = Sin venta</span>
+          <span style="background:#f0fdf4;color:#16a34a;border-radius:4px;padding:2px 6px;font-weight:700;">1 = 1 venta</span>
+          <span style="background:#e0f2fe;color:#0891b2;border-radius:4px;padding:2px 6px;font-weight:700;">2 = 2 ventas</span>
+          <span style="background:#dcfce7;color:#15803d;border-radius:4px;padding:2px 6px;font-weight:700;">3+ = Excelente</span>
+        </div>
+      </div>`;
+    });
+
+    contenido.innerHTML = html || '<div style="text-align:center;color:#64748b;padding:20px;">Sin datos para este mes</div>';
+  } catch(e) {
+    contenido.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
 }
 
