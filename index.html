@@ -1135,6 +1135,11 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div id="rep-mensual-contenido"></div>
       </div>
       <div id="men-bloque-actividad" style="display:none;">
+        <!-- Sub-tabs crédito / iPhone -->
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <button id="men-act-tab-cred" onclick="menActTab('cred')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1d4ed8;background:#1d4ed8;color:white;font-weight:700;font-size:12px;cursor:pointer;">📱 Créditos</button>
+          <button id="men-act-tab-iph" onclick="menActTab('iph')" style="flex:1;padding:8px;border-radius:8px;border:2px solid #4338ca;background:white;color:#4338ca;font-weight:700;font-size:12px;cursor:pointer;">🍎 iPhone</button>
+        </div>
         <!-- Filtros actividad -->
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
           <div class="select-wrap" style="flex:1;min-width:120px;">
@@ -9582,6 +9587,16 @@ async function buscarPorImei() {
   }
 }
 
+let _menActTipoActual = 'cred';
+function menActTab(tipo) {
+  _menActTipoActual = tipo;
+  document.getElementById('men-act-tab-cred').style.background = tipo==='cred' ? '#1d4ed8' : 'white';
+  document.getElementById('men-act-tab-cred').style.color      = tipo==='cred' ? 'white'   : '#1d4ed8';
+  document.getElementById('men-act-tab-iph').style.background  = tipo==='iph'  ? '#4338ca' : 'white';
+  document.getElementById('men-act-tab-iph').style.color       = tipo==='iph'  ? 'white'   : '#4338ca';
+  cargarActividadLocal();
+}
+
 function menTab(tab) {
   document.getElementById('men-bloque-resumen').style.display  = tab==='resumen'   ? 'block' : 'none';
   document.getElementById('men-bloque-actividad').style.display = tab==='actividad' ? 'block' : 'none';
@@ -9601,43 +9616,44 @@ async function cargarActividadLocal() {
   contenido.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">⏳ Cargando...</div>';
 
   try {
-    const creditos = await fbGetAll('ventas_creditos');
+    const esIphone = _menActTipoActual === 'iph';
+    const coleccion = esIphone ? 'ventas_iphone' : 'ventas_creditos';
+    const registros = await fbGetAll(coleccion);
+    const colorPrincipal = esIphone ? '#4338ca' : '#1d4ed8';
 
-    // Poblar selector de mes si está vacío
-    if(selMes.options.length === 0) {
-      const mesesSet = new Set();
-      creditos.forEach(d => { if(d.fecha) mesesSet.add(d.fecha.substring(0,7)); });
-      [...mesesSet].sort().reverse().forEach(m => {
-        const [y,mo] = m.split('-');
-        const nombres = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-        const opt = document.createElement('option');
-        opt.value = m; opt.textContent = `${nombres[parseInt(mo)]} ${y}`;
-        selMes.appendChild(opt);
-      });
-    }
+    // Poblar selector de mes
+    selMes.innerHTML = '';
+    const mesesSet = new Set();
+    registros.forEach(d => { if(d.fecha) mesesSet.add(d.fecha.substring(0,7)); });
+    [...mesesSet].sort().reverse().forEach(m => {
+      const [y,mo] = m.split('-');
+      const nombres = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = `${nombres[parseInt(mo)]} ${y}`;
+      selMes.appendChild(opt);
+    });
 
-    // Poblar selector de local si está vacío
-    if(selLocal.options.length <= 1) {
-      const localesSet = new Set();
-      creditos.forEach(d => { if(d.local) localesSet.add(d.local); });
-      [...localesSet].sort().forEach(l => {
-        const opt = document.createElement('option');
-        opt.value = l; opt.textContent = l;
-        selLocal.appendChild(opt);
-      });
-    }
+    // Poblar selector de local
+    selLocal.innerHTML = '<option value="">Todos los locales</option>';
+    const localesSet = new Set();
+    registros.forEach(d => { if(d.local) localesSet.add(d.local); });
+    [...localesSet].sort().forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l; opt.textContent = l;
+      selLocal.appendChild(opt);
+    });
 
     const mesActual = selMes.value;
     const localFiltro = selLocal.value;
     if(!mesActual) { contenido.innerHTML = ''; return; }
 
-    // Filtrar créditos del mes
-    const creditosMes = creditos.filter(d => d.fecha && d.fecha.startsWith(mesActual));
+    // Filtrar registros del mes
+    const registrosMes = registros.filter(d => d.fecha && d.fecha.startsWith(mesActual));
 
     // Determinar locales a mostrar
     const locales = localFiltro
       ? [localFiltro]
-      : [...new Set(creditosMes.map(d => d.local).filter(Boolean))].sort();
+      : [...new Set(registrosMes.map(d => d.local).filter(Boolean))].sort();
 
     // Calcular días del mes
     const [y, mo] = mesActual.split('-').map(Number);
@@ -9645,8 +9661,8 @@ async function cargarActividadLocal() {
     const hoy = new Date().toISOString().substring(0,10);
 
     // Agrupar por local → fecha → count
-    const conteo = {}; // conteo[local][fecha] = count
-    creditosMes.forEach(d => {
+    const conteo = {};
+    registrosMes.forEach(d => {
       if(!d.local || !d.fecha) return;
       if(!conteo[d.local]) conteo[d.local] = {};
       conteo[d.local][d.fecha] = (conteo[d.local][d.fecha]||0) + 1;
@@ -9678,6 +9694,7 @@ async function cargarActividadLocal() {
 
       const pctSin = diasConVenta+diasSinVenta > 0 ? Math.round(diasSinVenta/(diasConVenta+diasSinVenta)*100) : 0;
       const alertColor = pctSin >= 50 ? '#dc2626' : pctSin >= 30 ? '#d97706' : '#15803d';
+      const labelVenta = esIphone ? 'iPhone' : 'créditos';
 
       html += `<div style="background:white;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -9687,7 +9704,7 @@ async function cargarActividadLocal() {
         <div style="display:flex;gap:12px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;">
           <span>✅ Días activos: <b style="color:#15803d;">${diasConVenta}</b></span>
           <span>🔴 Días en cero: <b style="color:#dc2626;">${diasSinVenta}</b></span>
-          <span>📱 Total créditos: <b>${totalVentas}</b></span>
+          <span style="color:${colorPrincipal};">📱 Total ${labelVenta}: <b>${totalVentas}</b></span>
           <span>📊 Promedio/día activo: <b>${diasConVenta>0?(totalVentas/diasConVenta).toFixed(1):0}</b></span>
         </div>
         <div style="overflow-x:auto;padding:4px 0;">
@@ -9730,13 +9747,13 @@ async function cargarReporteMensual() {
       if(!meses[m]) meses[m] = {cred:0,cont:0,acc:0,iph:0,util_cred:0,util_cont:0,util_acc:0,util_iph:0,liq_total:0};
       if(tipo==='cred') { meses[m].cred++; meses[m].util_cred += utilidad||0; }
       if(tipo==='cont') { meses[m].cont++; meses[m].util_cont += precio||0; }
-      if(tipo==='acc')  { meses[m].acc++;  meses[m].util_acc  += precio||0; }
+      if(tipo==='acc')  { meses[m].acc++;  meses[m].util_acc  += utilidad||0; meses[m].total_acc = (meses[m].total_acc||0) + (precio||0); }
       if(tipo==='iph')  { meses[m].iph++;  meses[m].util_iph  += utilidad||0; }
     };
 
     creditos.forEach(d => addMes(d.fecha,'cred', parseFloat(d.utilidad)||0, parseFloat(d.cuota_neta)||0, 0));
     contado.forEach(d => addMes(d.fecha,'cont', 0, 0, parseFloat(d.precio)||0));
-    accesorios.forEach(d => addMes(d.fecha,'acc', 0, 0, parseFloat(d.precio)||0));
+    accesorios.forEach(d => addMes(d.fecha,'acc', parseFloat(d.utilidad)||(parseFloat(d.total||d.precio)||0 - parseFloat(d.costo||0)), parseFloat(d.total||d.precio)||0, parseFloat(d.total||d.precio)||0));
     iphone.forEach(d => addMes(d.fecha,'iph', parseFloat(d.utilidad_neta||d.utilidad)||0, 0, 0));
 
     // Liquidaciones agrupadas por mes y financiera
