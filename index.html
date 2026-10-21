@@ -9963,7 +9963,7 @@ async function cargarReporteMensual() {
     };
 
     creditos.forEach(d => addMes(d.fecha,'cred', parseFloat(d.utilidad)||0, parseFloat(d.cuota_neta)||0, 0));
-    contado.forEach(d => addMes(d.fecha,'cont', 0, 0, parseFloat(d.precio)||0));
+    contado.forEach(d => addMes(d.fecha,'cont', 0, 0, (parseFloat(d.precio)||0) - (parseFloat(d.costo)||0)));
     accesorios.forEach(d => addMes(d.fecha,'acc', parseFloat(d.utilidad)||(parseFloat(d.total||d.precio)||0 - parseFloat(d.costo||0)), parseFloat(d.total||d.precio)||0, parseFloat(d.total||d.precio)||0));
     iphone.forEach(d => addMes(d.fecha,'iph', parseFloat(d.utilidad_neta||d.utilidad)||0, 0, 0));
 
@@ -9998,7 +9998,7 @@ async function cargarReporteMensual() {
     todosMeses.forEach(m => {
       const d = meses[m] || {cred:0,cont:0,acc:0,iph:0,util_cred:0,util_cont:0,util_acc:0,util_iph:0};
       const totalVentas = d.cred + d.cont + d.acc + d.iph;
-      const utilTotal = d.util_cred + d.util_iph;
+      const utilTotal = d.util_cred + d.util_cont + d.util_acc + d.util_iph;
 
       html += `<div style="background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
