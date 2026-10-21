@@ -1114,12 +1114,19 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="mostrarSeccionReporte('proveedores')" id="rep-btn-prov" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #7c3aed;background:white;color:#7c3aed;font-weight:800;font-size:13px;cursor:pointer;">🏦 Proveedores</button>
       <button onclick="mostrarSeccionReporte('proyeccion')" id="rep-btn-proy" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #0891b2;background:white;color:#0891b2;font-weight:800;font-size:13px;cursor:pointer;">📈 Proyección</button>
       <button onclick="mostrarSeccionReporte('flujo')" id="rep-btn-flujo" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #0f766e;background:white;color:#0f766e;font-weight:800;font-size:13px;cursor:pointer;">💵 Flujo de Caja</button>
+      <button onclick="mostrarSeccionReporte('mensual')" id="rep-btn-mensual" style="flex:1;min-width:45%;padding:12px;border-radius:12px;border:2px solid #be123c;background:white;color:#be123c;font-weight:800;font-size:13px;cursor:pointer;">📅 Por Mes</button>
     </div>
 
     <!-- FLUJO DE CAJA -->
     <div id="rep-bloque-flujo" style="display:none;">
       <div id="rep-flujo-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Calculando...</div>
       <div id="rep-flujo-contenido"></div>
+    </div>
+
+    <!-- MENSUAL -->
+    <div id="rep-bloque-mensual" style="display:none;">
+      <div id="rep-mensual-loading" style="text-align:center;padding:30px;color:#64748b;font-weight:600;display:none;">⏳ Cargando datos...</div>
+      <div id="rep-mensual-contenido"></div>
     </div>
 
     <!-- PROYECCION -->
@@ -7965,12 +7972,13 @@ let repHasta = null;
 
 function mostrarSeccionReporte(seccion) {
   const btns = {
-    ventas:      { id:'rep-btn-ventas', color:'#1d4ed8' },
-    rentabilidad:{ id:'rep-btn-rent',   color:'#15803d' },
-    inventario:  { id:'rep-btn-inv',    color:'#d97706' },
-    proveedores: { id:'rep-btn-prov',   color:'#7c3aed' },
-    proyeccion:  { id:'rep-btn-proy',   color:'#0891b2' },
-    flujo:       { id:'rep-btn-flujo',  color:'#0f766e' }
+    ventas:      { id:'rep-btn-ventas',   color:'#1d4ed8' },
+    rentabilidad:{ id:'rep-btn-rent',     color:'#15803d' },
+    inventario:  { id:'rep-btn-inv',      color:'#d97706' },
+    proveedores: { id:'rep-btn-prov',     color:'#7c3aed' },
+    proyeccion:  { id:'rep-btn-proy',     color:'#0891b2' },
+    flujo:       { id:'rep-btn-flujo',    color:'#0f766e' },
+    mensual:     { id:'rep-btn-mensual',  color:'#be123c' }
   };
   Object.entries(btns).forEach(([s,b]) => {
     const btn = document.getElementById(b.id);
@@ -7979,7 +7987,7 @@ function mostrarSeccionReporte(seccion) {
     btn.style.color      = s===seccion ? 'white' : b.color;
     btn.style.borderColor = b.color;
   });
-  ['ventas','rentabilidad','inventario','proveedores','proyeccion','flujo'].forEach(s => {
+  ['ventas','rentabilidad','inventario','proveedores','proyeccion','flujo','mensual'].forEach(s => {
     const el = document.getElementById('rep-bloque-'+s);
     if(el) el.style.display = s===seccion ? 'block' : 'none';
   });
@@ -8001,6 +8009,10 @@ function mostrarSeccionReporte(seccion) {
     if(filtroPeriodo) filtroPeriodo.style.display = 'block';
     if(filtroSemana)  filtroSemana.style.display  = 'none';
     cargarFlujoCaja();
+  } else if(seccion === 'mensual') {
+    if(filtroPeriodo) filtroPeriodo.style.display = 'none';
+    if(filtroSemana)  filtroSemana.style.display  = 'none';
+    cargarReporteMensual();
   } else {
     if(filtroPeriodo) filtroPeriodo.style.display = 'block';
     if(filtroSemana)  filtroSemana.style.display  = 'none';
@@ -9546,6 +9558,125 @@ async function buscarPorImei() {
     document.getElementById('loc-loading').style.display = 'none';
     document.getElementById('loc-resultado').innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
+}
+
+async function cargarReporteMensual() {
+  const loading = document.getElementById('rep-mensual-loading');
+  const contenido = document.getElementById('rep-mensual-contenido');
+  loading.style.display = 'block';
+  contenido.innerHTML = '';
+  try {
+    const [creditos, contado, accesorios, iphone, liquidaciones] = await Promise.all([
+      fbGetAll('ventas_creditos'),
+      fbGetAll('ventas_contado'),
+      fbGetAll('ventas_accesorios'),
+      fbGetAll('ventas_iphone'),
+      fbGetAll('liquidaciones')
+    ]);
+
+    // Agrupar por mes YYYY-MM
+    const meses = {};
+    const addMes = (fecha, tipo, utilidad, cuota_neta, precio) => {
+      if(!fecha) return;
+      const m = fecha.substring(0,7);
+      if(!meses[m]) meses[m] = {cred:0,cont:0,acc:0,iph:0,util_cred:0,util_cont:0,util_acc:0,util_iph:0,liq_total:0};
+      if(tipo==='cred') { meses[m].cred++; meses[m].util_cred += utilidad||0; }
+      if(tipo==='cont') { meses[m].cont++; meses[m].util_cont += precio||0; }
+      if(tipo==='acc')  { meses[m].acc++;  meses[m].util_acc  += precio||0; }
+      if(tipo==='iph')  { meses[m].iph++;  meses[m].util_iph  += utilidad||0; }
+    };
+
+    creditos.forEach(d => addMes(d.fecha,'cred', parseFloat(d.utilidad)||0, parseFloat(d.cuota_neta)||0, 0));
+    contado.forEach(d => addMes(d.fecha,'cont', 0, 0, parseFloat(d.precio)||0));
+    accesorios.forEach(d => addMes(d.fecha,'acc', 0, 0, parseFloat(d.precio)||0));
+    iphone.forEach(d => addMes(d.fecha,'iph', parseFloat(d.utilidad_neta||d.utilidad)||0, 0, 0));
+
+    // Liquidaciones agrupadas por mes y financiera
+    const liqMes = {};
+    liquidaciones.forEach(d => {
+      if(!d.fecha) return;
+      const m = d.fecha.substring(0,7);
+      const fin = d.financiera || d.tipo || 'OTRA';
+      if(!liqMes[m]) liqMes[m] = {};
+      if(!liqMes[m][fin]) liqMes[m][fin] = {count:0, total:0};
+      liqMes[m][fin].count++;
+      liqMes[m][fin].total += parseFloat(d.utilidad||d.pago_financiera||0);
+    });
+
+    const todosMeses = [...new Set([...Object.keys(meses), ...Object.keys(liqMes)])].sort().reverse();
+
+    if(!todosMeses.length) {
+      contenido.innerHTML = '<div style="text-align:center;color:#64748b;padding:30px;">No hay datos</div>';
+      loading.style.display = 'none';
+      return;
+    }
+
+    const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+    const nombreMes = m => {
+      const [y,mo] = m.split('-');
+      const nombres = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      return `${nombres[parseInt(mo)]} ${y}`;
+    };
+
+    let html = '';
+    todosMeses.forEach(m => {
+      const d = meses[m] || {cred:0,cont:0,acc:0,iph:0,util_cred:0,util_cont:0,util_acc:0,util_iph:0};
+      const totalVentas = d.cred + d.cont + d.acc + d.iph;
+      const utilTotal = d.util_cred + d.util_iph;
+
+      html += `<div style="background:white;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-weight:800;font-size:16px;color:#be123c;">📅 ${nombreMes(m)}</div>
+          <div style="font-size:13px;font-weight:700;color:#15803d;">${fmt(utilTotal)} util.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div style="background:#eff6ff;border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:#1d4ed8;font-weight:700;">CRÉDITO</div>
+            <div style="font-size:18px;font-weight:800;color:#1d4ed8;">${d.cred}</div>
+            <div style="font-size:11px;color:#64748b;">${fmt(d.util_cred)}</div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:#15803d;font-weight:700;">CONTADO</div>
+            <div style="font-size:18px;font-weight:800;color:#15803d;">${d.cont}</div>
+            <div style="font-size:11px;color:#64748b;">${fmt(d.util_cont)}</div>
+          </div>
+          <div style="background:#fefce8;border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:#a16207;font-weight:700;">ACCESORIOS</div>
+            <div style="font-size:18px;font-weight:800;color:#a16207;">${d.acc}</div>
+            <div style="font-size:11px;color:#64748b;">${fmt(d.util_acc)}</div>
+          </div>
+          <div style="background:#f5f3ff;border-radius:10px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:#4338ca;font-weight:700;">iPHONE</div>
+            <div style="font-size:18px;font-weight:800;color:#4338ca;">${d.iph}</div>
+            <div style="font-size:11px;color:#64748b;">${fmt(d.util_iph)}</div>
+          </div>
+        </div>
+        <div style="background:#f8fafc;border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:${liqMes[m]?'10px':'0'};">
+          <span>Total ventas: <b>${totalVentas}</b></span>
+          <span style="color:#15803d;">Utilidad: <b>${fmt(utilTotal)}</b></span>
+        </div>`;
+
+      // Liquidaciones del mes
+      if(liqMes[m]) {
+        const fins = Object.entries(liqMes[m]).sort((a,b)=>b[1].count-a[1].count);
+        html += `<div style="margin-top:6px;"><div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;">LIQUIDACIONES</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+        fins.forEach(([fin,info]) => {
+          html += `<div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:6px 10px;font-size:12px;">
+            <b style="color:#be123c;">${fin}</b>: ${info.count} liq. · ${fmt(info.total)}
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    contenido.innerHTML = html;
+  } catch(e) {
+    contenido.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
+  }
+  loading.style.display = 'none';
 }
 
 </script>
