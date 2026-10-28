@@ -546,7 +546,12 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <div id="qr-reader-iphone" style="width:100%;border-radius:12px;overflow:hidden;"></div>
       <button type="button" onclick="stopScannerIphone()" style="width:100%;margin-top:8px;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">❌ Cancelar escaneo</button>
     </div>
-    <div class="field"><label>Modelo</label><input type="text" id="ii-modelo" placeholder="Ej: iPhone 13 256GB"></div>
+    <div class="field"><label>Modelo</label>
+      <input type="text" id="ii-modelo-search" placeholder="Buscar modelo..." oninput="filtrarModeloIphone()" style="margin-bottom:6px;">
+      <div class="select-wrap"><select id="ii-modelo-sel"><option value="">Seleccionar modelo...</option></select></div>
+    </div>
+    <div class="field"><label>Color</label><input type="text" id="ii-color" placeholder="Ej: Negro, Blanco, Azul..."></div>
+    <div class="field"><label>Estado de la batería (%)</label><input type="number" id="ii-bateria" placeholder="Ej: 91" min="1" max="100" inputmode="numeric"></div>
     <div class="field"><label>Costo</label><input type="text" id="ii-costo" placeholder="$0" oninput="formatMoney(this)"></div>
     <div class="field"><label>Fecha Ingreso</label><input type="date" id="ii-fecha"></div>
     <div class="field"><label>Proveedor</label><div class="select-wrap"><select id="ii-proveedor"><option value="">Seleccionar proveedor...</option></select></div></div>
@@ -2283,6 +2288,15 @@ function irA(s){
     if(selLocal) {
       selLocal.innerHTML = '<option value="">Seleccionar local...</option>';
       (window.CONFIG_LISTAS?.locales || []).forEach(l => selLocal.innerHTML += `<option>${l}</option>`);
+    }
+    // Cargar referencias iPhone
+    const selMod = document.getElementById('ii-modelo-sel');
+    const searchMod = document.getElementById('ii-modelo-search');
+    if(selMod) {
+      if(searchMod) searchMod.value = '';
+      const refs = window.CONFIG_DATA?.referenciasIphone || [];
+      selMod.innerHTML = '<option value="">Seleccionar modelo...</option>';
+      refs.forEach(r => selMod.innerHTML += `<option>${r}</option>`);
     }
   }
   if(s === 'ingresos-local') {
@@ -10173,7 +10187,9 @@ let filtroInvIphone = 'TODOS';
 
 async function guardarIngresoIphone() {
   const imei   = (document.getElementById('ii-imei')?.value||'').trim();
-  const modelo = (document.getElementById('ii-modelo')?.value||'').trim();
+  const modelo = (document.getElementById('ii-modelo-sel')?.value||'').trim();
+  const color  = (document.getElementById('ii-color')?.value||'').trim();
+  const bateria = parseInt(document.getElementById('ii-bateria')?.value||'0')||0;
   const costoRaw = (document.getElementById('ii-costo')?.value||'').replace(/[^0-9]/g,'');
   const fecha  = document.getElementById('ii-fecha')?.value || fechaHoyLocal();
   const prov   = document.getElementById('ii-proveedor')?.value || '';
@@ -10195,7 +10211,8 @@ async function guardarIngresoIphone() {
 
   try {
     await fbAdd('inventario_iphone', {
-      imei, modelo,
+      imei, modelo, color,
+      bateria,
       costo: parseFloat(costoRaw),
       fecha_ingreso: fecha,
       proveedor: prov,
@@ -10204,7 +10221,7 @@ async function guardarIngresoIphone() {
     });
     alert('✅ iPhone agregado al inventario');
     // limpiar campos
-    ['ii-imei','ii-modelo','ii-costo'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    ['ii-imei','ii-modelo-sel','ii-modelo-search','ii-color','ii-bateria','ii-costo'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
     document.getElementById('ii-imei-aviso').style.display = 'none';
     irA('inventario-iphone');
   } catch(e) {
@@ -10236,6 +10253,10 @@ async function cargarInvIphone() {
           <span style="background:${colorEstado[d.estado]||'#64748b'}20;color:${colorEstado[d.estado]||'#64748b'};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">${emojiEstado[d.estado]||''} ${d.estado||'—'}</span>
         </div>
         <div style="font-size:12px;color:#64748b;margin-bottom:4px;">IMEI: <span style="font-weight:600;color:#1e293b;">${d.imei||'—'}</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+          ${d.color ? `<span style="background:#f1f5f9;border-radius:6px;padding:2px 8px;font-size:12px;color:#475569;">🎨 ${d.color}</span>` : ''}
+          ${d.bateria ? `<span style="background:${d.bateria>=80?'#dcfce7':d.bateria>=60?'#fef9c3':'#fee2e2'};border-radius:6px;padding:2px 8px;font-size:12px;color:${d.bateria>=80?'#15803d':d.bateria>=60?'#854d0e':'#b91c1c'};font-weight:700;">🔋 ${d.bateria}%</span>` : ''}
+        </div>
         <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
           <span>💰 Costo: <b style="color:#1e293b;">${fmt(d.costo)}</b></span>
           <span>📍 ${d.local||'—'}</span>
@@ -10271,6 +10292,16 @@ async function eliminarIphone(id, modelo) {
     await fbDelete('inventario_iphone', id);
     await cargarInvIphone();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+function filtrarModeloIphone() {
+  const q = (document.getElementById('ii-modelo-search')?.value||'').toLowerCase().trim();
+  const sel = document.getElementById('ii-modelo-sel');
+  if(!sel) return;
+  const refs = window.CONFIG_DATA?.referenciasIphone || [];
+  const filtradas = q ? refs.filter(r => r.toLowerCase().includes(q)) : refs;
+  sel.innerHTML = '<option value="">Seleccionar modelo...</option>';
+  filtradas.forEach(r => sel.innerHTML += `<option>${r}</option>`);
 }
 
 async function validarIMEIiPhone() {
@@ -10330,11 +10361,15 @@ async function cargarEquiposCalcGets() {
       return;
     }
     lista.innerHTML = disponibles.map(d => `
-      <button onclick="seleccionarEquipoGets('${d.id}','${(d.modelo||'').replace(/'/g,"\\'")}','${d.imei}',${d.costo||0},'${d.local||''}')"
+      <button onclick="seleccionarEquipoGets('${d.id}','${(d.modelo||'').replace(/'/g,"\\'")}','${d.imei}',${d.costo||0},'${d.local||''}','${(d.color||'').replace(/'/g,"\\'")}',${d.bateria||0})"
         style="width:100%;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
         <div>
           <div style="font-weight:800;font-size:15px;color:#1e293b;">${d.modelo||'iPhone'}</div>
-          <div style="font-size:12px;color:#64748b;margin-top:3px;">📍 ${d.local||'Sin local'}</div>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+            ${d.color ? `<span style="font-size:11px;color:#64748b;">🎨 ${d.color}</span>` : ''}
+            ${d.bateria ? `<span style="font-size:11px;color:${d.bateria>=80?'#15803d':d.bateria>=60?'#854d0e':'#b91c1c'};font-weight:700;">🔋 ${d.bateria}%</span>` : ''}
+            <span style="font-size:11px;color:#64748b;">📍 ${d.local||'Sin local'}</span>
+          </div>
         </div>
         <span style="font-size:20px;">›</span>
       </button>`).join('');
@@ -10343,8 +10378,8 @@ async function cargarEquiposCalcGets() {
   }
 }
 
-function seleccionarEquipoGets(id, modelo, imei, costo, local) {
-  cgEquipoSeleccionado = { id, modelo, imei, costo: parseFloat(costo)||0, local };
+function seleccionarEquipoGets(id, modelo, imei, costo, local, color, bateria) {
+  cgEquipoSeleccionado = { id, modelo, imei, costo: parseFloat(costo)||0, local, color, bateria: parseInt(bateria)||0 };
   document.getElementById('cg-paso1').style.display = 'none';
   document.getElementById('cg-paso2').style.display = '';
 
@@ -10352,7 +10387,11 @@ function seleccionarEquipoGets(id, modelo, imei, costo, local) {
   if(sel) sel.innerHTML = `
     <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Equipo seleccionado</div>
     <div style="font-weight:800;font-size:17px;color:#1a1a2e;">🍎 ${modelo}</div>
-    <div style="font-size:12px;color:#64748b;margin-top:3px;">📍 ${local||'—'}</div>`;
+    <div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;">
+      ${color ? `<span style="font-size:12px;color:#475569;">🎨 ${color}</span>` : ''}
+      ${bateria ? `<span style="font-size:12px;font-weight:700;color:${bateria>=80?'#15803d':bateria>=60?'#854d0e':'#b91c1c'};">🔋 ${bateria}%</span>` : ''}
+      <span style="font-size:12px;color:#64748b;">📍 ${local||'—'}</span>
+    </div>`;
 
   document.getElementById('cg-cupo').value = '';
   document.getElementById('cg-resultado').style.display = 'none';
