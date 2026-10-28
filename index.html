@@ -101,7 +101,10 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
     <div id="menu-principal" style="display:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <p class="titulo-sec" style="margin:0;">¿Qué vas a registrar?</p>
-        <button onclick="irA('mis-registros')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;box-shadow:0 4px 12px rgba(37,99,235,.4);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;" title="Mis Registros del Día">📋</button>
+        <div style="display:flex;gap:8px;">
+          <button onclick="irA('calc-gets')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;border:none;box-shadow:0 4px 12px rgba(26,26,46,.5);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;" title="Calculadora Gets">🧮</button>
+          <button onclick="irA('mis-registros')" style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;border:none;box-shadow:0 4px 12px rgba(37,99,235,.4);cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;" title="Mis Registros del Día">📋</button>
+        </div>
       </div>
       <p class="sec-titulo">Ventas</p>
       <button class="btn-menu" onclick="irA('credito')"><div class="btn-icon verde">📋</div><div class="btn-info"><div class="btn-titulo">Venta a Crédito</div><div class="btn-sub">Oficina · ET Oficina · ET Claro · Recompra · más</div></div><span class="btn-arrow">›</span></button>
@@ -277,7 +280,8 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <div class="divider"></div>
     <p class="sec-titulo">Inventario</p>
-    <button class="btn-menu" onclick="irA('inventario')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Inventario</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('inventario')"><div class="btn-icon azul">📦</div><div class="btn-info"><div class="btn-titulo">Inventario Android</div><div class="btn-sub">Teléfonos · Accesorios</div></div><span class="btn-arrow">›</span></button>
+    <button class="btn-menu" onclick="irA('inventario-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">Inventario iPhone</div><div class="btn-sub">Gestiona tu stock de iPhones</div></div><span class="btn-arrow">›</span></button>
 
     <div class="divider"></div>
     <p class="sec-titulo">Control</p>
@@ -480,6 +484,97 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
         <div id="refs-activas-lista" style="max-height:400px;overflow-y:auto;"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- CALCULADORA GETS -->
+<div class="screen" id="screen-calc-gets">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+    <button class="back-btn" onclick="irA('inicio')">‹</button>
+    <div><div class="form-header-title">🧮 Calculadora Gets</div><div class="form-header-sub">¿Cuánto cobrarle al cliente?</div></div>
+  </div>
+  <div class="form-body">
+    <div id="cg-paso1">
+      <p class="sec-titulo">1. Elige el equipo</p>
+      <div id="cg-lista-equipos" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="text-align:center;color:#94a3b8;padding:20px;font-size:14px;">Cargando equipos disponibles...</div>
+      </div>
+    </div>
+    <div id="cg-paso2" style="display:none;">
+      <div id="cg-equipo-sel" style="background:#f8fafc;border:2px solid #1a1a2e;border-radius:12px;padding:14px;margin-bottom:16px;"></div>
+      <p class="sec-titulo">2. Cupo aprobado por Gets</p>
+      <div class="field">
+        <label>¿Cuánto aprobó Gets? ($)</label>
+        <input type="text" id="cg-cupo" placeholder="Ej: 650.000" inputmode="numeric" oninput="formatMoney(this);calcGets()" style="font-size:18px;font-weight:700;text-align:center;">
+      </div>
+      <div id="cg-resultado" style="display:none;margin-top:8px;"></div>
+      <button onclick="document.getElementById('cg-paso1').style.display='';document.getElementById('cg-paso2').style.display='none';document.getElementById('cg-resultado').style.display='none';" style="width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-top:12px;font-size:14px;">← Cambiar equipo</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVENTARIO iPHONE MENU -->
+<div class="screen" id="screen-inventario-iphone">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+    <button class="back-btn" onclick="irA('gerencia')">‹</button>
+    <div><div class="form-header-title">🍎 Inventario iPhone</div><div class="form-header-sub">Gestiona tu stock de iPhones</div></div>
+  </div>
+  <div class="form-body">
+    <p class="sec-titulo">Ingresar</p>
+    <button class="btn-menu" onclick="irA('ingreso-iphone')"><div class="btn-icon" style="background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;font-size:20px;">🍎</div><div class="btn-info"><div class="btn-titulo">Ingresar iPhone</div><div class="btn-sub">Agregar al inventario</div></div><span class="btn-arrow">›</span></button>
+    <p class="sec-titulo">Consultar</p>
+    <button class="btn-menu" onclick="cargarInvIphone();irA('ver-inventario-iphone')"><div class="btn-icon verde">🔍</div><div class="btn-info"><div class="btn-titulo">Ver Inventario iPhone</div><div class="btn-sub">Consultar stock y costos</div></div><span class="btn-arrow">›</span></button>
+  </div>
+</div>
+
+<!-- INGRESAR iPHONE -->
+<div class="screen" id="screen-ingreso-iphone">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+    <button class="back-btn" onclick="irA('inventario-iphone')">‹</button>
+    <div><div class="form-header-title">🍎 Ingresar iPhone</div><div class="form-header-sub">Agregar al inventario</div></div>
+  </div>
+  <div class="form-body">
+    <div class="field">
+      <label>IMEI</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="ii-imei" placeholder="Escribe el IMEI" inputmode="numeric" style="flex:1;" oninput="validarIMEIiPhone()">
+        <button type="button" onclick="toggleScannerIphone()" id="scan-btn-iphone" style="padding:10px 14px;background:#1a1a2e;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">📷 Escanear</button>
+      </div>
+      <div id="ii-imei-aviso" style="display:none;margin-top:6px;background:#fee2e2;border-radius:8px;padding:10px 12px;font-size:12px;color:#b91c1c;font-weight:700;"></div>
+    </div>
+    <div id="scanner-container-iphone" style="display:none;margin-bottom:12px;">
+      <div id="qr-reader-iphone" style="width:100%;border-radius:12px;overflow:hidden;"></div>
+      <button type="button" onclick="stopScannerIphone()" style="width:100%;margin-top:8px;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;">❌ Cancelar escaneo</button>
+    </div>
+    <div class="field"><label>Modelo</label><input type="text" id="ii-modelo" placeholder="Ej: iPhone 13 256GB"></div>
+    <div class="field"><label>Costo</label><input type="text" id="ii-costo" placeholder="$0" oninput="formatMoney(this)"></div>
+    <div class="field"><label>Fecha Ingreso</label><input type="date" id="ii-fecha"></div>
+    <div class="field"><label>Proveedor</label><div class="select-wrap"><select id="ii-proveedor"><option value="">Seleccionar proveedor...</option></select></div></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ii-local"><option value="">Seleccionar local...</option></select></div></div>
+    <div class="field"><label>Estado</label>
+      <div class="select-wrap"><select id="ii-estado">
+        <option value="DISPONIBLE">✅ Disponible</option>
+        <option value="RESERVADO">⏳ Reservado</option>
+        <option value="VENDIDO">💰 Vendido</option>
+      </select></div>
+    </div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e);" onclick="guardarIngresoIphone()">Agregar iPhone al Inventario ✓</button>
+  </div>
+</div>
+
+<!-- VER INVENTARIO iPHONE -->
+<div class="screen" id="screen-ver-inventario-iphone">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+    <button class="back-btn" onclick="irA('inventario-iphone')">‹</button>
+    <div><div class="form-header-title">🔍 Inventario iPhone</div><div class="form-header-sub">Stock y costos</div></div>
+  </div>
+  <div class="form-body">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button onclick="filtroInvIphone='TODOS';cargarInvIphone()" id="fi-todos" style="flex:1;padding:8px;border-radius:8px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;font-size:12px;cursor:pointer;">Todos</button>
+      <button onclick="filtroInvIphone='DISPONIBLE';cargarInvIphone()" id="fi-disp" style="flex:1;padding:8px;border-radius:8px;border:2px solid #16a34a;background:white;color:#16a34a;font-weight:700;font-size:12px;cursor:pointer;">✅ Disponibles</button>
+      <button onclick="filtroInvIphone='VENDIDO';cargarInvIphone()" id="fi-vend" style="flex:1;padding:8px;border-radius:8px;border:2px solid #dc2626;background:white;color:#dc2626;font-weight:700;font-size:12px;cursor:pointer;">💰 Vendidos</button>
+    </div>
+    <div id="inv-iphone-lista"></div>
   </div>
 </div>
 
@@ -2173,6 +2268,22 @@ function irA(s){
   }
   if(s === 'gerencia-iphone') {
     cargarVentasIphone();
+  }
+  if(s === 'calc-gets') {
+    cargarEquiposCalcGets();
+  }
+  if(s === 'ingreso-iphone') {
+    document.getElementById('ii-fecha').value = fechaHoyLocal();
+    const selProv = document.getElementById('ii-proveedor');
+    if(selProv) {
+      selProv.innerHTML = '<option value="">Seleccionar proveedor...</option>';
+      (window.CONFIG_LISTAS?.proveedores || window.CONFIG_DATA?.proveedores || []).forEach(p => selProv.innerHTML += `<option>${p}</option>`);
+    }
+    const selLocal = document.getElementById('ii-local');
+    if(selLocal) {
+      selLocal.innerHTML = '<option value="">Seleccionar local...</option>';
+      (window.CONFIG_LISTAS?.locales || []).forEach(l => selLocal.innerHTML += `<option>${l}</option>`);
+    }
   }
   if(s === 'ingresos-local') {
     const locales = window.CONFIG_LISTAS?.locales || window.CONFIG_DATA?.locales || [];
@@ -10053,6 +10164,258 @@ async function cargarReporteMensual() {
     contenido.innerHTML = `<div style="color:#dc2626;padding:16px;">❌ Error: ${e.message}</div>`;
   }
   loading.style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+//  INVENTARIO iPHONE
+// ══════════════════════════════════════════
+let filtroInvIphone = 'TODOS';
+
+async function guardarIngresoIphone() {
+  const imei   = (document.getElementById('ii-imei')?.value||'').trim();
+  const modelo = (document.getElementById('ii-modelo')?.value||'').trim();
+  const costoRaw = (document.getElementById('ii-costo')?.value||'').replace(/[^0-9]/g,'');
+  const fecha  = document.getElementById('ii-fecha')?.value || fechaHoyLocal();
+  const prov   = document.getElementById('ii-proveedor')?.value || '';
+  const local  = document.getElementById('ii-local')?.value || '';
+  const estado = document.getElementById('ii-estado')?.value || 'DISPONIBLE';
+
+  if(!imei)   { alert('⚠️ Ingresa el IMEI'); return; }
+  if(!modelo) { alert('⚠️ Ingresa el modelo'); return; }
+  if(!costoRaw || costoRaw === '0') { alert('⚠️ Ingresa el costo'); return; }
+
+  // Verificar duplicado
+  try {
+    const exist = await fbQuery('inventario_iphone', 'imei', '==', imei);
+    if(exist.length > 0) { alert('⚠️ Ya existe un iPhone con ese IMEI'); return; }
+  } catch(e) {}
+
+  const btn = document.querySelector('#screen-ingreso-iphone .submit-btn');
+  if(btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+
+  try {
+    await fbAdd('inventario_iphone', {
+      imei, modelo,
+      costo: parseFloat(costoRaw),
+      fecha_ingreso: fecha,
+      proveedor: prov,
+      local, estado,
+      fecha_registro: new Date().toISOString()
+    });
+    alert('✅ iPhone agregado al inventario');
+    // limpiar campos
+    ['ii-imei','ii-modelo','ii-costo'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    document.getElementById('ii-imei-aviso').style.display = 'none';
+    irA('inventario-iphone');
+  } catch(e) {
+    alert('❌ Error al guardar: ' + e.message);
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = 'Agregar iPhone al Inventario ✓'; }
+  }
+}
+
+async function cargarInvIphone() {
+  const lista = document.getElementById('inv-iphone-lista');
+  if(!lista) return;
+  lista.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Cargando...</div>';
+  try {
+    let docs = await fbGetAll('inventario_iphone');
+    if(filtroInvIphone !== 'TODOS') docs = docs.filter(d => d.estado === filtroInvIphone);
+    docs.sort((a,b) => (b.fecha_ingreso||'').localeCompare(a.fecha_ingreso||''));
+
+    if(!docs.length) { lista.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Sin equipos</div>'; return; }
+
+    const fmt = n => '$' + Math.round(n||0).toLocaleString('es-CO');
+    const colorEstado = { DISPONIBLE:'#16a34a', RESERVADO:'#d97706', VENDIDO:'#64748b' };
+    const emojiEstado = { DISPONIBLE:'✅', RESERVADO:'⏳', VENDIDO:'💰' };
+
+    lista.innerHTML = docs.map(d => `
+      <div style="background:white;border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div style="font-weight:800;font-size:15px;color:#1e293b;">${d.modelo||'Sin modelo'}</div>
+          <span style="background:${colorEstado[d.estado]||'#64748b'}20;color:${colorEstado[d.estado]||'#64748b'};border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">${emojiEstado[d.estado]||''} ${d.estado||'—'}</span>
+        </div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">IMEI: <span style="font-weight:600;color:#1e293b;">${d.imei||'—'}</span></div>
+        <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
+          <span>💰 Costo: <b style="color:#1e293b;">${fmt(d.costo)}</b></span>
+          <span>📍 ${d.local||'—'}</span>
+          <span>🏭 ${d.proveedor||'—'}</span>
+          <span>📅 ${d.fecha_ingreso||'—'}</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button onclick="cambiarEstadoIphone('${d.id}','${d.estado}')" style="flex:1;padding:8px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Cambiar estado</button>
+          <button onclick="eliminarIphone('${d.id}','${d.modelo||'este iPhone'}')" style="padding:8px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    lista.innerHTML = `<div style="color:#dc2626;padding:16px;">Error: ${e.message}</div>`;
+  }
+}
+
+async function cambiarEstadoIphone(id, estadoActual) {
+  const estados = ['DISPONIBLE','RESERVADO','VENDIDO'];
+  const opciones = estados.filter(e => e !== estadoActual).map(e => `- ${e}`).join('\n');
+  const nuevo = prompt(`Estado actual: ${estadoActual}\n\nEscribe el nuevo estado:\n${opciones}`);
+  if(!nuevo) return;
+  const val = nuevo.trim().toUpperCase();
+  if(!estados.includes(val)) { alert('Estado no válido'); return; }
+  try {
+    await fbUpdate('inventario_iphone', id, { estado: val });
+    await cargarInvIphone();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function eliminarIphone(id, modelo) {
+  if(!confirm(`¿Eliminar "${modelo}" del inventario?`)) return;
+  try {
+    await fbDelete('inventario_iphone', id);
+    await cargarInvIphone();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function validarIMEIiPhone() {
+  const val = (document.getElementById('ii-imei')?.value||'').trim();
+  const aviso = document.getElementById('ii-imei-aviso');
+  if(!aviso) return;
+  if(val.length < 10) { aviso.style.display='none'; return; }
+  try {
+    const exist = await fbQuery('inventario_iphone', 'imei', '==', val);
+    if(exist.length > 0) {
+      aviso.style.display = '';
+      aviso.textContent = '⚠️ Ya existe un iPhone con este IMEI en el inventario';
+    } else { aviso.style.display='none'; }
+  } catch(e) { aviso.style.display='none'; }
+}
+
+let scannerIphone = null;
+function toggleScannerIphone() {
+  const cont = document.getElementById('scanner-container-iphone');
+  if(!cont) return;
+  if(cont.style.display === 'none') {
+    cont.style.display = '';
+    if(typeof Html5Qrcode !== 'undefined') {
+      scannerIphone = new Html5Qrcode('qr-reader-iphone');
+      scannerIphone.start({facingMode:'environment'},{fps:10,qrbox:250},(code)=>{
+        document.getElementById('ii-imei').value = code;
+        validarIMEIiPhone();
+        stopScannerIphone();
+      },()=>{}).catch(()=>stopScannerIphone());
+    }
+  } else { stopScannerIphone(); }
+}
+function stopScannerIphone() {
+  const cont = document.getElementById('scanner-container-iphone');
+  if(cont) cont.style.display='none';
+  if(scannerIphone) { scannerIphone.stop().catch(()=>{}); scannerIphone=null; }
+}
+
+// ══════════════════════════════════════════
+//  CALCULADORA GETS
+// ══════════════════════════════════════════
+let cgEquipoSeleccionado = null;
+
+async function cargarEquiposCalcGets() {
+  const lista = document.getElementById('cg-lista-equipos');
+  if(!lista) return;
+  document.getElementById('cg-paso1').style.display = '';
+  document.getElementById('cg-paso2').style.display = 'none';
+  cgEquipoSeleccionado = null;
+
+  lista.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Cargando equipos...</div>';
+  try {
+    const docs = await fbGetAll('inventario_iphone');
+    const disponibles = docs.filter(d => d.estado === 'DISPONIBLE');
+    if(!disponibles.length) {
+      lista.innerHTML = '<div style="background:#fef3c7;border-radius:12px;padding:16px;text-align:center;color:#92400e;font-weight:700;">Sin equipos disponibles en este momento.<br><span style="font-size:12px;font-weight:400;">Consulta con el encargado.</span></div>';
+      return;
+    }
+    lista.innerHTML = disponibles.map(d => `
+      <button onclick="seleccionarEquipoGets('${d.id}','${(d.modelo||'').replace(/'/g,"\\'")}','${d.imei}',${d.costo||0},'${d.local||''}')"
+        style="width:100%;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#1e293b;">${d.modelo||'iPhone'}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:3px;">📍 ${d.local||'Sin local'}</div>
+        </div>
+        <span style="font-size:20px;">›</span>
+      </button>`).join('');
+  } catch(e) {
+    lista.innerHTML = `<div style="color:#dc2626;padding:16px;">Error cargando equipos. Intenta de nuevo.</div>`;
+  }
+}
+
+function seleccionarEquipoGets(id, modelo, imei, costo, local) {
+  cgEquipoSeleccionado = { id, modelo, imei, costo: parseFloat(costo)||0, local };
+  document.getElementById('cg-paso1').style.display = 'none';
+  document.getElementById('cg-paso2').style.display = '';
+
+  const sel = document.getElementById('cg-equipo-sel');
+  if(sel) sel.innerHTML = `
+    <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Equipo seleccionado</div>
+    <div style="font-weight:800;font-size:17px;color:#1a1a2e;">🍎 ${modelo}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:3px;">📍 ${local||'—'}</div>`;
+
+  document.getElementById('cg-cupo').value = '';
+  document.getElementById('cg-resultado').style.display = 'none';
+}
+
+function calcGets() {
+  if(!cgEquipoSeleccionado) return;
+  const cupoRaw = (document.getElementById('cg-cupo')?.value||'').replace(/[^0-9]/g,'');
+  const cupo = parseFloat(cupoRaw)||0;
+  const res = document.getElementById('cg-resultado');
+  if(!res) return;
+  if(cupo < 50000) { res.style.display='none'; return; }
+
+  const costo = cgEquipoSeleccionado.costo;
+  const getsPaga = Math.round(cupo * 0.9);
+  const efecMinimo = Math.max(0, costo - getsPaga);
+  // Redondear a $10.000 hacia arriba
+  const efecMinRedondeado = Math.ceil(efecMinimo / 10000) * 10000;
+  // Utilidad sugerida: $200.000 en efectivo
+  const utilEfec = 200000;
+  const efecPedir = efecMinRedondeado + utilEfec;
+  // Redondear a $10.000 hacia arriba
+  const efecPedirFinal = Math.ceil(efecPedir / 10000) * 10000;
+  // Precio total de referencia (sin pagaré)
+  const precioRef = efecPedirFinal + cupo;
+  // Con pagaré de $200.000
+  const efecConPagare = Math.ceil((efecMinRedondeado + 200000) / 10000) * 10000;
+  const precioConPagare = efecConPagare + cupo + 200000;
+
+  const fmt = n => '$' + Math.round(n).toLocaleString('es-CO');
+
+  // ¿el efectivo mínimo es 0 o negativo? (Gets paga más que el costo)
+  const enVerde = efecMinimo <= 0;
+
+  res.style.display = '';
+  res.innerHTML = `
+    <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:14px;padding:16px;margin-bottom:12px;">
+      <div style="font-weight:800;font-size:13px;color:#15803d;margin-bottom:10px;">✅ OPCIÓN 1 — Solo efectivo</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;color:#374151;font-weight:600;">Cobrar al cliente:</span>
+        <span style="font-size:22px;font-weight:900;color:#15803d;">${fmt(efecPedirFinal)}</span>
+      </div>
+      <div style="background:white;border-radius:8px;padding:10px;font-size:12px;color:#64748b;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Gets le paga a usted</span><span style="font-weight:700;color:#1e293b;">${fmt(getsPaga)}</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Precio total para el cliente</span><span style="font-weight:700;color:#1e293b;">${fmt(precioRef)}</span></div>
+      </div>
+    </div>
+    <div style="background:#ede9fe;border:2px solid #7c3aed;border-radius:14px;padding:16px;">
+      <div style="font-weight:800;font-size:13px;color:#6d28d9;margin-bottom:10px;">📝 OPCIÓN 2 — Con pagaré de ${fmt(200000)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;color:#374151;font-weight:600;">Efectivo al cliente:</span>
+        <span style="font-size:20px;font-weight:900;color:#6d28d9;">${fmt(efecConPagare)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;color:#374151;font-weight:600;">Pagaré (2 cuotas de ${fmt(100000)}):</span>
+        <span style="font-size:18px;font-weight:800;color:#6d28d9;">${fmt(200000)}</span>
+      </div>
+      <div style="background:white;border-radius:8px;padding:10px;font-size:12px;color:#64748b;">
+        <div style="display:flex;justify-content:space-between;"><span>Precio total para el cliente</span><span style="font-weight:700;color:#1e293b;">${fmt(precioConPagare)}</span></div>
+      </div>
+    </div>
+    ${enVerde ? `<div style="background:#dcfce7;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#15803d;font-weight:700;text-align:center;">🎉 Gets paga más que el costo — cualquier efectivo es ganancia</div>` : ''}
+    <div style="background:#f8fafc;border-radius:10px;padding:10px;margin-top:10px;font-size:11px;color:#94a3b8;text-align:center;">Solo uso interno · El cliente no ve estos cálculos</div>`;
 }
 
 </script>
