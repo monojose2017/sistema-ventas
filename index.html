@@ -196,7 +196,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
 
     <!-- SOLO CRÉDITO -->
     <div id="vi-sec-credito">
-      <div class="field"><label>Financiera</label><div class="select-wrap"><select id="vi-financiera"><option value="">Seleccionar...</option><option>E-CREDIT</option><option>OME-CREDIT</option></select></div></div>
+      <div class="field"><label>Financiera</label><div class="select-wrap"><select id="vi-financiera"><option value="">Seleccionar...</option><option>GETS</option><option>E-CREDIT</option><option>OME-CREDIT</option><option>CONTADO</option><option>MOVISIM</option><option>COMTEL</option><option>ALO_CREDIT</option><option>ADDI</option><option>PAYJOY</option><option>OTRO</option></select></div></div>
       <div class="field"><label>Cuota inicial recibida</label><input type="text" id="vi-cuota" placeholder="$0" oninput="formatMoney(this)"></div>
     </div>
 
@@ -2667,7 +2667,7 @@ function corregirEditar(idx) {
   const RESPONSABLES = window.CONFIG_LISTAS?.responsables || [];
   const METODOS_PAGO = ['EFECTIVO','TRANSFERENCIA','MIXTO'];
   const FINANCIERAS = ['OFICINA','RECOMPRA','ALO_CREDIT','ET_OFICINA','ET_CLARO','PAYJOY','ADDI'];
-  const FINANCIERAS_IPHONE = ['CONTADO','MOVISIM','COMTEL','ALO_CREDIT','E_CREDIT','PAYJOY','ADDI','OTRO'];
+  const FINANCIERAS_IPHONE = ['GETS','CONTADO','MOVISIM','COMTEL','ALO_CREDIT','E_CREDIT','E-CREDIT','OME-CREDIT','PAYJOY','ADDI','OTRO'];
   const ESTADOS_TEL = ['DISPONIBLE','VENDIDO','EN GARANTIA','PRESTADO','ANULADO'];
   const ESTADOS_IPHONE = ['PENDIENTE','COMPLETA','ANULADO'];
 
