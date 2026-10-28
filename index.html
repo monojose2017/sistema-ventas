@@ -496,6 +496,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-body">
     <div id="cg-paso1">
       <p class="sec-titulo">1. Elige el equipo</p>
+      <input type="text" id="cg-filtro" placeholder="🔍 Buscar por modelo, IMEI o color..." oninput="filtrarCalcGets()" style="width:100%;padding:11px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;">
       <div id="cg-lista-equipos" style="display:flex;flex-direction:column;gap:10px;">
         <div style="text-align:center;color:#94a3b8;padding:20px;font-size:14px;">Cargando equipos disponibles...</div>
       </div>
@@ -580,6 +581,32 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="filtroInvIphone='VENDIDO';cargarInvIphone()" id="fi-vend" style="flex:1;padding:8px;border-radius:8px;border:2px solid #dc2626;background:white;color:#dc2626;font-weight:700;font-size:12px;cursor:pointer;">💰 Vendidos</button>
     </div>
     <div id="inv-iphone-lista"></div>
+  </div>
+</div>
+
+<!-- EDITAR iPHONE -->
+<div class="screen" id="screen-editar-iphone">
+  <div class="form-header" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+    <button class="back-btn" onclick="irA('ver-inventario-iphone')">‹</button>
+    <div><div class="form-header-title">✏️ Editar iPhone</div><div class="form-header-sub">Actualiza los datos del equipo</div></div>
+  </div>
+  <div class="form-body">
+    <div class="field"><label>IMEI</label><input type="text" id="ei-imei" placeholder="Número IMEI" inputmode="numeric"></div>
+    <div class="field"><label>Modelo</label>
+      <input type="text" id="ei-modelo-search" placeholder="Buscar modelo..." oninput="filtrarModeloIphoneEdit()" style="margin-bottom:6px;">
+      <div class="select-wrap"><select id="ei-modelo-sel"><option value="">Seleccionar modelo...</option></select></div>
+    </div>
+    <div class="field"><label>Color</label><input type="text" id="ei-color" placeholder="Ej: Negro, Blanco, Azul..."></div>
+    <div class="field"><label>Estado de la batería (%)</label><input type="number" id="ei-bateria" placeholder="Ej: 91" min="1" max="100" inputmode="numeric"></div>
+    <div class="field"><label>Costo</label><input type="number" id="ei-costo" placeholder="Ej: 2300000" inputmode="numeric"></div>
+    <div class="field"><label>Fecha de ingreso</label><input type="date" id="ei-fecha"></div>
+    <div class="field"><label>Proveedor</label><div class="select-wrap"><select id="ei-proveedor"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Local</label><div class="select-wrap"><select id="ei-local"><option value="">Seleccionar...</option></select></div></div>
+    <div class="field"><label>Estado</label><div class="select-wrap"><select id="ei-estado">
+      <option value="DISPONIBLE">✅ Disponible</option>
+      <option value="VENDIDO">💰 Vendido</option>
+    </select></div></div>
+    <button class="submit-btn" style="background:linear-gradient(135deg,#1a1a2e,#16213e);" onclick="guardarEdicionIphone()">Guardar cambios ✓</button>
   </div>
 </div>
 
@@ -10264,7 +10291,7 @@ async function cargarInvIphone() {
           <span>📅 ${d.fecha_ingreso||'—'}</span>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
-          <button onclick="cambiarEstadoIphone('${d.id}','${d.estado}')" style="flex:1;padding:8px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Cambiar estado</button>
+          <button onclick="editarIphone('${d.id}')" style="flex:1;padding:8px;background:#1a1a2e;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Editar</button>
           <button onclick="eliminarIphone('${d.id}','${d.modelo||'este iPhone'}')" style="padding:8px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🗑️</button>
         </div>
       </div>`).join('');
@@ -10292,6 +10319,83 @@ async function eliminarIphone(id, modelo) {
     await fbDelete('inventario_iphone', id);
     await cargarInvIphone();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+let iphoneEditId = null;
+
+async function editarIphone(id) {
+  try {
+    const docs = await fbGetAll('inventario_iphone');
+    const doc = docs.find(d => d.id === id);
+    if(!doc) { alert('No se encontró el equipo'); return; }
+    iphoneEditId = id;
+
+    // Poblar selects de proveedor y local
+    const selProv = document.getElementById('ei-proveedor');
+    const selLocal = document.getElementById('ei-local');
+    if(selProv && window.CONFIG_LISTAS) {
+      const provs = window.CONFIG_LISTAS.proveedores || [];
+      selProv.innerHTML = '<option value="">Seleccionar...</option>' + provs.map(p=>`<option ${p===doc.proveedor?'selected':''}>${p}</option>`).join('');
+    }
+    if(selLocal && window.CONFIG_LISTAS) {
+      const locales = window.CONFIG_LISTAS.locales || [];
+      selLocal.innerHTML = '<option value="">Seleccionar...</option>' + locales.map(l=>`<option ${l===doc.local?'selected':''}>${l}</option>`).join('');
+    }
+
+    // Poblar selector de modelos
+    const refs = window.CONFIG_DATA?.referenciasIphone || [];
+    const selMod = document.getElementById('ei-modelo-sel');
+    if(selMod) {
+      selMod.innerHTML = '<option value="">Seleccionar modelo...</option>' + refs.map(r=>`<option ${r===doc.modelo?'selected':''}>${r}</option>`).join('');
+    }
+
+    // Llenar campos
+    document.getElementById('ei-imei').value = doc.imei || '';
+    document.getElementById('ei-color').value = doc.color || '';
+    document.getElementById('ei-bateria').value = doc.bateria || '';
+    document.getElementById('ei-costo').value = doc.costo || '';
+    document.getElementById('ei-fecha').value = doc.fecha_ingreso || '';
+    const selEst = document.getElementById('ei-estado');
+    if(selEst) selEst.value = doc.estado || 'DISPONIBLE';
+    document.getElementById('ei-modelo-search').value = '';
+
+    irA('editar-iphone');
+  } catch(e) { alert('Error al cargar: ' + e.message); }
+}
+
+function filtrarModeloIphoneEdit() {
+  const q = (document.getElementById('ei-modelo-search')?.value||'').toLowerCase().trim();
+  const sel = document.getElementById('ei-modelo-sel');
+  if(!sel) return;
+  const refs = window.CONFIG_DATA?.referenciasIphone || [];
+  const filtradas = q ? refs.filter(r => r.toLowerCase().includes(q)) : refs;
+  sel.innerHTML = '<option value="">Seleccionar modelo...</option>';
+  filtradas.forEach(r => { const o = document.createElement('option'); o.textContent = r; sel.appendChild(o); });
+}
+
+async function guardarEdicionIphone() {
+  if(!iphoneEditId) { alert('Error: no hay equipo seleccionado'); return; }
+  const imei = document.getElementById('ei-imei')?.value.trim() || '';
+  const modelo = document.getElementById('ei-modelo-sel')?.value || '';
+  const color = document.getElementById('ei-color')?.value.trim() || '';
+  const bateria = parseInt(document.getElementById('ei-bateria')?.value) || 0;
+  const costoRaw = (document.getElementById('ei-costo')?.value||'').replace(/[^0-9]/g,'');
+  const costo = parseFloat(costoRaw) || 0;
+  const fecha = document.getElementById('ei-fecha')?.value || '';
+  const proveedor = document.getElementById('ei-proveedor')?.value || '';
+  const local = document.getElementById('ei-local')?.value || '';
+  const estado = document.getElementById('ei-estado')?.value || 'DISPONIBLE';
+
+  if(!modelo) { alert('Selecciona un modelo'); return; }
+  if(!costo) { alert('Ingresa el costo'); return; }
+
+  try {
+    await fbUpdate('inventario_iphone', iphoneEditId, {
+      imei, modelo, color, bateria, costo, fecha_ingreso: fecha, proveedor, local, estado
+    });
+    iphoneEditId = null;
+    irA('ver-inventario-iphone');
+  } catch(e) { alert('Error al guardar: ' + e.message); }
 }
 
 function filtrarModeloIphone() {
@@ -10344,6 +10448,41 @@ function stopScannerIphone() {
 //  CALCULADORA GETS
 // ══════════════════════════════════════════
 let cgEquipoSeleccionado = null;
+let cgEquiposCache = [];
+
+function renderListaCalcGets(equipos) {
+  const lista = document.getElementById('cg-lista-equipos');
+  if(!lista) return;
+  if(!equipos.length) {
+    lista.innerHTML = '<div style="background:#fef3c7;border-radius:12px;padding:16px;text-align:center;color:#92400e;font-weight:700;">Sin resultados.<br><span style="font-size:12px;font-weight:400;">Intenta con otro término.</span></div>';
+    return;
+  }
+  lista.innerHTML = equipos.map(d => `
+      <button onclick="seleccionarEquipoGets('${d.id}','${(d.modelo||'').replace(/'/g,"\\'")}','${d.imei||''}',${d.costo||0},'${d.local||''}','${(d.color||'').replace(/'/g,"\\'")}',${d.bateria||0})"
+        style="width:100%;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:800;font-size:15px;color:#1e293b;">${d.modelo||'iPhone'}</div>
+          ${d.imei ? `<div style="font-size:12px;color:#475569;margin-top:3px;font-family:monospace;letter-spacing:0.5px;">IMEI: ${d.imei}</div>` : ''}
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
+            ${d.color ? `<span style="font-size:11px;color:#64748b;">🎨 ${d.color}</span>` : ''}
+            ${d.bateria ? `<span style="font-size:11px;color:${d.bateria>=80?'#15803d':d.bateria>=60?'#854d0e':'#b91c1c'};font-weight:700;">🔋 ${d.bateria}%</span>` : ''}
+            <span style="font-size:11px;color:#64748b;">📍 ${d.local||'Sin local'}</span>
+          </div>
+        </div>
+        <span style="font-size:20px;margin-left:8px;">›</span>
+      </button>`).join('');
+}
+
+function filtrarCalcGets() {
+  const q = (document.getElementById('cg-filtro')?.value||'').toLowerCase().trim();
+  if(!q) { renderListaCalcGets(cgEquiposCache); return; }
+  const filtrados = cgEquiposCache.filter(d =>
+    (d.modelo||'').toLowerCase().includes(q) ||
+    (d.imei||'').toLowerCase().includes(q) ||
+    (d.color||'').toLowerCase().includes(q)
+  );
+  renderListaCalcGets(filtrados);
+}
 
 async function cargarEquiposCalcGets() {
   const lista = document.getElementById('cg-lista-equipos');
@@ -10351,28 +10490,20 @@ async function cargarEquiposCalcGets() {
   document.getElementById('cg-paso1').style.display = '';
   document.getElementById('cg-paso2').style.display = 'none';
   cgEquipoSeleccionado = null;
+  cgEquiposCache = [];
+  const filtroEl = document.getElementById('cg-filtro');
+  if(filtroEl) filtroEl.value = '';
 
   lista.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">Cargando equipos...</div>';
   try {
     const docs = await fbGetAll('inventario_iphone');
     const disponibles = docs.filter(d => d.estado === 'DISPONIBLE');
+    cgEquiposCache = disponibles;
     if(!disponibles.length) {
       lista.innerHTML = '<div style="background:#fef3c7;border-radius:12px;padding:16px;text-align:center;color:#92400e;font-weight:700;">Sin equipos disponibles en este momento.<br><span style="font-size:12px;font-weight:400;">Consulta con el encargado.</span></div>';
       return;
     }
-    lista.innerHTML = disponibles.map(d => `
-      <button onclick="seleccionarEquipoGets('${d.id}','${(d.modelo||'').replace(/'/g,"\\'")}','${d.imei}',${d.costo||0},'${d.local||''}','${(d.color||'').replace(/'/g,"\\'")}',${d.bateria||0})"
-        style="width:100%;background:white;border:2px solid #e2e8f0;border-radius:12px;padding:14px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-weight:800;font-size:15px;color:#1e293b;">${d.modelo||'iPhone'}</div>
-          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">
-            ${d.color ? `<span style="font-size:11px;color:#64748b;">🎨 ${d.color}</span>` : ''}
-            ${d.bateria ? `<span style="font-size:11px;color:${d.bateria>=80?'#15803d':d.bateria>=60?'#854d0e':'#b91c1c'};font-weight:700;">🔋 ${d.bateria}%</span>` : ''}
-            <span style="font-size:11px;color:#64748b;">📍 ${d.local||'Sin local'}</span>
-          </div>
-        </div>
-        <span style="font-size:20px;">›</span>
-      </button>`).join('');
+    renderListaCalcGets(disponibles);
   } catch(e) {
     lista.innerHTML = `<div style="color:#dc2626;padding:16px;">Error cargando equipos. Intenta de nuevo.</div>`;
   }
@@ -10387,6 +10518,7 @@ function seleccionarEquipoGets(id, modelo, imei, costo, local, color, bateria) {
   if(sel) sel.innerHTML = `
     <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Equipo seleccionado</div>
     <div style="font-weight:800;font-size:17px;color:#1a1a2e;">🍎 ${modelo}</div>
+    ${imei ? `<div style="font-size:13px;color:#475569;margin-top:4px;font-family:monospace;letter-spacing:0.5px;background:#f1f5f9;display:inline-block;padding:3px 8px;border-radius:6px;">IMEI: ${imei}</div>` : ''}
     <div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap;">
       ${color ? `<span style="font-size:12px;color:#475569;">🎨 ${color}</span>` : ''}
       ${bateria ? `<span style="font-size:12px;font-weight:700;color:${bateria>=80?'#15803d':bateria>=60?'#854d0e':'#b91c1c'};">🔋 ${bateria}%</span>` : ''}
