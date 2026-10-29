@@ -1016,12 +1016,13 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
   <div class="form-header"><button class="back-btn" onclick="irA('gerencia')">‹</button><div><div class="form-header-title">🍎 iPhone</div><div class="form-header-sub">Completar ventas y calcular utilidades</div></div></div>
   <div class="form-body">
     <!-- Tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
       <button onclick="setTabIphone('pendientes')" id="tab-iphone-pend" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:#1a1a2e;color:white;font-weight:700;cursor:pointer;font-size:13px;">⏳ Pend.</button>
       <button onclick="setTabIphone('completas')" id="tab-iphone-comp" style="flex:1;padding:10px;border-radius:10px;border:2px solid #1a1a2e;background:white;color:#1a1a2e;font-weight:700;cursor:pointer;font-size:13px;">✅ Completas</button>
       <button onclick="setTabIphone('contado')" id="tab-iphone-cont" style="flex:1;padding:10px;border-radius:10px;border:2px solid #15803d;background:white;color:#15803d;font-weight:700;cursor:pointer;font-size:13px;">💵 Contado</button>
       <button onclick="setTabIphone('mes')" id="tab-iphone-mes" style="flex:1;padding:10px;border-radius:10px;border:2px solid #be123c;background:white;color:#be123c;font-weight:700;cursor:pointer;font-size:13px;">📅 Por Mes</button>
     </div>
+    <input type="text" id="iphone-buscar" placeholder="🔍 Buscar por nombre, referencia, IMEI..." oninput="renderListaIphone()" style="width:100%;padding:11px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:12px;">
     <div id="iphone-lista"></div>
 
     <!-- Resumen de utilidades -->
@@ -7599,11 +7600,20 @@ function renderListaIphone() {
   }
 
   // === PESTAÑAS NORMALES ===
+  const busq = (document.getElementById('iphone-buscar')?.value||'').toLowerCase().trim();
   const filtradas = iphoneVentas.filter(v => {
-    if(iphoneTabActual === 'pendientes') return v.estado === 'PENDIENTE' && v.financiera !== 'CONTADO';
-    if(iphoneTabActual === 'completas') return v.estado === 'COMPLETA' && v.financiera !== 'CONTADO';
-    if(iphoneTabActual === 'contado') return v.financiera === 'CONTADO';
-    return false;
+    const pasaTab = iphoneTabActual === 'pendientes' ? (v.estado === 'PENDIENTE' && v.financiera !== 'CONTADO')
+      : iphoneTabActual === 'completas' ? (v.estado === 'COMPLETA' && v.financiera !== 'CONTADO')
+      : iphoneTabActual === 'contado' ? v.financiera === 'CONTADO'
+      : false;
+    if(!pasaTab) return false;
+    if(!busq) return true;
+    return (v.ref||'').toLowerCase().includes(busq) ||
+           (v.nombre||'').toLowerCase().includes(busq) ||
+           (v.imei||'').toLowerCase().includes(busq) ||
+           (v.cedula||'').toLowerCase().includes(busq) ||
+           (v.financiera||'').toLowerCase().includes(busq) ||
+           (v.local||'').toLowerCase().includes(busq);
   });
   if(filtradas.length === 0) {
     lista.innerHTML = `<div style="text-align:center;padding:30px;color:#94a3b8;">No hay ventas ${iphoneTabActual === 'pendientes' ? 'de crédito pendientes' : iphoneTabActual === 'completas' ? 'completas' : 'de contado'}</div>`;
@@ -7632,6 +7642,7 @@ function renderListaIphone() {
             <div style="display:flex;gap:6px;">
               <button onclick="abrirCompletarIphone(${v.idx})" style="padding:6px 12px;background:#64748b;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ Editar</button>
               ${v.liquidado!=='SI' && v.financiera!=='CONTADO' ? `<button onclick="abrirRegistrarPago(${v.idx})" style="padding:6px 12px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">💰 Registrar pago</button>` : ''}
+              ${v.liquidado==='SI' ? `<button onclick="revertirPagoIphone(${v.idx})" style="padding:6px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">↩️ Revertir</button>` : ''}
             </div>
           </div>
         </div>` : ''}
@@ -7887,6 +7898,23 @@ async function guardarPagoIphone(idx) {
     mostrarToastVerde('✅ Pago registrado correctamente');
   } catch(e) {
     alert('❌ Error al guardar: ' + e.message);
+  }
+}
+
+async function revertirPagoIphone(idx) {
+  const v = iphoneVentas[idx];
+  if(!v) return;
+  const fmt = n => '$'+Math.round(n).toLocaleString('es-CO');
+  if(!confirm(`¿Revertir el pago de ${fmt(v.pagoFinanciera)} registrado para "${v.ref}"?\n\nEsto marcará la venta como pendiente de liquidar.`)) return;
+  try {
+    await fbUpdate('ventas_iphone', v.id, {
+      liquidado: 'NO',
+      pago_financiera: 0
+    });
+    await cargarVentasIphone();
+    mostrarToastVerde('↩️ Pago revertido — venta marcada como pendiente');
+  } catch(e) {
+    alert('❌ Error al revertir: ' + e.message);
   }
 }
 
