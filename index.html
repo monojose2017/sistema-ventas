@@ -580,6 +580,7 @@ body{font-family:'Nunito',sans-serif;background:#e8edf5;min-height:100vh;display
       <button onclick="filtroInvIphone='DISPONIBLE';cargarInvIphone()" id="fi-disp" style="flex:1;padding:8px;border-radius:8px;border:2px solid #16a34a;background:white;color:#16a34a;font-weight:700;font-size:12px;cursor:pointer;">✅ Disponibles</button>
       <button onclick="filtroInvIphone='VENDIDO';cargarInvIphone()" id="fi-vend" style="flex:1;padding:8px;border-radius:8px;border:2px solid #dc2626;background:white;color:#dc2626;font-weight:700;font-size:12px;cursor:pointer;">💰 Vendidos</button>
     </div>
+    <button onclick="sincronizarEstadosIphone(this)" style="width:100%;padding:11px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;margin-bottom:12px;">🔄 Sincronizar estados con ventas</button>
     <div id="inv-iphone-lista"></div>
   </div>
 </div>
@@ -7339,9 +7340,10 @@ async function enviarVentaIphone() {
   ];
 
   try {
+    const imeiVenta = getVal('vi-imei')||'';
     const id = await fbAdd('ventas_iphone', {
       fecha, local, referencia: ref, financiera,
-      imei: getVal('vi-imei')||'',
+      imei: imeiVenta,
       cedula: getVal('vi-cedula')||'',
       nombre: getVal('vi-nombre')||'',
       cuota_inicial: cuotaInicial,
@@ -7351,6 +7353,14 @@ async function enviarVentaIphone() {
       estado: 'PENDIENTE',
       liquidado: 'NO'
     });
+    // Marcar el equipo como VENDIDO en inventario_iphone si tiene IMEI
+    if(imeiVenta) {
+      try {
+        const invDocs = await fbGetAll('inventario_iphone');
+        const equipoInv = invDocs.find(d => d.imei && d.imei.trim() === imeiVenta.trim() && d.estado === 'DISPONIBLE');
+        if(equipoInv) await fbUpdate('inventario_iphone', equipoInv.id, { estado: 'VENDIDO' });
+      } catch(eInv) { console.warn('No se pudo actualizar inventario_iphone:', eInv.message); }
+    }
     if(btn) { btn.textContent = viTabActual === 'credito' ? 'Registrar Venta iPhone ✓' : 'Registrar iPhone Contado ✓'; btn.disabled = false; }
     // Limpiar formulario
     ['vi-imei','vi-cedula','vi-nombre','vi-cuota','vi-precio-contado','vi-efectivo','vi-transfer'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
@@ -10347,6 +10357,35 @@ async function eliminarIphone(id, modelo) {
     await fbDelete('inventario_iphone', id);
     await cargarInvIphone();
   } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function sincronizarEstadosIphone(btn) {
+  if(!confirm('¿Sincronizar estados?\n\nEsto revisará todos los IMEI del inventario y marcará como VENDIDO los que ya tienen venta registrada.')) return;
+  if(btn) { btn.textContent = '⏳ Sincronizando...'; btn.disabled = true; }
+  try {
+    const [invDocs, ventasDocs] = await Promise.all([
+      fbGetAll('inventario_iphone'),
+      fbGetAll('ventas_iphone')
+    ]);
+    // Recolectar todos los IMEI que tienen venta registrada
+    const imeiVendidos = new Set(
+      ventasDocs.map(v => (v.imei||'').trim()).filter(i => i.length > 5)
+    );
+    let actualizados = 0;
+    for(const inv of invDocs) {
+      const imei = (inv.imei||'').trim();
+      if(imei && imeiVendidos.has(imei) && inv.estado !== 'VENDIDO') {
+        await fbUpdate('inventario_iphone', inv.id, { estado: 'VENDIDO' });
+        actualizados++;
+      }
+    }
+    await cargarInvIphone();
+    if(btn) { btn.textContent = '🔄 Sincronizar estados con ventas'; btn.disabled = false; }
+    mostrarToastVerde(`✅ Sincronización completa — ${actualizados} equipo${actualizados!==1?'s':''} actualizados`);
+  } catch(e) {
+    if(btn) { btn.textContent = '🔄 Sincronizar estados con ventas'; btn.disabled = false; }
+    alert('Error: ' + e.message);
+  }
 }
 
 let iphoneEditId = null;
